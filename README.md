@@ -2,6 +2,10 @@
 
 **Action RPG en pixel art · Exploración, combate y aventura cooperativa**
 
+### 🎮 [JUGAR AHORA](https://vangelium.github.io/torre-multiversal./)
+
+Juega directamente desde tu navegador, sin descargas ni instalaciones.
+
 Explora el valle, descubre criaturas y encuentra tu camino en una Torre llena de nuevos desafíos. Una aventura para **1 a 4 jugadores**, diseñada para disfrutarse desde el navegador en computadora o celular.
 
 ---
@@ -23,7 +27,7 @@ Torre Multiversal combina exploración, combates en tiempo real y progresión de
 
 **En desarrollo activo.** Los sistemas y contenidos evolucionan con cada actualización. Algunas funciones, especialmente las conectadas al multijugador, requieren pruebas adicionales en el entorno publicado.
 
-El proyecto está alojado en GitHub y preparado para publicarse con **GitHub Pages**. El enlace de juego se compartirá una vez confirmado el despliegue público.
+La versión web está disponible en [GitHub Pages](https://vangelium.github.io/torre-multiversal./). El proyecto continúa en desarrollo y requiere pruebas de compatibilidad y multijugador en distintos dispositivos.
 
 ## Tecnología
 
