@@ -1,41 +1,41 @@
-# Torre Multiversal · publicación en GitHub Pages
+# TORRE MULTIVERSAL
 
-Juego web estático. No requiere `npm`, compilación ni servidor Node.
+**Action RPG en pixel art · Exploración, combate y aventura cooperativa**
 
-## Publicación del repositorio actual
+Explora el valle, descubre criaturas y encuentra tu camino en una Torre llena de nuevos desafíos. Una aventura para **1 a 4 jugadores**, diseñada para disfrutarse desde el navegador en computadora o celular.
 
-Los archivos del juego se subieron por GitHub MCP a `Vangelium/torre-multiversal.` en `main`. El punto al final del nombre es parte del nombre actual.
+---
 
-1. Entra en https://github.com/Vangelium/torre-multiversal./settings/pages desde el navegador con tu sesión iniciada.
-2. En **Build and deployment**, elige **Deploy from a branch**, rama **main**, carpeta **/(root)** y pulsa **Save**.
-3. Confirma que GitHub Pages muestre el estado de publicación y el enlace real del sitio antes de compartirlo.
+## El juego
 
-Si decides renombrar el repositorio para quitar el punto final, hazlo desde **Settings → General** y revisa nuevamente el enlace de Pages.
+Torre Multiversal combina exploración, combates en tiempo real y progresión de personaje con una experiencia cooperativa. Cada ascenso abre la puerta a nuevos encuentros y decisiones.
 
-GitHub Pages requiere que la cuenta y el repositorio cumplan sus límites y condiciones. La publicación no es inmediata; mira el estado de Pages/Actions si aún no aparece.
+### Características
 
-## Actualización
+- **Exploración y ascenso:** recorre el valle y avanza por los pisos de la Torre.
+- **Combate activo:** ataques básicos y fuertes, esquivas y combinaciones de movimientos.
+- **Tu personaje, tu progreso:** creación de personaje, niveles y opciones de equipo.
+- **Criaturas por descubrir:** encuentra especies y consulta sus registros.
+- **Aventura compartida:** salas cooperativas para hasta cuatro jugadores.
+- **Diseñado para jugar en la web:** interfaz adaptable a dispositivos móviles y computadoras.
 
-Reemplaza los archivos modificados en `main` y confirma los cambios. **No publiques ZIP como un único archivo**. Si actualizas `game.js`, cambia la versión de `game.js?v=...` en `index.html` para evitar caché vieja del navegador.
+## Estado del proyecto
 
-## Compatibilidad
+**En desarrollo activo.** Los sistemas y contenidos evolucionan con cada actualización. Algunas funciones, especialmente las conectadas al multijugador, requieren pruebas adicionales en el entorno publicado.
 
-- `index.html`, `game.js`, `three.min.js` y los iconos usan rutas relativas para funcionar en subcarpetas de Pages.
-- Las invitaciones multiplayer usan automáticamente la URL raíz de la página donde se ejecuta el juego.
-- El multijugador usa Supabase como servicio independiente. Esta publicación **no cambia** la configuración, las reglas de acceso ni las cuotas de Supabase. Comprueba crear/unirse a una sala desde dos navegadores reales una vez desplegado.
-- GitHub Pages solo sirve archivos estáticos. El archivo `_headers` de Netlify no funciona en GitHub Pages y se ha excluido del paquete.
-- Los datos guardados en `localStorage` bajo el dominio antiguo de Netlify no se migran automáticamente a un dominio nuevo.
-- La clave `sb_publishable_...` de Supabase es pública, pero hay que proteger las tablas y los permisos con políticas adecuadas (RLS). No pongas contraseñas, claves secretas o tokens administrativos en este repositorio público.
+El proyecto está alojado en GitHub y preparado para publicarse con **GitHub Pages**. El enlace de juego se compartirá una vez confirmado el despliegue público.
 
-## Contenido
+## Tecnología
 
-- `index.html`: interfaz y carga del juego.
-- `game.js`: lógica de juego, multijugador e invitaciones.
-- `three.min.js`: biblioteca gráfica incluida localmente.
-- `manifest.webmanifest` y `icon-*.png`: instalación móvil.
-- `.nojekyll`: publicación estática sin procesamiento Jekyll.
-- `skills/github-pages-juegos/SKILL.md`: procedimiento reutilizable para trabajar con una conexión GitHub MCP.
+- **HTML, CSS y JavaScript:** interfaz y lógica del juego.
+- **Three.js:** renderizado gráfico.
+- **Supabase:** infraestructura de las funciones multijugador.
+- **GitHub Pages:** alojamiento de la versión web.
 
-## Notas de verificación
+## Documentación
 
-Cambio funcional único sobre el juego: la URL de las invitaciones deja de ser fija a Netlify y se toma de la página actual en HTTP(S). No se alteraron sistemas de combate, criaturas, clases o multijugador. Se actualizó el parámetro de versión JS para invalidar caché.
+Las instrucciones de publicación, mantenimiento, compatibilidad y verificación se encuentran en [`docs/PUBLICACION.md`](docs/PUBLICACION.md).
+
+---
+
+**Torre Multiversal** · Proyecto independiente en evolución.
