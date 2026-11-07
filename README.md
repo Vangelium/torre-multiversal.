@@ -2,13 +2,15 @@
 
 Juego web estático. No requiere `npm`, compilación ni servidor Node.
 
-## Publicación inicial desde el celular
+## Publicación del repositorio actual
 
-1. Crea un repositorio **público** llamado `torre-multiversal` en https://github.com/new (o usa uno propio con permisos de escritura).
-2. En el repositorio, pulsa **Add file → Upload files** y carga **el contenido descomprimido de este ZIP** en la raíz, no el ZIP como archivo.
-3. Confirma la subida a la rama `main`.
-4. Ve a **Settings → Pages**, selecciona **Deploy from a branch**, rama **main**, carpeta **/(root)** y guarda.
-5. Cuando GitHub termine de publicar, la URL normalmente será `https://TU_USUARIO.github.io/torre-multiversal/`.
+Los archivos del juego se subieron por GitHub MCP a `Vangelium/torre-multiversal.` en `main`. El punto al final del nombre es parte del nombre actual.
+
+1. Entra en https://github.com/Vangelium/torre-multiversal./settings/pages desde el navegador con tu sesión iniciada.
+2. En **Build and deployment**, elige **Deploy from a branch**, rama **main**, carpeta **/(root)** y pulsa **Save**.
+3. Confirma que GitHub Pages muestre el estado de publicación y el enlace real del sitio antes de compartirlo.
+
+Si decides renombrar el repositorio para quitar el punto final, hazlo desde **Settings → General** y revisa nuevamente el enlace de Pages.
 
 GitHub Pages requiere que la cuenta y el repositorio cumplan sus límites y condiciones. La publicación no es inmediata; mira el estado de Pages/Actions si aún no aparece.
 
