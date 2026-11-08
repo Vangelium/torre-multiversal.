@@ -582,6 +582,32 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 .companion-chip[hidden] { display: none !important; }
 #companion-list .mode-btn[aria-pressed="true"] { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
 #companion-modes-wrap { margin-top: 8px; }
+/* Parte 2b: tus compañeras en pantalla (retrato, vida, estado; tocar = darle de comer) y tu comida. */
+.pet-hud { display: grid; gap: 4px; pointer-events: none; }
+.pet-hud[hidden] { display: none !important; }
+.pet-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pet-food { display: flex; gap: 4px; pointer-events: none; }
+.pet-food-item { display: inline-flex; align-items: center; gap: 2px; padding: 2px 5px 2px 3px; background: rgba(14,17,24,.82); border: 1px solid #4a3b2a; font: 600 11px var(--font-label); color: #ffe0c0; }
+.pet-food-item[data-empty="1"] { opacity: .55; }
+.pet-food-pic { width: 12px; height: 12px; image-rendering: pixelated; }
+.pet-frames { display: flex; gap: 4px; }
+.pet-frame { position: relative; display: grid; justify-items: center; gap: 2px; width: 40px; min-height: 40px; padding: 3px 2px 3px; background: rgba(14,17,24,.86); border: 2px solid #5a3a48; box-shadow: inset 0 0 0 1px #2a1c24; cursor: pointer; pointer-events: auto; }
+.pet-frame:active { transform: translateY(1px); }
+.pet-pic { width: 28px; height: 24px; image-rendering: pixelated; }
+.pet-bar { display: block; width: 32px; height: 4px; background: #2a1e22; border: 1px solid #1d1712; }
+.pet-bar b { display: block; height: 100%; background: #4fc56a; }
+.pet-frame[data-state="low"] .pet-bar b, .pet-frame[data-state="down"] .pet-bar b { background: #e0474f; }
+.pet-frame[data-state="low"] { border-color: #a8444c; animation: pet-low 1.1s steps(2) infinite; }
+.pet-frame[data-state="down"] { border-color: #8a2a32; }
+.pet-frame[data-state="down"] .pet-pic { filter: grayscale(.85) brightness(.75); }
+.pet-badge { position: absolute; top: -5px; right: -5px; min-width: 14px; height: 14px; display: grid; place-items: center; font: 700 10px var(--font-label); color: #fff; background: transparent; }
+.pet-badge:empty { display: none; }
+.pet-frame[data-state="down"] .pet-badge { background: #c8303c; border: 1px solid #1d1712; }
+.pet-frame[data-state="low"] .pet-badge { background: #d98a2a; border: 1px solid #1d1712; }
+.pet-frame[data-state="eat"] .pet-badge { color: #ff8ab0; background: #2a1c24; border: 1px solid #1d1712; }
+.pet-frame[data-state="sleep"] .pet-badge { color: #cfe0ff; background: #1c2434; border: 1px solid #1d1712; }
+@keyframes pet-low { 50% { border-color: #5a3a48; } }
+@media (max-height: 420px) and (orientation: landscape) { .pet-frame { width: 36px; min-height: 34px; padding: 2px 2px 2px; } .pet-pic { width: 24px; height: 20px; } .pet-bar { width: 28px; } }
 .echo-dialog { color: var(--parchment); background: linear-gradient(180deg, var(--slate-2), var(--slate)); border: 2px solid var(--edge); box-shadow: inset 0 0 0 2px #7fd2c3, inset 0 0 0 4px #2f6b62, 0 4px 0 0 rgba(0,0,0,.45); padding: 18px; width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; }
 .echo-dialog::backdrop { background: rgba(5,6,10,.72); }
 .echo-dialog h2 { color: #a2e5d5; font-size: 13px; margin: 0 0 10px; }
@@ -652,7 +678,13 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
       <span id="goal-progress">Descubre tres especies distintas.</span>
       <span id="goal-next">Próximo Despertar: Chispa · Nv. 5</span>
     </button>
-    <button id="companion-mode" class="chip companion-chip" type="button" hidden aria-label="Modo de tus compañeras">♥ Contigo</button>
+    <div id="pet-hud" class="pet-hud" hidden>
+      <div class="pet-row">
+        <button id="companion-mode" class="chip companion-chip" type="button" hidden aria-label="Modo de tus compañeras">♥ Contigo</button>
+        <span id="pet-food" class="pet-food" role="status" aria-label="Tu comida"></span>
+      </div>
+      <div id="pet-frames" class="pet-frames" role="group" aria-label="Tus compañeras: toca una para darle de comer"></div>
+    </div>
     </div>
     <div id="down-banner" class="down-banner" hidden role="status"><b>ABATIDO</b><span id="down-text"></span><i class="db-bar"><b id="down-fill"></b></i></div>
     <div id="tame-ribbon" class="tame-ribbon" hidden role="status"><span class="tame-head"><b id="tame-title"></b><i class="tame-bar"><b id="tame-fill"></b></i></span><span id="tame-text"></span></div>
@@ -954,7 +986,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
   </div>
 </div>
 <script src="three.min.js?v=r128"></script>
-<script src="game.js?v=mw87v9qe"></script>
+<script src="game.js?v=mw8cobdo"></script>
 
 </body>
 </html>
