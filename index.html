@@ -575,6 +575,13 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 @media (max-height: 420px) { .expedition-hud { min-height: 32px; padding: 4px 8px; font-size: 10px; } }
 .echo-chip { display: block; width: 100%; min-height: 36px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto; color: #a2e5d5; box-shadow: inset 0 0 0 1px #3f8f84; }
 .echo-chip[hidden] { display: none !important; }
+/* Domador: botón rápido del modo de tus compañeras (bajo las metas). */
+.companion-chip { display: block; width: max-content; max-width: 100%; min-height: 36px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto; color: #ffc7d6; box-shadow: inset 0 0 0 1px #8f3f5c; }
+.companion-chip[data-mode="defensa"] { color: #bfe0ff; box-shadow: inset 0 0 0 1px #3f6a8f; }
+.companion-chip[data-mode="ataque"] { color: #ffd2a0; box-shadow: inset 0 0 0 1px #a8582c; }
+.companion-chip[hidden] { display: none !important; }
+#companion-list .mode-btn[aria-pressed="true"] { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+#companion-modes-wrap { margin-top: 8px; }
 .echo-dialog { color: var(--parchment); background: linear-gradient(180deg, var(--slate-2), var(--slate)); border: 2px solid var(--edge); box-shadow: inset 0 0 0 2px #7fd2c3, inset 0 0 0 4px #2f6b62, 0 4px 0 0 rgba(0,0,0,.45); padding: 18px; width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; }
 .echo-dialog::backdrop { background: rgba(5,6,10,.72); }
 .echo-dialog h2 { color: #a2e5d5; font-size: 13px; margin: 0 0 10px; }
@@ -645,6 +652,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
       <span id="goal-progress">Descubre tres especies distintas.</span>
       <span id="goal-next">Próximo Despertar: Chispa · Nv. 5</span>
     </button>
+    <button id="companion-mode" class="chip companion-chip" type="button" hidden aria-label="Modo de tus compañeras">♥ Contigo</button>
     </div>
     <div id="down-banner" class="down-banner" hidden role="status"><b>ABATIDO</b><span id="down-text"></span><i class="db-bar"><b id="down-fill"></b></i></div>
     <div id="tame-ribbon" class="tame-ribbon" hidden role="status"><span class="tame-head"><b id="tame-title"></b><i class="tame-bar"><b id="tame-fill"></b></i></span><span id="tame-text"></span></div>
@@ -762,7 +770,11 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
         </div>
         <div id="companions" class="companions" hidden>
           <span class="label">Tus compañeras</span>
-          <div id="companion-list" class="modes" role="radiogroup" aria-label="Compañera que te acompaña"></div>
+          <div id="companion-list" class="modes" role="group" aria-label="Compañeras que te acompañan (toca para elegir)"></div>
+          <div id="companion-modes-wrap" hidden>
+            <span class="label">Cómo pelean</span>
+            <div id="companion-modes" class="modes" role="radiogroup" aria-label="Modo de pelea de tus compañeras"></div>
+          </div>
           <p id="companion-note" class="note"></p>
         </div>
         <button id="btn-goals-menu" class="btn" type="button">Metas e insignias</button>
@@ -942,7 +954,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
   </div>
 </div>
 <script src="three.min.js?v=r128"></script>
-<script src="game.js?v=mw83x4oe"></script>
+<script src="game.js?v=mw87v9qe"></script>
 
 </body>
 </html>
