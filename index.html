@@ -545,7 +545,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 @media (orientation:landscape) {
  .hud .target-frame {left:calc(50% + 16px);right:auto;top:calc(env(safe-area-inset-top,0px) + 64px);transform:translateX(-50%);}
  .hud.combat-trial .target-frame {left:calc(50% + 32px);right:auto;top:calc(env(safe-area-inset-top,0px) + 10px);transform:translateX(-50%);}
- .floor-tag {left:auto;right:calc(env(safe-area-inset-right,0px) + 10px);transform:none;max-width:calc(50vw - 125px);}
+ .floor-tag {left:auto;right:calc(env(safe-area-inset-right,0px) + 10px);top:calc(env(safe-area-inset-top,0px) + 64px);transform:none;max-width:calc(50vw - 125px);}
  .floor-tag span {max-width:100%;}
 }
 @media (orientation:portrait) {
@@ -582,6 +582,21 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 .companion-chip[hidden] { display: none !important; }
 #companion-list .mode-btn[aria-pressed="true"] { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
 #companion-modes-wrap { margin-top: 8px; }
+/* Día y noche: reloj del mundo y antorcha (arriba: a la izquierda en vertical, en el centro en horizontal). */
+.time-hud { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 10px); left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; pointer-events: none; z-index: 3; }
+.time-hud[hidden] { display: none !important; }
+.clock-chip, .torch-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 3px 9px 3px 6px; pointer-events: auto; white-space: nowrap; font-size: 12px; }
+.clock-pic { width: 16px; height: 16px; image-rendering: pixelated; flex: none; }
+.clock-chip[data-phase="noche"] { color: #cfe0ff; box-shadow: inset 0 0 0 1px #3f5a8f; }
+.clock-chip[data-phase="amanecer"], .clock-chip[data-phase="atardecer"] { color: #ffd6a8; box-shadow: inset 0 0 0 1px #a8642c; }
+.torch-chip { color: #ffd08a; box-shadow: inset 0 0 0 1px #8a5a2a; }
+.torch-chip[aria-pressed="true"] { color: #fff2c8; background: rgba(90, 50, 18, .9); box-shadow: inset 0 0 0 1px #ffb84a, 0 0 8px rgba(255, 170, 60, .45); }
+.torch-chip[hidden] { display: none !important; }
+@media (orientation: portrait) and (max-width: 520px) { .time-hud { left: calc(env(safe-area-inset-left, 0px) + 10px); transform: none; } .clock-chip #clock-text { display: none; } .torch-chip #torch-text { display: none; } }
+/* Si no cabe arriba en el centro (pantalla estrecha, número de sala, piso de la Torre): solo iconos; luego, en el hueco libre de arriba; y si no hay, debajo de tu vida. */
+.time-hud.compact #clock-text, .time-hud.compact #torch-text { display: none; }
+.time-hud.gap { transform: none; }
+.time-hud.in-stack { position: static; transform: none; justify-self: start; }
 /* Parte 2b: tus compañeras en pantalla (retrato, vida, estado; tocar = darle de comer) y tu comida. */
 .pet-hud { display: grid; gap: 4px; pointer-events: none; }
 .pet-hud[hidden] { display: none !important; }
@@ -685,6 +700,10 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
       </div>
       <div id="pet-frames" class="pet-frames" role="group" aria-label="Tus compañeras: toca una para darle de comer"></div>
     </div>
+    </div>
+    <div id="time-hud" class="time-hud" hidden>
+      <button id="clock-chip" class="chip clock-chip" type="button" aria-label="Hora del mundo"><canvas id="clock-pic" class="clock-pic" width="16" height="16"></canvas><span id="clock-text">Día</span></button>
+      <button id="btn-torch" class="chip torch-chip" type="button" hidden aria-pressed="false" aria-label="Antorcha: ponértela o guardarla (T)"><canvas id="torch-pic" class="clock-pic" width="16" height="16"></canvas><span id="torch-text">Antorcha</span></button>
     </div>
     <div id="down-banner" class="down-banner" hidden role="status"><b>ABATIDO</b><span id="down-text"></span><i class="db-bar"><b id="down-fill"></b></i></div>
     <div id="tame-ribbon" class="tame-ribbon" hidden role="status"><span class="tame-head"><b id="tame-title"></b><i class="tame-bar"><b id="tame-fill"></b></i></span><span id="tame-text"></span></div>
@@ -856,6 +875,15 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
             <button type="button" role="radio" data-q="high">Alta</button>
           </div>
         </div>
+        <div>
+          <span class="label" id="lbl-daymin">Duración del día (en tus partidas)</span>
+          <div id="seg-daymin" class="seg" role="radiogroup" aria-labelledby="lbl-daymin">
+            <button type="button" role="radio" data-min="12">12 min</button>
+            <button type="button" role="radio" data-min="24">24 min</button>
+            <button type="button" role="radio" data-min="48">48 min</button>
+          </div>
+          <p id="daymin-note" class="note">Un día entero (amanecer, día, atardecer y noche). En cooperativo manda el anfitrión.</p>
+        </div>
         <div class="slider"><span>Volumen general</span><input id="vol-master" type="range" min="0" max="100" step="5" aria-label="Volumen general"><output id="out-master">80</output></div>
         <div class="slider"><span>Música</span><input id="vol-music" type="range" min="0" max="100" step="5" aria-label="Volumen de la música"><output id="out-music">60</output></div>
         <div class="slider"><span>Efectos</span><input id="vol-sfx" type="range" min="0" max="100" step="5" aria-label="Volumen de efectos"><output id="out-sfx">80</output></div>
@@ -975,7 +1003,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
   <div id="travel" class="travel" hidden><p id="travel-msg">SUBIENDO…</p></div>
   <div id="toasts" class="toasts" aria-live="polite"></div>
   <div id="lab" class="debug lab" hidden role="region" aria-label="Panel de población y limos"><pre id="lab-text"></pre><button id="btn-lab-close" class="btn" type="button">Cerrar panel</button></div>
-  <div id="debug" class="debug" hidden><pre id="debug-text" style="margin:0"></pre><button id="btn-collision" class="btn" type="button">Ver colisiones</button> <button id="btn-world" class="btn" type="button">Ir a la sala de pruebas</button> <button id="btn-asc" class="btn" type="button" title="Solo se ve en tu pantalla: no cambia tu nivel">Ver Despertares</button></div>
+  <div id="debug" class="debug" hidden><pre id="debug-text" style="margin:0"></pre><button id="btn-collision" class="btn" type="button">Ver colisiones</button> <button id="btn-world" class="btn" type="button">Ir a la sala de pruebas</button> <button id="btn-asc" class="btn" type="button" title="Solo se ve en tu pantalla: no cambia tu nivel">Ver Despertares</button> <button id="btn-time" class="btn" type="button" title="Anfitrión: salta al siguiente momento del día (pruebas)">Pasar la hora</button></div>
   <div id="boot" class="boot" role="status">
     <div style="display:grid;gap:12px;justify-items:center">
       <div class="boot-title">TORRE MULTIVERSAL</div>
@@ -986,7 +1014,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
   </div>
 </div>
 <script src="three.min.js?v=r128"></script>
-<script src="game.js?v=mw8cobdo"></script>
+<script src="game.js?v=mw8g0tmr"></script>
 
 </body>
 </html>
