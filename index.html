@@ -604,6 +604,16 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 .pet-food { display: flex; gap: 4px; pointer-events: none; }
 .pet-food-item { display: inline-flex; align-items: center; gap: 2px; padding: 2px 5px 2px 3px; background: rgba(14,17,24,.82); border: 1px solid #4a3b2a; font: 600 11px var(--font-label); color: #ffe0c0; }
 .pet-food-item[data-empty="1"] { opacity: .55; }
+/* Enemigos élite (parte A): fragmentos en la bolsa y el recuadro del objetivo con el color de su aura. */
+.gear-mats { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; padding: 6px 8px; border: 1px dashed #4a3b2a; background: rgba(14,17,24,.6); font-size: 12px; }
+.gear-mats b { width: 100%; font: 600 11px var(--font-label); color: #f5d796; letter-spacing: .04em; }
+.gear-mat { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; background: rgba(10,12,18,.85); border: 1px solid #3a3346; color: var(--parchment); }
+.gear-mat i { font-style: normal; font-size: 13px; }
+.target-frame[data-elite="0"] { box-shadow: inset 0 0 0 1px #ff5a34, 0 0 10px rgba(255, 72, 40, .35); }
+.target-frame[data-elite="1"] { box-shadow: inset 0 0 0 1px #8cc8ff, 0 0 10px rgba(120, 190, 255, .35); }
+.target-frame[data-elite="2"] { box-shadow: inset 0 0 0 1px #9cff5c, 0 0 10px rgba(150, 255, 90, .3); }
+.target-frame[data-elite="3"] { box-shadow: inset 0 0 0 1px #c85cff, 0 0 10px rgba(190, 90, 255, .35); }
+.target-frame[data-elite] #tf-name { color: #ffe3a0; }
 /* Día y noche (parte B): el hongo lunar (solo se enseña si llevas alguno). */
 .pet-food-item[data-kind="lunar"] { color: #d6ecff; border-color: #3a5c96; box-shadow: 0 0 6px rgba(106, 168, 232, .35); }
 .pet-food-item[data-kind="lunar"][data-empty="1"] { display: none; }
@@ -1017,7 +1027,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
   </div>
 </div>
 <script src="three.min.js?v=r128"></script>
-<script src="game.js?v=mw8omy7e"></script>
+<script src="game.js?v=mw8smpnh"></script>
 
 </body>
 </html>
