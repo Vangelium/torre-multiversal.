@@ -1,89 +1,68 @@
-# Estado real tras recuperar el acceso (10/11/2026)
+# Torre Multiversal | Migración Supabase
 
-✅ Proyecto correcto `cogwkcmlkurzagygnivy`, organización `TorreMultiversal`, PostgreSQL 17, estado ACTIVE_HEALTHY.
+**Última verificación:** 10 de noviembre de 2026  
+**Proyecto:** `cogwkcmlkurzagygnivy` | Organización: TorreMultiversal  
+**Despliegue actual:** GitHub Pages desde `main`  
+**Código nuevo:** `feature/supabase-persistencia-20261110` (PR #1 en **borrador**, **no desplegado**).
 
-✅ Se aplicaron al proyecto real dos migraciones, confirmadas mediante `list_migrations`:
+## 1. Diagnóstico de producción
+- Juego web de HTML, Three.js y JavaScript empaquetado; el código web identifica versión `0.23.0-anomalias` cuando se efectuó la auditoría.
+- El multijugador ya usa Supabase Realtime **Broadcast**. Sus salas no dependen de tablas nuevas; el cliente original se crea con `persistSession:false`.
+- La partida local usa `localStorage['tm.save']`, respaldo `tm.save.bak`, sobre `TM1:` y formato de datos **19**; el usuario puede exportar/importar en Pausa → Guardado.
+- Un guardado local y su checksum FNV-1a pueden manipularse desde el navegador; nunca deben convertirse en moneda, ítems o derechos de propiedad certificados.
+- Al auditar inicialmente el servidor: 0 tablas en `public`, 0 usuarios Auth, 0 Edge Functions y 0 migraciones existentes.
+- La migración de dominio de Netlify a GitHub Pages **no** traslada automáticamente `localStorage` entre dominios. Los jugadores anteriores deben exportar el código en el dominio anterior e importarlo en el nuevo.
 
-- `20261110220121_tm_restrict_rls_ddl_trigger_execute_20261110`: elimina los privilegios públicos de ejecución de `public.rls_auto_enable()`. El event trigger `ensure_rls` permanece activo.
-- `20261110220144_tm_persistence_foundation_20261110`: cinco tablas nuevas `tm_players`, `tm_legacy_backups`, `tm_economy_events`, `tm_inventory_lots` y `tm_currency_ledger`, con RLS y restricciones de escritura.
-- `20261110222203_tm_personal_backup_quota_20261110`: límite de 20 respaldos por usuario, trigger privado protegido y permiso DELETE restringido al propietario.
+## 2. Cambios aplicados a la base de datos
+Las siguientes migraciones **YA ESTÁN APLICADAS EN EL PROYECTO REAL** y se incluyen bajo `supabase/migrations/` usando los identificadores exactos de historial:
 
-**Verificación**: cinco tablas presentes, todas con RLS activado y cero filas iniciales; `anon` no puede insertar en ninguna; `authenticated` solo puede insertar en `tm_players` y `tm_legacy_backups` bajo política por propietario. Los usuarios autenticados NO pueden insertar directamente movimientos económicos, lotes o eventos. La función restringida NO es ejecutable por `anon` ni `authenticated`. La auditoría de seguridad de Supabase devuelve cero advertencias.
+| Migración | Resultado |
+|---|---|
+| `20261110220121_tm_restrict_rls_ddl_trigger_execute_20261110.sql` | Revoca EXECUTE público de `public.rls_auto_enable()`, conservando el event trigger de RLS. |
+| `20261110220144_tm_persistence_foundation_20261110.sql` | Crea las cinco tablas de persistencia con RLS y permisos restrictivos. |
+| `20261110222203_tm_personal_backup_quota_20261110.sql` | Cuota máxima de 20 copias por cuenta; función de trigger protegida en esquema no expuesto; permite al usuario eliminar solo sus propias copias. |
 
-**Todavía NO completado**: integración Auth del navegador, respaldo real y migración del progreso, endpoints transaccionales económicos, pruebas E2E y activación de guardado remoto. El juego público `main` y su Realtime Broadcast no se han modificado.
+Tablas: `tm_players`, `tm_legacy_backups`, `tm_economy_events`, `tm_inventory_lots`, `tm_currency_ledger`.
 
-**Registro**: las tres migraciones aplicadas ya están versionadas en `supabase/migrations/` con sus marcas de tiempo reales. No ejecutar a mano sobre el servidor actual. Nunca ejecutar nuevamente el texto sin comparar estado e historial.
+### Seguridad verificada
+- RLS habilitado en **todas** las tablas.
+- `anon` no tiene permisos de escritura.
+- `authenticated` solo puede insertar/actualizar su propio perfil e insertar/leer/eliminar sus respaldos personales según las políticas. No puede crear lotes, eventos ni movimientos monetarios.
+- El trigger de cuota no tiene permiso EXECUTE para `anon` ni `authenticated`; está fuera de esquemas expuestos.
+- **Supabase Security Advisor: cero advertencias** tras las tres migraciones.
+- Los avisos informativos de índices aún sin uso son normales porque las tablas están vacías; deberán revisarse cuando haya datos.
+- No se modificaron los objetos o políticas existentes de Realtime.
 
----
+## 3. Código implementado en rama de desarrollo (no disponible en sitio público)
+- `game.js`: crea un cliente independiente de Supabase Auth con sesión persistida bajo `tm.cloud.auth.v1`. No modifica la conexión Realtime original.
+- `index.html`: incluye el módulo «Respaldo en la nube (Beta)» en Pausa → Guardado y carga `cloud-save.js`.
+- `cloud-save.js`:
+  - Registro, inicio/cierre de sesión por correo y contraseña, confirmación por correo si el proveedor la exige.
+  - Obtiene copia desde el exportador TM1 actual del juego y guarda `payload.raw` como cadena inalterada.
+  - Verifica el checksum local antes de enviar, calcula SHA-256 del **estado de juego** para deduplicar, limita los backups al tamaño permitido.
+  - Lista hasta 20 copias de la cuenta; permite eliminar una copia con confirmación sin afectar `tm.save`.
+  - Restaura únicamente con confirmación; guarda la versión local anterior en `tm.cloud.pre_restore` y utiliza el **importador oficial** del juego.
+  - Bloquea restauración si detecta sala cooperativa activa; deja los guardados del navegador operativos si falla la nube.
+  - Los backups se clasifican como `verified=false`: son históricos personales, **no** fuente de verdad para la economía.
+- Nota crucial: PostgreSQL `jsonb` reordena claves; almacenar el sobre TM1 como objeto reserializado rompería el checksum. Guardar y recuperar exactamente la cadena original.
 
-# Torre Multiversal | Migración segura a Supabase
-**Estado:** infraestructura inicial aplicada en el proyecto real. Cliente web todavía sin modificar.
+## 4. Pruebas realizadas
+- Sintaxis de `game.js` y `cloud-save.js` compilada correctamente.
+- Presencia de todos los elementos de UI requeridos y carga local compatible con CSP.
+- Pruebas JavaScript con servicios simulados: estado no conectado, login, creación/listado de copia personal, recuperación y preservación del guardado local previo.
+- Consultas directas a Supabase: historial de migraciones, tablas, permisos, políticas, triggers y Advisor verificados.
 
-## Diagnóstico confirmado (10/11/2026)
-- Repositorio activo: `Vangelium/torre-multiversal.`, web estática por GitHub Pages.
-- `game.js` identifica `0.23.0-anomalias` y empaqueta `@supabase/supabase-js`.
-- La sala cooperativa usa Supabase Realtime **Broadcast**, con canales `tm:lobby` / `tm:<sala>` y un cliente con `persistSession:false`. **No reemplazar el transporte actual**.
-- Servicio al que apunta la web: `https://cogwkcmlkurzagygnivy.supabase.co`.
-- El guardado principal sigue local: `localStorage["tm.save"]`, respaldo `tm.save.bak`, `fmt:tm`, formato versión **19**. El checksum actual detecta corrupción accidental, **no autentica balances ni objetos**.
-- El conector Supabase tiene acceso a la organización `TorreMultiversal`, pero `list_projects` devuelve **cero proyectos**. No se puede inspeccionar el esquema del proyecto utilizado por el juego ni aplicar cambios allí desde esta conexión.
+## 5. Pruebas pendientes antes de fusionar el PR
+1. En Supabase Dashboard → **Authentication → URL Configuration** configurar el Site URL y permitir como redirección `https://vangelium.github.io/torre-multiversal./`. Revisar habilitación de Email Auth.
+2. Probar creación de cuenta real con correo de prueba y confirmación. Nunca publicar contraseñas.
+3. Probar respaldo y recuperación en dos navegadores diferentes, incluido Android, y comparar avatar, experiencia, mascotas, bestiario y equipos.
+4. Probar exportación/importación desde el antiguo dominio de Netlify mediante el código TM1 si existe progreso allí.
+5. Probar límites de cuota, login fallido, acceso cruzado entre usuarios, red desconectada, datos corruptos, tamaño máximo y colisiones de guardados.
+6. Probar salas cooperativas reales de 2–4 jugadores, combate, sincronización, desconexión/reconexión, permisos Auth y el bloqueo de restauración en cooperativo.
+7. Verificar que los guardados locales existentes sigan disponibles sin cuenta, con cuenta y tras cerrar sesión.
+8. Fusionar únicamente si se cumplen todos los criterios, con posibilidad de revertir la UI sin borrar tablas ni datos.
 
-## Límite de seguridad fundamental
-NO crear otro proyecto para sustituir el existente. NO borrar, reiniciar ni modificar salas Realtime. NO aceptar inventario, cristales, monedas o terrenos importados desde `localStorage` como valores certificados. El navegador puede alterar un respaldo. Los saldos y objetos económicos deben derivar de hechos del servidor y de funciones transaccionales idempotentes.
+## 6. Pendiente de arquitectura autoritativa
+La economía futura, el inventario comercial, los cristales y las propiedades necesitan operaciones transaccionales idempotentes en el servidor (RPC/Edge Functions o backend dedicado), con autorización real, cotas y pruebas de concurrencia. La actual copia de un guardado local **no** es una migración autoritativa de esas entidades.
 
-## Primera fase preparada
-`supabase/sql/DRAFT_tm_persistence_foundation.sql` es **solo un borrador** que crea de manera aislada:
-- `tm_players`: identidad asociada a `auth.users`.
-- `tm_legacy_backups`: respaldo de progreso previo como datos **no verificados**, con importación idempotente y RLS por usuario.
-- `tm_economy_events`, `tm_inventory_lots`, `tm_currency_ledger`: estructura mínima de procedencia y auditoría; **sin permisos de escritura para el navegador**.
-- Todas las tablas expuestas incluyen RLS y políticas de lectura por propietario.
-
-Esta etapa **no** crea todavía dinero ni recursos y **no** conecta el cliente. La economía exige servicios de servidor antes de estar habilitada.
-
-## Pasos para aplicar al proyecto correcto
-1. Recuperar acceso del conector al proyecto `cogwkcmlkurzagygnivy`: usar la cuenta propietaria o invitar a la cuenta vinculada. No crear una base alternativa.
-2. Inspeccionar **tablas, políticas, funciones, migraciones, configuración Auth, Data API y advisories** existentes; revisar el borrador para resolver conflictos.
-3. Obtener un respaldo restaurable del estado real y aprobar una ventana de aplicación. Registrar el cambio mediante migración en el proyecto existente.
-4. Usar Auth de manera independiente del canal de salas. Si se permite registro anónimo, debe habilitarse en Supabase Auth y persistirse la sesión; antes de almacenar bienes valiosos, ofrecer vinculación a una cuenta recuperable para no perder datos al cambiar de móvil.
-5. Agregar un adaptador de guardado **sin activarlo en producción**: leer `tm.save` local, validar estructura `fmt/v/sum`, cargar copia inmutable en `tm_legacy_backups`, y mantener intacto el guardado local.
-6. Introducir funciones servidor para recolección, drops, crafting, transferencias y comercio. Un evento económico debe usar clave de idempotencia única, transacción atómica y autoridad de servidor; no tomar el JSON legado como origen confiable.
-7. Probar con dos dispositivos y usuarios, desconexiones, reintentos, colisiones, rol sin permisos, versión de protocolo incompatibles y rollback. Solo entonces activar progresivamente el almacenamiento remoto y desarrollar economía compartida.
-
-## Criterios de salida
-- GitHub Pages y salas de 1 a 4 jugadores continúan operativos.
-- No desaparece ninguna partida ni se sobrescribe `tm.save` automáticamente.
-- Ningún cliente puede concederse ítems o moneda mediante llamadas REST ni Broadcast.
-- Doble envío del mismo evento no duplica nada.
-- Pueden verificarse RLS, importación, reingreso y restore en condiciones reales.
-- Sin secretos `service_role` en GitHub ni en el JavaScript público.
-
-**Aviso:** el presente borrador SQL todavía no se ha probado contra el esquema real, porque el conector no expone ese proyecto. Inspeccionar antes de aplicar.
-
----
-
-## Fase de interfaz en rama de trabajo (preparada, NO publicada)
-Cambios adicionales solo en `feature/supabase-persistencia-20261110`:
-- `game.js`: inicializa un **segundo** Supabase client con Auth persistente bajo `tm.cloud.auth.v1`. El transporte cooperativo conserva su cliente Realtime anterior con `persistSession: false`.
-- `index.html`: añade en Pausa → Guardado la pantalla opcional de cuenta/respaldos, CSS y carga de `cloud-save.js`, sin tocar controles de combate.
-- `cloud-save.js`: registro/entrada con correo y contraseña; genera copia mediante el exportador oficial TM1; deduplica según huella SHA-256 del estado; consulta un máximo de 20 copias, permite eliminarlas con confirmación; restaura solo tras confirmar y tras crear el respaldo `tm.cloud.pre_restore` local; evita restauración con sala activa.
-- La copia queda explícitamente marcada como **no verificada**: ningún objeto o moneda en estos JSON se admite como saldo oficial del servidor.
-- La cadena original del sobre TM1 se guarda en `tm_legacy_backups.payload.raw`; **no** transformar el sobre en JSONB arbitrario para restaurar, ya que JSONB normaliza el orden de claves y rompería su checksum FNV-1a.
-- Ningún cambio se ha fusionado a `main` ni publicado vía GitHub Pages.
-
-### Pruebas ejecutadas
-- Sintaxis de `game.js` y `cloud-save.js`: ambas correctas.
-- IDs de interfaz y referencias de carga HTML: comprobados.
-- Simulación JavaScript de autenticación: estado anónimo y sesión iniciada correctos.
-- Simulación JavaScript de carga/restauración: huella, almacenamiento, listado, importación de TM1, copia previa de `tm.save`: correctos.
-- RLS y migraciones reales verificadas en servidor: cinco tablas, cero advertencias de seguridad, roles navegador sin permisos INSERT económicos; trigger de cuota ubicado en esquema privado sin EXECUTE para anon/authenticated.
-
-### Pruebas de aceptación todavía pendientes (requieren URL de staging o publicación controlada)
-1. Configurar Supabase **Authentication → URL Configuration**: `Site URL` y redirect allowlist para `https://vangelium.github.io/torre-multiversal./`. Confirmar que Email Auth está disponible. **No copiar contraseñas ni claves en GitHub.**
-2. Crear cuenta real con correo de prueba, confirmar correo y regresar a la URL del juego sin perder progreso.
-3. Guardar partida con personaje, recargar la página y comprobar que `tm.save` sigue idéntico.
-4. Iniciar sesión en otro navegador/dispositivo, listar respaldo y restaurar. Comprobar perfil, bestiario, inventario local y mascotas.
-5. Intentar restaurar con sala activa (debe bloquear). Después salir de la sala y restaurar.
-6. Comprobar que RLS no permite que un usuario lea ni altere copias de otro.
-7. Probar sin conexión, código TM1 malformado, código con checksum incorrecto, respaldo demasiado grande, recuperación ante error de almacenamiento y contraseña incorrecta.
-8. Abrir sala cooperativa de 1–4 jugadores y confirmar sincronización de movimiento/combate con el cliente Auth separado.
-9. Revisar políticas, acceso, rendimiento y conflictos de futuras actualizaciones antes de aprobar PR. **No fusionar antes de superar pruebas reales.**
-
+**Regla de lanzamiento:** mantener `main` intacta hasta tener pruebas de integración reales.
