@@ -186,7 +186,7 @@
     listNode.value = "";
     updateSelection();
     if (!rows.length) announce("Esta cuenta no tiene copias. En el móvil donde está el personaje, inicia sesión y pulsa Respaldar partida actual.");
-    else announce("Hay " + rows.length + " copias en esta cuenta. Elige una por nombre, XP y mascotas. Iniciar sesión no cambia la partida local.");
+    else announce("Hay " + rows.length + (rows.length === 1 ? " copia" : " copias") + " en esta cuenta. Elige una por nombre, XP y mascotas. Iniciar sesión no cambia la partida local.");
   }
   async function signIn(mode) {
     await withBusy(async function () {
@@ -351,8 +351,8 @@
       passwordRecoveryMode = false;
       el("tm-cloud-reset-panel").hidden = true;
       el("tm-cloud-new-password").value = "";
-      announce("Contraseña actualizada. Ya puedes entrar con esa cuenta desde otro móvil.");
       await refreshAuth();
+      announce("Contraseña actualizada. Ya puedes entrar con esa cuenta desde otro móvil.");
     });
   }
 
