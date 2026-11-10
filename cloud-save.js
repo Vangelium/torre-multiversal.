@@ -25,13 +25,14 @@
   function lock(value) {
     busy = value;
     root.querySelectorAll("button").forEach(function (btn) {
-      btn.disabled = value || (btn.id === "tm-cloud-restore" && !listNode.options.length);
+      btn.disabled = value || ((btn.id === "tm-cloud-restore" || btn.id === "tm-cloud-delete") && !listNode.options.length);
     });
   }
   function errorMessage(err) {
     if (!err) return "Error desconocido.";
     var s = String(err.message || err);
     if (/rate.?limit|429/i.test(s)) return "Demasiados intentos. Espera antes de repetir.";
+    if (/backup quota exceeded|maximum 20/i.test(s)) return "Alcanzaste el límite de 20 copias. Elimina una antigua antes de crear otra.";
     return s.slice(0, 230);
   }
   function checksum(value) {
@@ -128,6 +129,7 @@
       listNode.appendChild(option);
     });
     el("tm-cloud-restore").disabled = rows.length === 0;
+    el("tm-cloud-delete").disabled = rows.length === 0;
     if (!rows.length) announce("No tienes respaldos en esta cuenta. Crea el primero.");
   }
   async function signIn(mode) {
@@ -230,6 +232,22 @@
     });
   }
 
+  async function deleteBackup() {
+    await withBusy(async function () {
+      if (!activeUser) throw new Error("Inicia sesión primero.");
+      var id = listNode.value;
+      if (!id) throw new Error("No seleccionaste ningún respaldo.");
+      if (!window.confirm("¿Eliminar esta copia de tu cuenta? No podrás recuperarla de Supabase. Tu progreso local no se borrará.")) {
+        announce("Eliminación cancelada. No cambió ningún respaldo.");
+        return;
+      }
+      var result = await client.from("tm_legacy_backups").delete().eq("id", id);
+      if (result.error) throw result.error;
+      await loadBackups();
+      announce("Copia eliminada. Tu guardado local no cambió.");
+    });
+  }
+
   el("tm-cloud-login").addEventListener("click", function () { signIn("login"); });
   el("tm-cloud-register").addEventListener("click", function () { signIn("register"); });
   el("tm-cloud-backup").addEventListener("click", backup);
@@ -237,6 +255,7 @@
     withBusy(async function () { await loadBackups(); announce("Lista actualizada."); });
   });
   el("tm-cloud-restore").addEventListener("click", restore);
+  el("tm-cloud-delete").addEventListener("click", deleteBackup);
   el("tm-cloud-signout").addEventListener("click", function () {
     withBusy(async function () {
       var result = await client.auth.signOut();
