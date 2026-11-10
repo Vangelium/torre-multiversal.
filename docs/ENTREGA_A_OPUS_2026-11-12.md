@@ -96,3 +96,6 @@ El propietario probó con dos teléfonos, uno propio y otro de su pareja. Report
 - Supabase mantiene **2 cuentas** y **5 respaldos**. No se eliminaron ni alteraron sus datos.
 - Una última revisión del Security Advisor mostró **1 advertencia de configuración Auth** nueva/no detectada antes: `auth_leaked_password_protection` (protección contra contraseñas filtradas deshabilitada). No es la causa demostrada del fallo de acceso. Corregir desde el dashboard de Auth cuando corresponda: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection .
 - No fue posible verificar externamente la entrega HTTP de GitHub Pages desde este entorno. Falta abrir la URL beta real tras el cache-busting en ambos teléfonos.
+
+## Confirmación posterior del usuario
+El usuario confirmó que **ya consiguió completar el procedimiento de recuperación de una partida en otro móvil** después de las correcciones de beta. Se considera prueba manual positiva del flujo de acceso/restauración entre dispositivos según reporte del usuario. **No** está confirmado todavía, por inspección independiente, que todos los atributos del personaje (mascotas, inventario, progresión) se hayan restituido ni se han probado aún las dos sesiones multijugador simultáneas. No fusionar PR hasta pruebas pendientes.
