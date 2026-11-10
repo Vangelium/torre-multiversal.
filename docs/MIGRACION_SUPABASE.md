@@ -66,3 +66,10 @@ Tablas: `tm_players`, `tm_legacy_backups`, `tm_economy_events`, `tm_inventory_lo
 La economía futura, el inventario comercial, los cristales y las propiedades necesitan operaciones transaccionales idempotentes en el servidor (RPC/Edge Functions o backend dedicado), con autorización real, cotas y pruebas de concurrencia. La actual copia de un guardado local **no** es una migración autoritativa de esas entidades.
 
 **Regla de lanzamiento:** mantener `main` intacta hasta tener pruebas de integración reales.
+
+## Incidente beta: sesiones cruzadas entre dos celulares (10/11/2026)
+Pruebas reales crearon 2 cuentas Auth confirmadas y 5 respaldos bajo 2 propietarios. Una cuenta acumuló 4 copias de 2 personajes diferentes, incluida una copia de un personaje también presente en la otra cuenta. **Los respaldos no desaparecieron**, pero el flujo de recuperación era ambiguo.
+
+La versión beta actualizada muestra nombre, XP, número de mascotas y fecha de cada copia; inicia con selección vacía, separa claramente la cuenta conectada del personaje local, avisa al mezclar personajes en la misma cuenta y comprueba el resultado de la importación. Corrige la visibilidad CSS de paneles con `[hidden]` y añade recuperación de contraseña. La rama PR contiene los mismos ajustes, sin fusionarlos a producción.
+
+**QA de integración pendiente:** acceso real con dos celulares tras estos cambios. Asegurar redirección Auth `https://vangelium.github.io/torre-multiversal./beta/`; no basta la URL de producción. Los cinco registros existentes se preservaron sin migración destructiva.
