@@ -89,3 +89,10 @@ El propietario probó con dos teléfonos, uno propio y otro de su pareja. Report
 **Pruebas después del arreglo:** sintaxis JS, presencia de IDs y simulación funcional de login incorrecto, login válido, selector con detalles, aviso de personaje diferente, restauración confirmada con copia local anterior y recuperación de contraseña: **todas superadas**. Siguen pendientes las pruebas físicas con ambos teléfonos tras recargar la beta actualizada. No fusionar PR ni publicar el sistema de economía autoritativa hasta superar esas pruebas.
 
 **Instrucciones de reproducción:** entrar con el mismo correo de la cuenta que tiene el respaldo, pulsar **Entrar** y no Crear cuenta, elegir copia por XP y mascotas, pulsar Restaurar y aceptar el cambio local. No eliminar respaldos previos. Si el acceso dice credenciales inválidas, usar Recuperar contraseña; no recrear la cuenta.
+
+### Última comprobación de seguridad y despliegue
+- La beta corrigió el mensaje de éxito ocultado tras la restauración, y usa el parámetro de caché `cloud-save.js?v=beta-recovery-20261110-r3`.
+- Confirmado en GitHub: archivos oficiales `main:index.html` SHA `67a7970c...` y `main:game.js` SHA `f552ed0a...` siguen intactos; PR #1 permanece en borrador.
+- Supabase mantiene **2 cuentas** y **5 respaldos**. No se eliminaron ni alteraron sus datos.
+- Una última revisión del Security Advisor mostró **1 advertencia de configuración Auth** nueva/no detectada antes: `auth_leaked_password_protection` (protección contra contraseñas filtradas deshabilitada). No es la causa demostrada del fallo de acceso. Corregir desde el dashboard de Auth cuando corresponda: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection .
+- No fue posible verificar externamente la entrega HTTP de GitHub Pages desde este entorno. Falta abrir la URL beta real tras el cache-busting en ambos teléfonos.
