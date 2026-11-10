@@ -21,6 +21,7 @@
 .tm-cloud h2 {margin:0 0 2px}
 .tm-cloud h2 small {font-size:10px;color:var(--dim);font-weight:400}
 .tm-cloud-panel {display:grid;gap:9px}
+.tm-cloud [hidden] {display:none!important}
 .tm-cloud-actions {display:flex;flex-wrap:wrap;gap:8px}
 .tm-cloud-actions .btn {flex:1 1 145px}
 #tm-cloud input[type=email],#tm-cloud input[type=password],#tm-cloud select {
@@ -951,11 +952,13 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
               <button id="tm-cloud-register" class="btn" type="button">Crear cuenta</button>
             </div>
           </div>
+          <button id="tm-cloud-forgot" class="btn" type="button">¿Olvidaste tu contraseña?</button>
           <div id="tm-cloud-ready" class="tm-cloud-panel" hidden>
             <p id="tm-cloud-account" class="note"></p>
             <button id="tm-cloud-backup" class="btn btn-gold" type="button">Respaldar partida actual</button>
             <label for="tm-cloud-list">Mis copias (máximo 20)</label>
             <select id="tm-cloud-list" aria-label="Elegir copia de partida"></select>
+            <p id="tm-cloud-selected" class="note" aria-live="polite">Selecciona una copia para comprobar su personaje.</p>
             <div class="tm-cloud-actions">
               <button id="tm-cloud-refresh" class="btn" type="button">Actualizar lista</button>
               <button id="tm-cloud-restore" class="btn" type="button">Restaurar copia</button>
@@ -963,6 +966,12 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
             </div>
             <button id="tm-cloud-signout" class="btn" type="button">Cerrar sesión</button>
             <p class="note">Restaurar reemplaza el progreso local solo después de confirmar y conserva una copia anterior.</p>
+          </div>
+
+          <div id="tm-cloud-reset-panel" class="tm-cloud-panel" hidden>
+            <label for="tm-cloud-new-password">Nueva contraseña</label>
+            <input id="tm-cloud-new-password" type="password" minlength="8" maxlength="128" autocomplete="new-password" placeholder="Mínimo 8 caracteres">
+            <button id="tm-cloud-update-password" class="btn btn-gold" type="button">Guardar contraseña nueva</button>
           </div>
           <p id="tm-cloud-status" class="note" role="status" aria-live="polite">Cargando servicio de respaldos…</p>
         </div>
@@ -1083,7 +1092,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 </div>
 <script src="three.min.js?v=r128"></script>
 <script src="game.js?v=tm-cloud-20261110"></script>
-<script src="cloud-save.js?v=tm-cloud-20261110"></script>
+<script src="cloud-save.js?v=beta-recovery-20261110"></script>
 
 </body>
 </html>
