@@ -198,6 +198,17 @@ h2 { font-family: var(--font-label); font-size: 11px; letter-spacing: .08em; tex
 .dex-stat.here span { color: #ff9a8a; }
 .dex-p { margin: 0 0 8px; font-size: 12px; line-height: 1.4; }
 .dex-p b { color: var(--gold); font-weight: normal; }
+/* Anomalías (élites y jefes, parte B): a propósito parecen fallos (una letra rota, una línea rara). */
+.dex-p.dex-odd { color: #c98f8a; font-style: italic; }
+.dex-glitch { display: inline-block; position: relative; animation: dexGlitch 3.1s steps(1, end) infinite; }
+@keyframes dexGlitch {
+  0%, 71%, 100% { transform: none; text-shadow: none; opacity: 1; }
+  72% { transform: translate(1px, -1px); text-shadow: -1px 0 #3ef0ff, 1px 0 #ff4ff0; }
+  75% { transform: translate(-1px, 1px) skewX(-12deg); text-shadow: 1px 0 #3ef0ff, -1px 0 #ff4ff0; opacity: .75; }
+  78% { transform: none; opacity: .35; }
+  80% { transform: translate(0, 0); text-shadow: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .dex-glitch { animation: none; text-shadow: -1px 0 #3ef0ff, 1px 0 #ff4ff0; } }
 .dex-hint { font-size: 12px; color: var(--dim); }
 @media (max-width: 640px), (max-height: 420px) and (orientation: landscape) {
   .dex-window { height: 94vh; }
@@ -1027,7 +1038,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
   </div>
 </div>
 <script src="three.min.js?v=r128"></script>
-<script src="game.js?v=mw8smpnh"></script>
+<script src="game.js?v=mw9zx3xb"></script>
 
 </body>
 </html>
