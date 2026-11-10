@@ -6,12 +6,13 @@
 
 - `20261110220121_tm_restrict_rls_ddl_trigger_execute_20261110`: elimina los privilegios públicos de ejecución de `public.rls_auto_enable()`. El event trigger `ensure_rls` permanece activo.
 - `20261110220144_tm_persistence_foundation_20261110`: cinco tablas nuevas `tm_players`, `tm_legacy_backups`, `tm_economy_events`, `tm_inventory_lots` y `tm_currency_ledger`, con RLS y restricciones de escritura.
+- `20261110222203_tm_personal_backup_quota_20261110`: límite de 20 respaldos por usuario, trigger privado protegido y permiso DELETE restringido al propietario.
 
 **Verificación**: cinco tablas presentes, todas con RLS activado y cero filas iniciales; `anon` no puede insertar en ninguna; `authenticated` solo puede insertar en `tm_players` y `tm_legacy_backups` bajo política por propietario. Los usuarios autenticados NO pueden insertar directamente movimientos económicos, lotes o eventos. La función restringida NO es ejecutable por `anon` ni `authenticated`. La auditoría de seguridad de Supabase devuelve cero advertencias.
 
 **Todavía NO completado**: integración Auth del navegador, respaldo real y migración del progreso, endpoints transaccionales económicos, pruebas E2E y activación de guardado remoto. El juego público `main` y su Realtime Broadcast no se han modificado.
 
-**Registro**: el SQL en `supabase/sql/DRAFT_tm_persistence_foundation.sql` representa la migración de base que **ya se aplicó**, aunque permanezca con nombre DRAFT en esta rama de trabajo. Nunca ejecutar nuevamente el texto sin comparar estado e historial.
+**Registro**: las tres migraciones aplicadas ya están versionadas en `supabase/migrations/` con sus marcas de tiempo reales. No ejecutar a mano sobre el servidor actual. Nunca ejecutar nuevamente el texto sin comparar estado e historial.
 
 ---
 
@@ -63,7 +64,7 @@ Esta etapa **no** crea todavía dinero ni recursos y **no** conecta el cliente. 
 Cambios adicionales solo en `feature/supabase-persistencia-20261110`:
 - `game.js`: inicializa un **segundo** Supabase client con Auth persistente bajo `tm.cloud.auth.v1`. El transporte cooperativo conserva su cliente Realtime anterior con `persistSession: false`.
 - `index.html`: añade en Pausa → Guardado la pantalla opcional de cuenta/respaldos, CSS y carga de `cloud-save.js`, sin tocar controles de combate.
-- `cloud-save.js`: registro/entrada con correo y contraseña; genera copia mediante el exportador oficial TM1; deduplica según huella SHA-256 del estado; consulta 20 copias recientes; restaura solo tras confirmación y tras crear el respaldo `tm.cloud.pre_restore` local; evita restauración con sala activa.
+- `cloud-save.js`: registro/entrada con correo y contraseña; genera copia mediante el exportador oficial TM1; deduplica según huella SHA-256 del estado; consulta un máximo de 20 copias, permite eliminarlas con confirmación; restaura solo tras confirmar y tras crear el respaldo `tm.cloud.pre_restore` local; evita restauración con sala activa.
 - La copia queda explícitamente marcada como **no verificada**: ningún objeto o moneda en estos JSON se admite como saldo oficial del servidor.
 - La cadena original del sobre TM1 se guarda en `tm_legacy_backups.payload.raw`; **no** transformar el sobre en JSONB arbitrario para restaurar, ya que JSONB normaliza el orden de claves y rompería su checksum FNV-1a.
 - Ningún cambio se ha fusionado a `main` ni publicado vía GitHub Pages.
@@ -73,7 +74,7 @@ Cambios adicionales solo en `feature/supabase-persistencia-20261110`:
 - IDs de interfaz y referencias de carga HTML: comprobados.
 - Simulación JavaScript de autenticación: estado anónimo y sesión iniciada correctos.
 - Simulación JavaScript de carga/restauración: huella, almacenamiento, listado, importación de TM1, copia previa de `tm.save`: correctos.
-- RLS y migraciones reales verificadas en servidor: cinco tablas, cero advertencias de seguridad, roles navegador sin permisos INSERT económicos.
+- RLS y migraciones reales verificadas en servidor: cinco tablas, cero advertencias de seguridad, roles navegador sin permisos INSERT económicos; trigger de cuota ubicado en esquema privado sin EXECUTE para anon/authenticated.
 
 ### Pruebas de aceptación todavía pendientes (requieren URL de staging o publicación controlada)
 1. Configurar Supabase **Authentication → URL Configuration**: `Site URL` y redirect allowlist para `https://vangelium.github.io/torre-multiversal./`. Confirmar que Email Auth está disponible. **No copiar contraseñas ni claves en GitHub.**
