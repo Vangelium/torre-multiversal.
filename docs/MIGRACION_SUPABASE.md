@@ -56,3 +56,33 @@ Esta etapa **no** crea todavía dinero ni recursos y **no** conecta el cliente. 
 - Sin secretos `service_role` en GitHub ni en el JavaScript público.
 
 **Aviso:** el presente borrador SQL todavía no se ha probado contra el esquema real, porque el conector no expone ese proyecto. Inspeccionar antes de aplicar.
+
+---
+
+## Fase de interfaz en rama de trabajo (preparada, NO publicada)
+Cambios adicionales solo en `feature/supabase-persistencia-20261110`:
+- `game.js`: inicializa un **segundo** Supabase client con Auth persistente bajo `tm.cloud.auth.v1`. El transporte cooperativo conserva su cliente Realtime anterior con `persistSession: false`.
+- `index.html`: añade en Pausa → Guardado la pantalla opcional de cuenta/respaldos, CSS y carga de `cloud-save.js`, sin tocar controles de combate.
+- `cloud-save.js`: registro/entrada con correo y contraseña; genera copia mediante el exportador oficial TM1; deduplica según huella SHA-256 del estado; consulta 20 copias recientes; restaura solo tras confirmación y tras crear el respaldo `tm.cloud.pre_restore` local; evita restauración con sala activa.
+- La copia queda explícitamente marcada como **no verificada**: ningún objeto o moneda en estos JSON se admite como saldo oficial del servidor.
+- La cadena original del sobre TM1 se guarda en `tm_legacy_backups.payload.raw`; **no** transformar el sobre en JSONB arbitrario para restaurar, ya que JSONB normaliza el orden de claves y rompería su checksum FNV-1a.
+- Ningún cambio se ha fusionado a `main` ni publicado vía GitHub Pages.
+
+### Pruebas ejecutadas
+- Sintaxis de `game.js` y `cloud-save.js`: ambas correctas.
+- IDs de interfaz y referencias de carga HTML: comprobados.
+- Simulación JavaScript de autenticación: estado anónimo y sesión iniciada correctos.
+- Simulación JavaScript de carga/restauración: huella, almacenamiento, listado, importación de TM1, copia previa de `tm.save`: correctos.
+- RLS y migraciones reales verificadas en servidor: cinco tablas, cero advertencias de seguridad, roles navegador sin permisos INSERT económicos.
+
+### Pruebas de aceptación todavía pendientes (requieren URL de staging o publicación controlada)
+1. Configurar Supabase **Authentication → URL Configuration**: `Site URL` y redirect allowlist para `https://vangelium.github.io/torre-multiversal./`. Confirmar que Email Auth está disponible. **No copiar contraseñas ni claves en GitHub.**
+2. Crear cuenta real con correo de prueba, confirmar correo y regresar a la URL del juego sin perder progreso.
+3. Guardar partida con personaje, recargar la página y comprobar que `tm.save` sigue idéntico.
+4. Iniciar sesión en otro navegador/dispositivo, listar respaldo y restaurar. Comprobar perfil, bestiario, inventario local y mascotas.
+5. Intentar restaurar con sala activa (debe bloquear). Después salir de la sala y restaurar.
+6. Comprobar que RLS no permite que un usuario lea ni altere copias de otro.
+7. Probar sin conexión, código TM1 malformado, código con checksum incorrecto, respaldo demasiado grande, recuperación ante error de almacenamiento y contraseña incorrecta.
+8. Abrir sala cooperativa de 1–4 jugadores y confirmar sincronización de movimiento/combate con el cliente Auth separado.
+9. Revisar políticas, acceso, rendimiento y conflictos de futuras actualizaciones antes de aprobar PR. **No fusionar antes de superar pruebas reales.**
+
