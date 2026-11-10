@@ -73,3 +73,17 @@ Pruebas reales crearon 2 cuentas Auth confirmadas y 5 respaldos bajo 2 propietar
 La versión beta actualizada muestra nombre, XP, número de mascotas y fecha de cada copia; inicia con selección vacía, separa claramente la cuenta conectada del personaje local, avisa al mezclar personajes en la misma cuenta y comprueba el resultado de la importación. Corrige la visibilidad CSS de paneles con `[hidden]` y añade recuperación de contraseña. La rama PR contiene los mismos ajustes, sin fusionarlos a producción.
 
 **QA de integración pendiente:** acceso real con dos celulares tras estos cambios. Asegurar redirección Auth `https://vangelium.github.io/torre-multiversal./beta/`; no basta la URL de producción. Los cinco registros existentes se preservaron sin migración destructiva.
+
+---
+
+## Fase siguiente implementada: ranura de autoguardado opcional (10/11/2026)
+- **Supabase real**: migración `20261110234604_tm_optional_cloud_slot_cas_20261110` aplicada y versionada en `supabase/migrations/`. Tabla nueva `tm_cloud_saves`, única por usuario; RLS activado; Auth puede leer/insertar/actualizar su propia ranura; anon no puede escribir.
+- Campo `revision` de control de concurrencia con trigger de integridad: solo admite incremento de exactamente 1 y mantiene inmutable el `user_id/profile_id`. En la API, UPDATE filtra por versión anterior, detectando cambios hechos desde otro móvil.
+- Se conserva `verified=false`: este slot tampoco otorga moneda ni inventario autoritativo. Las cinco copias históricas de dos cuentas no se alteraron.
+- Script independiente `cloud-auto.js` en rama PR #1 y `beta/cloud-auto.js` en main. UI `index.html` en rama y `beta/index.html` en main. Ningún archivo raíz de producción modificado.
+- **Opt-in**: autoguardado desactivado hasta que el usuario pulse Activar. Se ejecuta cada **3 minutos**, solo con cuenta conectada y pestaña visible, y se detiene mientras la sala cooperativa está activa.
+- **Conflictos**: si otro dispositivo ha cambiado la revisión, se suspende la sincronización en lugar de sobrescribir. Si el personaje difiere de la ranura remota, tampoco sobreescribe; para recuperarlo existe botón **Recuperar ranura** con confirmación y respaldo local previo separado en `tm.cloud.slot.pre_restore` (prefijado en beta).
+- **Pruebas simuladas**: sintaxis, creación de ranura, actualización de revisión, conflicto con otro móvil y restauración con respaldo previo, todas correctas. **Pendientes pruebas físicas de autoguardado**, navegador móvil y recuperación tras recargar.
+- **Seguridad Supabase**: ninguna alerta nueva en las tablas; permanece advertencia de configuración Auth de comprobación de contraseñas filtradas deshabilitada, pendiente de resolver en el dashboard si está disponible.
+- **Importante para Opus**: no migrar aún las ranuras a autoridad económica. No fusionar PR #1 sin validación real y plan de resolución de conflictos; el juego oficial sigue intacto.
+
