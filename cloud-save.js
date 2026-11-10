@@ -179,7 +179,7 @@
         updated_at: new Date().toISOString()
       }, { onConflict: "user_id" });
       if (up.error) throw up.error;
-      var hash = await makeFingerprint(result.raw);
+      var hash = await makeFingerprint(JSON.stringify(result.save.data));
       var saved = await client.from("tm_legacy_backups").insert({
         user_id: activeUser.id,
         import_key: hash,
