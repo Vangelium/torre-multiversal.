@@ -17,7 +17,9 @@
   var listNode = el("tm-cloud-list");
   var localStorage = window.__TM_BETA_STORAGE__ || { getItem: function () { throw new Error("Almacenamiento beta no disponible"); }, setItem: function () { throw new Error("Almacenamiento beta no disponible"); } };
   var activeUser = null;
+  var backupDetails = new Map();
   var busy = false;
+  var passwordRecoveryMode = false;
 
   function announce(message, isError) {
     statusNode.textContent = message;
@@ -26,13 +28,16 @@
   function lock(value) {
     busy = value;
     root.querySelectorAll("button").forEach(function (btn) {
-      btn.disabled = value || ((btn.id === "tm-cloud-restore" || btn.id === "tm-cloud-delete") && !listNode.options.length);
+      btn.disabled = value || ((btn.id === "tm-cloud-restore" || btn.id === "tm-cloud-delete") && !listNode.value);
     });
   }
   function errorMessage(err) {
     if (!err) return "Error desconocido.";
     var s = String(err.message || err);
     if (/rate.?limit|429/i.test(s)) return "Demasiados intentos. Espera antes de repetir.";
+    if (/invalid login credentials|invalid credentials|invalid_grant/i.test(s)) return "Correo o contraseña incorrectos. En otro móvil debes pulsar Entrar, no Crear cuenta. También puedes recuperar tu contraseña.";
+    if (/user already registered|already been registered/i.test(s)) return "Ese correo ya está registrado. Pulsa Entrar, no Crear cuenta.";
+    if (/email not confirmed/i.test(s)) return "Primero confirma tu correo con el enlace de Supabase.";
     if (/backup quota exceeded|maximum 20/i.test(s)) return "Alcanzaste el límite de 20 copias. Elimina una antigua antes de crear otra.";
     return s.slice(0, 230);
   }
@@ -105,33 +110,83 @@
     authPanel.hidden = !!activeUser;
     readyPanel.hidden = !activeUser;
     if (activeUser) {
-      accountLabel.textContent = "Conectado: " + (activeUser.email || "Cuenta temporal");
+      var local = localSummary();
+      accountLabel.textContent = "Cuenta conectada: " + (activeUser.email || "Cuenta temporal") +
+        " | Personaje en este celular: " + (local && local.valid ? local.name + " (" + local.xp + " XP)" : "ninguno");
       await loadBackups();
     } else {
       listNode.replaceChildren();
-      announce("Tu partida permanece guardada en este navegador.");
+      backupDetails.clear();
+      updateSelection();
+      announce("No has iniciado sesión. Tu partida local sigue intacta.");
     }
+  }
+  function summaryOf(raw) {
+    try {
+      var envelope = validateEnvelope(JSON.parse(raw));
+      var profile = envelope.data.profile || {};
+      var progress = envelope.data.progress || {};
+      return {
+        id: String(profile.id || ""),
+        name: String(profile.name || "Viajero").slice(0, 40),
+        xp: Number.isFinite(Number(profile.xp)) ? Math.max(0, Math.floor(Number(profile.xp))) : 0,
+        pets: Array.isArray(progress.companions) ? progress.companions.length : 0,
+        valid: true
+      };
+    } catch (_) { return {id: "", name: "Copia dañada", xp: 0, pets: 0, valid: false}; }
+  }
+  function localSummary() {
+    try {
+      var raw = localStorage.getItem("tm.save");
+      return raw ? summaryOf(raw) : null;
+    } catch (_) { return null; }
+  }
+  function updateSelection() {
+    var selection = listNode.value;
+    el("tm-cloud-restore").disabled = busy || !selection;
+    el("tm-cloud-delete").disabled = busy || !selection;
+    var item = backupDetails.get(selection);
+    if (!item) {
+      el("tm-cloud-selected").textContent = "Selecciona una copia para ver su personaje antes de restaurarla.";
+      return;
+    }
+    var current = localSummary();
+    el("tm-cloud-selected").textContent = !item.valid
+      ? "Esta copia tiene errores de formato. No la restaures."
+      : "Copia: " + item.name + ", " + item.xp + " XP, " + item.pets + " mascotas. " +
+        (current && current.valid && current.id !== item.id
+          ? "Aviso: reemplazará el personaje local " + current.name + "."
+          : "La partida de este celular no cambia hasta que pulses Restaurar.");
   }
   async function loadBackups() {
     if (!activeUser) return;
     var result = await client.from("tm_legacy_backups")
-      .select("id,created_at,save_version,origin,verified")
-      .order("created_at", { ascending: false }).limit(20);
+      .select("id,created_at,save_version,origin,verified,payload")
+      .order("created_at", {ascending: false}).limit(20);
     if (result.error) throw result.error;
     listNode.replaceChildren();
+    backupDetails.clear();
+    var placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Seleccionar personaje y fecha…";
+    listNode.appendChild(placeholder);
     var rows = result.data || [];
     rows.forEach(function (item) {
+      var details = summaryOf(item.payload && item.payload.raw);
+      backupDetails.set(item.id, details);
       var option = document.createElement("option");
       option.value = item.id;
-      var when = new Date(item.created_at);
-      option.textContent = "v" + item.save_version + " | " +
-        (Number.isNaN(when.getTime()) ? "Fecha desconocida" : when.toLocaleString("es-CL")) +
-        " | " + (item.verified ? "Verificado" : "Copia personal");
+      var time = new Date(item.created_at);
+      var when = Number.isNaN(time.getTime()) ? "Fecha desconocida" : time.toLocaleString("es-CL");
+      option.textContent = details.valid
+        ? details.name + " · " + details.xp + " XP · " + details.pets + " mascotas · " + when
+        : "Copia no válida · " + when;
       listNode.appendChild(option);
     });
-    el("tm-cloud-restore").disabled = rows.length === 0;
-    el("tm-cloud-delete").disabled = rows.length === 0;
-    if (!rows.length) announce("No tienes respaldos en esta cuenta. Crea el primero.");
+    listNode.value = "";
+    updateSelection();
+    if (!rows.length) announce("Esta cuenta no tiene copias. En el móvil donde está el personaje, inicia sesión y pulsa Respaldar partida actual.");
+    else announce("Hay " + rows.length + " copias en esta cuenta. Elige una por nombre, XP y mascotas. Iniciar sesión no cambia la partida local.");
   }
   async function signIn(mode) {
     await withBusy(async function () {
@@ -151,7 +206,7 @@
       el("tm-cloud-password").value = "";
       if (result.data.session) {
         await refreshAuth();
-        announce("Sesión iniciada. Ya puedes guardar una copia.");
+        announce("Sesión iniciada. El personaje de este móvil sigue local; selecciona Restaurar copia para traer otro, o Respaldar partida actual para enviarlo a la nube.");
       } else {
         announce("Revisa tu correo para confirmar la cuenta. El enlace debe volver a esta pagina.");
       }
@@ -173,6 +228,16 @@
       // Comparar con JSON final para no superar el CHECK SQL de 1 MiB.
       if (new TextEncoder().encode(JSON.stringify(payload)).length > 1000000) {
         throw new Error("La copia supera el limite beta de 1 MB. Usa el codigo local.");
+      }
+      var newProfile = summaryOf(result.raw);
+      var mismatched = [...backupDetails.values()].some(function (item) {
+        return item.valid && item.id && item.id !== newProfile.id;
+      });
+      if (mismatched && !window.confirm(
+          "Atención: esta cuenta ya tiene copias de otro personaje. ¿Quieres guardar también " +
+          newProfile.name + " (" + newProfile.xp + " XP)? No cambies de correo por error.")) {
+        announce("Respaldo cancelado. Cambia a la cuenta correcta antes de subir esta partida.");
+        return;
       }
       var name = String(result.save.data.profile.name || "Viajero").slice(0, 40);
       var profileId = String(result.save.data.profile.id || "").slice(0, 60);
@@ -214,7 +279,14 @@
       var raw = q.data && q.data.payload && q.data.payload.raw;
       if (typeof raw !== "string") throw new Error("El respaldo no conserva su contenido original.");
       validateEnvelope(JSON.parse(raw));
-      if (!window.confirm("Vas a reemplazar tu progreso local con esta copia. Se conservará un respaldo de seguridad en el navegador. ¿Continuar?")) {
+      var choice = summaryOf(raw);
+      if (!choice.valid) throw new Error("La copia está dañada; no se restauró nada.");
+      var local = localSummary();
+      var message = "Cuenta: " + activeUser.email + "\nCopia elegida: " +
+        choice.name + " · " + choice.xp + " XP · " + choice.pets + " mascotas.\n" +
+        "Personaje actual del móvil: " + (local && local.valid ? local.name + " (" + local.xp + " XP)" : "ninguno") +
+        ".\n¿Reemplazar la partida de este dispositivo? Se guardará antes una copia local.";
+      if (!window.confirm(message)) {
         announce("Restauración cancelada. Tu partida no cambió.");
         return;
       }
@@ -227,9 +299,16 @@
         }
       }
       el("import-in").value = encodeImport(raw);
+      el("save-status").textContent = "";
       el("btn-import").click();
+      var feedback = (el("save-status").textContent || "").trim();
+      if (feedback !== "Partida cargada.") {
+        throw new Error("No se pudo restaurar la partida: " + (feedback || "el importador no confirmó el resultado."));
+      }
       el("import-in").value = "";
-      announce("Restauración enviada al importador del juego. Comprueba su aviso de carga.");
+      announce("Restaurado: " + choice.name + " (" + choice.xp + " XP, " + choice.pets + " mascotas). La partida anterior quedó respaldada en este móvil.");
+      await loadBackups();
+      updateSelection();
     });
   }
 
@@ -249,6 +328,34 @@
     });
   }
 
+  async function requestPasswordRecovery() {
+    await withBusy(async function () {
+      var email = el("tm-cloud-email").value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("Escribe primero el correo registrado.");
+      var response = await client.auth.resetPasswordForEmail(email, {
+        redirectTo: location.origin + location.pathname
+      });
+      if (response.error) throw response.error;
+      announce("Si existe una cuenta con ese correo, llegará un enlace para cambiar la contraseña. Ábrelo en este dispositivo y vuelve a la beta.");
+    });
+  }
+  async function updatePassword() {
+    await withBusy(async function () {
+      var newPassword = el("tm-cloud-new-password").value;
+      if (newPassword.length < 8) throw new Error("La contraseña nueva necesita al menos 8 caracteres.");
+      var res = await client.auth.updateUser({password: newPassword});
+      if (res.error) throw res.error;
+      passwordRecoveryMode = false;
+      el("tm-cloud-reset-panel").hidden = true;
+      el("tm-cloud-new-password").value = "";
+      announce("Contraseña actualizada. Ya puedes entrar con esa cuenta desde otro móvil.");
+      await refreshAuth();
+    });
+  }
+
+  el("tm-cloud-list").addEventListener("change", updateSelection);
+  el("tm-cloud-forgot").addEventListener("click", requestPasswordRecovery);
+  el("tm-cloud-update-password").addEventListener("click", updatePassword);
   el("tm-cloud-login").addEventListener("click", function () { signIn("login"); });
   el("tm-cloud-register").addEventListener("click", function () { signIn("register"); });
   el("tm-cloud-backup").addEventListener("click", backup);
@@ -266,10 +373,20 @@
       announce("Sesión cerrada. Tu guardado local no se ha modificado.");
     });
   });
-  client.auth.onAuthStateChange(function () {
+  client.auth.onAuthStateChange(function (event) {
+    if (event === "PASSWORD_RECOVERY") {
+      passwordRecoveryMode = true;
+      el("tm-cloud-reset-panel").hidden = false;
+      announce("Enlace de recuperación recibido. Escribe una nueva contraseña y pulsa Guardar contraseña.");
+    }
     // Llamar a getUser dentro del callback puede bloquear el lock de Auth.
     setTimeout(function () {
-      refreshAuth().catch(function (e) { announce(errorMessage(e), true); });
+      refreshAuth().then(function () {
+        if (passwordRecoveryMode) {
+          el("tm-cloud-reset-panel").hidden = false;
+          announce("Enlace de recuperación recibido. Escribe y guarda tu nueva contraseña.");
+        }
+      }).catch(function (e) { announce(errorMessage(e), true); });
     }, 0);
   });
   refreshAuth().catch(function (e) { announce(errorMessage(e), true); });
