@@ -69,3 +69,23 @@ Integrar persistencia en Supabase sin destruir el multijugador existente ni los 
 Autenticación operativa y persistencia real → endpoint validado de inventario y procedencia → transacciones de crafting y obtención de cristales → economía compartida con auditoría e idempotencia → expansión persistente y mundo compartido. Conservar la experiencia móvil y el combate como prioridad.
 
 **INSTRUCCIÓN DE ENTREGA:** No fusionar código incompleto. Revisar primero este documento, `docs/MIGRACION_SUPABASE.md`, las tres migraciones reales y la beta. Nunca asumir que «se ve bien» equivale a «multijugador probado».
+
+## Incidente de pruebas reales y correcciones (10/11/2026, noche)
+El propietario probó con dos teléfonos, uno propio y otro de su pareja. Reportó que al intercambiar sesiones no aparecía el personaje esperado y un acceso mostraba error de credenciales/registro.
+
+**Datos comprobados directamente en Supabase, sin exponer identidades:** existen exactamente **2 usuarios Auth confirmados y con inicio de sesión**, **2 registros tm_players** y **5 respaldos** no verificados distribuidos 1+4 entre ambas cuentas. Entre los respaldos hay un personaje de **14.694 XP con 7 mascotas en las dos cuentas**, y un personaje nuevo de **0 XP / 0 mascotas** también presente entre los cuatro respaldos de una de ellas. No hubo pérdida total de datos. Tampoco se observó un error RLS en la auditoría.
+
+**Diagnóstico:** las cuentas son independientes de los guardados locales por teléfono. Iniciar sesión no importa un guardado automáticamente. Antes la lista de copias solo mostraba fecha y versión y permitía seleccionar implícitamente la más reciente, lo que favorecía restaurar el personaje equivocado. La UI además tenía una regla CSS `.tm-cloud-panel { display:grid }` que podía contrarrestar el atributo `hidden` dependiendo del navegador. El error real de contraseña exacto no se pudo reconstruir con certeza, pero los logs mostraban algunas respuestas Auth 400/403 durante las pruebas; ambas cuentas están confirmadas.
+
+**Cambios aplicados:** se actualizó la **beta pública** `main:beta/cloud-save.js`, `main:beta/index.html` y su equivalente de la rama PR #1; NINGÚN archivo raíz de producción fue modificado. La nueva interfaz:
+1. Muestra la cuenta conectada y el personaje local por separado.
+2. Lista cada copia por **nombre, XP, mascotas y fecha**, con selección explícita vacía por defecto.
+3. Advierte si se intenta subir una partida que pertenece a un perfil distinto de los respaldos de esa cuenta; requiere confirmación.
+4. Muestra un mensaje claro si las credenciales son inválidas o la cuenta ya existía, recordando usar **Entrar** en el otro teléfono.
+5. Incluye **Recuperar contraseña**, correo de recuperación y formulario para actualizar la contraseña al abrir el enlace PASSWORD_RECOVERY. Es esencial permitir en Supabase Auth → Redirect URLs el enlace **https://vangelium.github.io/torre-multiversal./beta/**.
+6. Antes de restaurar pide confirmación con los datos de ambos personajes; conserva un respaldo previo en `tm.beta.v1.tm.cloud.pre_restore`, ejecuta el importador oficial y confirma su mensaje `Partida cargada.` en vez de anunciar éxito sin comprobarlo.
+7. Mantiene los paneles ocultos con `.tm-cloud [hidden] {display:none!important}`.
+
+**Pruebas después del arreglo:** sintaxis JS, presencia de IDs y simulación funcional de login incorrecto, login válido, selector con detalles, aviso de personaje diferente, restauración confirmada con copia local anterior y recuperación de contraseña: **todas superadas**. Siguen pendientes las pruebas físicas con ambos teléfonos tras recargar la beta actualizada. No fusionar PR ni publicar el sistema de economía autoritativa hasta superar esas pruebas.
+
+**Instrucciones de reproducción:** entrar con el mismo correo de la cuenta que tiene el respaldo, pulsar **Entrar** y no Crear cuenta, elegir copia por XP y mascotas, pulsar Restaurar y aceptar el cambio local. No eliminar respaldos previos. Si el acceso dice credenciales inválidas, usar Recuperar contraseña; no recrear la cuenta.
