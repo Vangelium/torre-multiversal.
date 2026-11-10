@@ -17,7 +17,6 @@
   var listNode = el("tm-cloud-list");
   var activeUser = null;
   var busy = false;
-  var checks = 0;
 
   function announce(message, isError) {
     statusNode.textContent = message;
@@ -25,7 +24,9 @@
   }
   function lock(value) {
     busy = value;
-    root.querySelectorAll("button").forEach(function (btn) { btn.disabled = value; });
+    root.querySelectorAll("button").forEach(function (btn) {
+      btn.disabled = value || (btn.id === "tm-cloud-restore" && !listNode.options.length);
+    });
   }
   function errorMessage(err) {
     if (!err) return "Error desconocido.";
@@ -248,7 +249,6 @@
   client.auth.onAuthStateChange(function () {
     // Llamar a getUser dentro del callback puede bloquear el lock de Auth.
     setTimeout(function () {
-      if (++checks > 1000) checks = 0;
       refreshAuth().catch(function (e) { announce(errorMessage(e), true); });
     }, 0);
   });
