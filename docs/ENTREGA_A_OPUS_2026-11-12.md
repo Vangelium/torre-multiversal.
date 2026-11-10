@@ -99,3 +99,6 @@ El propietario probó con dos teléfonos, uno propio y otro de su pareja. Report
 
 ## Confirmación posterior del usuario
 El usuario confirmó que **ya consiguió completar el procedimiento de recuperación de una partida en otro móvil** después de las correcciones de beta. Se considera prueba manual positiva del flujo de acceso/restauración entre dispositivos según reporte del usuario. **No** está confirmado todavía, por inspección independiente, que todos los atributos del personaje (mascotas, inventario, progresión) se hayan restituido ni se han probado aún las dos sesiones multijugador simultáneas. No fusionar PR hasta pruebas pendientes.
+
+## Confirmación manual adicional del usuario: cooperativo en dos celulares
+En la conversación del 10/11/2026, después de restaurar una partida con la beta, el usuario confirmó que **también realizó la prueba de multijugador desde los dos teléfonos**, uno con su cuenta y otro con la cuenta de su pareja. Registrar como **prueba manual realizada según el usuario**; su mensaje no especificó resultados técnicos de movimiento, combate ni reconexión, por lo que no dar esos subcasos por verificados automáticamente. Pendiente de documentar detalles si surgen fallos. Se conserva el PR #1 en borrador y el juego oficial sin actualización del sistema cloud.
