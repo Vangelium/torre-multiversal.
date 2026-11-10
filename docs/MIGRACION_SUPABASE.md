@@ -1,5 +1,22 @@
+# Estado real tras recuperar el acceso (10/11/2026)
+
+✅ Proyecto correcto `cogwkcmlkurzagygnivy`, organización `TorreMultiversal`, PostgreSQL 17, estado ACTIVE_HEALTHY.
+
+✅ Se aplicaron al proyecto real dos migraciones, confirmadas mediante `list_migrations`:
+
+- `20261110220121_tm_restrict_rls_ddl_trigger_execute_20261110`: elimina los privilegios públicos de ejecución de `public.rls_auto_enable()`. El event trigger `ensure_rls` permanece activo.
+- `20261110220144_tm_persistence_foundation_20261110`: cinco tablas nuevas `tm_players`, `tm_legacy_backups`, `tm_economy_events`, `tm_inventory_lots` y `tm_currency_ledger`, con RLS y restricciones de escritura.
+
+**Verificación**: cinco tablas presentes, todas con RLS activado y cero filas iniciales; `anon` no puede insertar en ninguna; `authenticated` solo puede insertar en `tm_players` y `tm_legacy_backups` bajo política por propietario. Los usuarios autenticados NO pueden insertar directamente movimientos económicos, lotes o eventos. La función restringida NO es ejecutable por `anon` ni `authenticated`. La auditoría de seguridad de Supabase devuelve cero advertencias.
+
+**Todavía NO completado**: integración Auth del navegador, respaldo real y migración del progreso, endpoints transaccionales económicos, pruebas E2E y activación de guardado remoto. El juego público `main` y su Realtime Broadcast no se han modificado.
+
+**Registro**: el SQL en `supabase/sql/DRAFT_tm_persistence_foundation.sql` representa la migración de base que **ya se aplicó**, aunque permanezca con nombre DRAFT en esta rama de trabajo. Nunca ejecutar nuevamente el texto sin comparar estado e historial.
+
+---
+
 # Torre Multiversal | Migración segura a Supabase
-**Estado:** preparación en rama separada; **NO desplegada / NO ejecutada en base de datos.**
+**Estado:** infraestructura inicial aplicada en el proyecto real. Cliente web todavía sin modificar.
 
 ## Diagnóstico confirmado (10/11/2026)
 - Repositorio activo: `Vangelium/torre-multiversal.`, web estática por GitHub Pages.
