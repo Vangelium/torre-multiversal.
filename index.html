@@ -954,11 +954,12 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
           <div id="tm-cloud-ready" class="tm-cloud-panel" hidden>
             <p id="tm-cloud-account" class="note"></p>
             <button id="tm-cloud-backup" class="btn btn-gold" type="button">Respaldar partida actual</button>
-            <label for="tm-cloud-list">Mis copias (últimas 20)</label>
+            <label for="tm-cloud-list">Mis copias (máximo 20)</label>
             <select id="tm-cloud-list" aria-label="Elegir copia de partida"></select>
             <div class="tm-cloud-actions">
               <button id="tm-cloud-refresh" class="btn" type="button">Actualizar lista</button>
               <button id="tm-cloud-restore" class="btn" type="button">Restaurar copia</button>
+              <button id="tm-cloud-delete" class="btn btn-danger" type="button">Eliminar copia</button>
             </div>
             <button id="tm-cloud-signout" class="btn" type="button">Cerrar sesión</button>
             <p class="note">Restaurar reemplaza el progreso local solo después de confirmar y conserva una copia anterior.</p>
