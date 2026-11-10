@@ -6,7 +6,7 @@
   "use strict";
   var client = window.__TM_CLOUD_CLIENT__;
   var root = document.getElementById("tm-auto");
-  var storage = window.__TM_BETA_STORAGE__;
+  var storage = window.__TM_BETA_STORAGE__ || window.localStorage;
   if (!client || !root || !storage) return;
 
   var el = function (id) { return document.getElementById(id); };
