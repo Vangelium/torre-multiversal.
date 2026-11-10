@@ -306,9 +306,12 @@
         throw new Error("No se pudo restaurar la partida: " + (feedback || "el importador no confirmó el resultado."));
       }
       el("import-in").value = "";
-      announce("Restaurado: " + choice.name + " (" + choice.xp + " XP, " + choice.pets + " mascotas). La partida anterior quedó respaldada en este móvil.");
       await loadBackups();
       updateSelection();
+      var currentLocal = localSummary();
+      accountLabel.textContent = "Cuenta conectada: " + activeUser.email + " | Personaje en este celular: " +
+        (currentLocal && currentLocal.valid ? currentLocal.name + " (" + currentLocal.xp + " XP)" : "ninguno");
+      announce("Restaurado: " + choice.name + " (" + choice.xp + " XP, " + choice.pets + " mascotas). La partida anterior quedó respaldada en este móvil.");
     });
   }
 
