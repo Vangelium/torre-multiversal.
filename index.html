@@ -956,6 +956,18 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
           <button id="tm-cloud-forgot" class="btn" type="button">¿Olvidaste tu contraseña?</button>
           <div id="tm-cloud-ready" class="tm-cloud-panel" hidden>
             <p id="tm-cloud-account" class="note"></p>
+            <div id="tm-auto" class="tm-cloud-panel" role="group" aria-label="Guardado automático experimental">
+              <h3 style="margin:6px 0 0;font-size:14px;">Guardado automático <small>Experimental</small></h3>
+              <p class="note">Opcional. Guarda una sola ranura por cuenta cada 3 minutos de juego activo, excepto durante el cooperativo. Detecta cambios realizados en otro celular antes de sobrescribir. No reemplaza tus copias históricas.</p>
+              <p id="tm-auto-cloud" class="note">Consultando ranura…</p>
+              <div class="tm-cloud-actions">
+                <button id="tm-auto-enable" class="btn btn-gold" type="button">Activar autoguardado</button>
+                <button id="tm-auto-stop" class="btn" type="button" hidden>Detener autoguardado</button>
+                <button id="tm-auto-restore" class="btn" type="button" disabled>Recuperar ranura</button>
+                <button id="tm-auto-refresh" class="btn" type="button">Actualizar ranura</button>
+              </div>
+              <p id="tm-auto-status" class="note" role="status" aria-live="polite">Desactivado hasta que lo autorices.</p>
+            </div>
             <button id="tm-cloud-backup" class="btn btn-gold" type="button">Respaldar partida actual</button>
             <label for="tm-cloud-list">Mis copias (máximo 20)</label>
             <select id="tm-cloud-list" aria-label="Elegir copia de partida"></select>
@@ -1094,6 +1106,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 <script src="three.min.js?v=r128"></script>
 <script src="game.js?v=tm-cloud-20261110"></script>
 <script src="cloud-save.js?v=beta-recovery-20261110-r3"></script>
+<script src="cloud-auto.js?v=beta-auto-20261110-v1"></script>
 
 </body>
 </html>
