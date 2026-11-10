@@ -43,7 +43,7 @@
   }
   function decodeExport(code) {
     if (typeof code !== "string" || code.slice(0, 4) !== "TM1:") {
-      throw new Error("No se genero un codigo de partida valido.");
+      throw new Error("No se generó un código de partida válido.");
     }
     var binary = atob(code.slice(4).replace(/\s+/g, ""));
     var bytes = Uint8Array.from(binary, function (c) { return c.charCodeAt(0); });
@@ -54,11 +54,11 @@
   }
   function validateEnvelope(env) {
     if (!env || env.fmt !== "tm" || !Number.isInteger(env.v) || env.v < 0 ||
-        env.v > 19 || !env.data || typeof env.data !== "object" ||
+        env.v > 99 || !env.data || typeof env.data !== "object" ||
         !env.data.profile || !env.data.progress ||
         !Number.isInteger(env.sum) ||
         checksum(JSON.stringify(env.data)) !== env.sum) {
-      throw new Error("El respaldo no tiene un formato o checksum aceptable.");
+      throw new Error("El respaldo no tiene un formato ni una suma de verificación válidos.");
     }
     return env;
   }
@@ -134,7 +134,7 @@
       var email = el("tm-cloud-email").value.trim();
       var password = el("tm-cloud-password").value;
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || password.length < 8) {
-        throw new Error("Introduce un correo valido y una contrasena de al menos 8 caracteres.");
+        throw new Error("Introduce un correo válido y una contraseña de al menos 8 caracteres.");
       }
       var result = mode === "register"
         ? await client.auth.signUp({
@@ -147,7 +147,7 @@
       el("tm-cloud-password").value = "";
       if (result.data.session) {
         await refreshAuth();
-        announce("Sesion iniciada. Ya puedes guardar una copia.");
+        announce("Sesión iniciada. Ya puedes guardar una copia.");
       } else {
         announce("Revisa tu correo para confirmar la cuenta. El enlace debe volver a esta pagina.");
       }
@@ -155,10 +155,10 @@
   }
   async function backup() {
     await withBusy(async function () {
-      if (!activeUser) throw new Error("Inicia sesion primero.");
+      if (!activeUser) throw new Error("Inicia sesión primero.");
       var user = await client.auth.getUser();
       if (user.error || !user.data.user || user.data.user.id !== activeUser.id) {
-        throw new Error("Sesion expirada. Vuelve a iniciar sesion.");
+        throw new Error("Sesión expirada. Vuelve a iniciar sesión.");
       }
       // Usa el exportador EXISTENTE: guarda la posicion actual y calcula el checksum.
       var exportButton = el("btn-export");
@@ -191,27 +191,27 @@
       if (saved.error && saved.error.code !== "23505") throw saved.error;
       await loadBackups();
       announce(saved.error
-        ? "Esta misma partida ya tiene una copia en tu cuenta."
+        ? "Esta versión de la partida ya tiene una copia en tu cuenta."
         : "Respaldo creado. El progreso local se conserva intacto.");
     });
   }
   async function restore() {
     await withBusy(async function () {
-      if (!activeUser) throw new Error("Inicia sesion primero.");
+      if (!activeUser) throw new Error("Inicia sesión primero.");
       if (isCoopActive()) {
         throw new Error("Sal de la sala multijugador antes de restaurar una partida.");
       }
       var id = listNode.value;
-      if (!id) throw new Error("No seleccionaste ningun respaldo.");
+      if (!id) throw new Error("No seleccionaste ningún respaldo.");
       var q = await client.from("tm_legacy_backups")
         .select("payload,save_version,created_at")
         .eq("id", id).single();
       if (q.error) throw q.error;
       var raw = q.data && q.data.payload && q.data.payload.raw;
-      if (typeof raw !== "string") throw new Error("El respaldo no tiene su contenido original.");
+      if (typeof raw !== "string") throw new Error("El respaldo no conserva su contenido original.");
       validateEnvelope(JSON.parse(raw));
-      if (!window.confirm("Vas a reemplazar tu progreso local por esta copia. Se conservara un respaldo de seguridad en el navegador. Continuar?")) {
-        announce("Restauracion cancelada. Tu partida no cambio.");
+      if (!window.confirm("Vas a reemplazar tu progreso local con esta copia. Se conservará un respaldo de seguridad en el navegador. ¿Continuar?")) {
+        announce("Restauración cancelada. Tu partida no cambió.");
         return;
       }
       var current = localStorage.getItem("tm.save");
@@ -219,13 +219,13 @@
       if (current !== null) {
         localStorage.setItem("tm.cloud.pre_restore", current);
         if (localStorage.getItem("tm.cloud.pre_restore") !== current) {
-          throw new Error("No se pudo proteger la partida actual. No se hizo la restauracion.");
+          throw new Error("No se pudo proteger la partida actual. No se hizo la restauración.");
         }
       }
       el("import-in").value = encodeImport(raw);
       el("btn-import").click();
       el("import-in").value = "";
-      announce("Restauracion enviada al importador del juego. Comprueba su aviso de carga.");
+      announce("Restauración enviada al importador del juego. Comprueba su aviso de carga.");
     });
   }
 
@@ -242,7 +242,7 @@
       if (result.error) throw result.error;
       activeUser = null;
       await refreshAuth();
-      announce("Sesion cerrada. Tu guardado local no se ha modificado.");
+      announce("Sesión cerrada. Tu guardado local no se ha modificado.");
     });
   });
   client.auth.onAuthStateChange(function () {
