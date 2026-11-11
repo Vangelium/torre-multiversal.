@@ -116,3 +116,23 @@ En la conversación del 10/11/2026, después de restaurar una partida con la bet
 - **Seguridad Supabase**: ninguna alerta nueva en las tablas; permanece advertencia de configuración Auth de comprobación de contraseñas filtradas deshabilitada, pendiente de resolver en el dashboard si está disponible.
 - **Importante para Opus**: no migrar aún las ranuras a autoridad económica. No fusionar PR #1 sin validación real y plan de resolución de conflictos; el juego oficial sigue intacto.
 
+
+---
+
+## Rediseño del Centro de Cuenta (10/11/2026; posterior a prueba de usuarios)
+**Problema real reportado:** acceso y recuperación confundían email, perfil del personaje, respaldos históricos, slot automático y códigos TM1. Un usuario trató de recuperar un personaje cuya copia no estaba asociada al correo esperado.
+
+**Diagnóstico directamente desde Supabase:** la cuenta relacionada con ese acceso tiene respaldos de dos personajes históricos (uno con 14.694 XP y 7 mascotas; otro inicial con 0 XP) y una ranura automática del personaje inicial. El personaje solicitado **no aparece bajo ese nombre en esos datos**. Esto NO prueba pérdida de la partida: podría estar en el dispositivo original o un respaldo local del navegador. No modificar las filas históricas, no asignar un personaje artificialmente a un usuario, y no usar metadata editable para autorizar movimientos económicos.
+
+**Cambio real publicado SOLO en la beta**:
+- `beta/index.html`: pestaña **Cuenta** en lugar de Guardado. Estructura móvil limpia: entrar con el correo → ver cuenta conectada y personaje local → tarjetas separadas de cada personaje de la nube → botón directo **Continuar con [personaje]**. Los controles TM1 y el autoguardado experimental quedan disponibles bajo «Transferencia manual» / «Opciones avanzadas».
+- `beta/account-center.js`: script único para pantalla principal, sin ejecutarse junto con el antiguo `cloud-save.js` (archivo anterior queda preservado como referencia). Consulta `tm_legacy_backups` + `tm_cloud_saves`, verifica checksum, agrupa por ID de perfil, ordena las versiones por fecha, muestra XP, mascotas, fecha y origen, y ofrece una acción de restauración por personaje, sin selección oculta en combo.
+- Antes de cambiar, preserva la partida local en `tm.hub.previous.<user_id>` y pide confirmación. Usa exclusivamente el importador TM1 del juego; comprueba el texto «Partida cargada.» y pulsa reanudar solo cuando procede. Ningún cambio al juego oficial.
+- El usuario puede **Guardar personaje de este celular** en su cuenta. Si ya tiene copias de otro personaje, advierte explícitamente antes de mezclar copias.
+- Si falta un personaje en la nube, el botón **Buscar partidas anteriores de este celular** inspecciona el respaldo beta `tm.save.bak`, los backups locales previos a importaciones, y copias originales de la web oficial (SOLO LECTURA). Si encuentra el personaje, permite recuperarlo en beta con confirmación y copia previa; después el usuario debe pulsar Guardar personaje para subirlo a su cuenta.
+- Recuperación de contraseña y cambio de cuenta se mantuvieron, con mensajes explícitos de error.
+- CSP, motor `game.js`, Supabase Realtime y los archivos raíz oficiales de `main` quedaron intactos. Autoguardado permanece opt-in bajo «Avanzado».
+
+**Pruebas en mocks**: inicio de sesión y recuperación de personaje histórico con juego reanudado (éxito); agrupación de varias copias en dos personajes (éxito); exploración de copia local del juego oficial y restauración en beta sin modificar el archivo original (éxito). **Pendiente**: validación física de esta nueva UX en los celulares de la pareja y una posible copia local del personaje solicitado. La nube no puede recuperar datos nunca subidos.
+
+**Regla de ingeniería:** No fusionar PR #1 hasta pruebas móviles; usar la beta y documentar si los personajes de cada cuenta están bien asociados. Evitar que el usuario confunda cuenta de correo con personaje y el slot automático con los respaldos históricos.
