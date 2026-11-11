@@ -251,6 +251,7 @@ async function completeCreation(){
      JSON.stringify({revision:syncRevision,fingerprint:digest}));
    storage.removeItem(pendingKey(user.id));
    if(typeof window.__TM_SYNC_REFRESH__==="function")setTimeout(window.__TM_SYNC_REFRESH__,0);
+   if(typeof window.__TM_CONFLICT_RESET__==="function")window.__TM_CONFLICT_RESET__();
    // El primer guardado ya quedó vinculado. El resto continúa con la
    // actualización de revisiones, no con una subida arbitraria.
    await loadCharacters();
@@ -479,6 +480,7 @@ async function useSnapshot(snapshot,source){
  }
  await rememberChoice(source,snapshot);
  if(typeof window.__TM_SYNC_REFRESH__==="function")setTimeout(window.__TM_SYNC_REFRESH__,0);
+   if(typeof window.__TM_CONFLICT_RESET__==="function")window.__TM_CONFLICT_RESET__();
  // El motor abre su creador durante el arranque si este navegador aún
  // no tiene aspecto. Cuando importamos un personaje válido, cerramos ese
  // panel anterior antes de iniciar la sesión; no tocamos su contenido.
