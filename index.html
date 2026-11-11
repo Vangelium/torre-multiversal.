@@ -202,6 +202,23 @@ body:has(#tm-entry:not([hidden])){touch-action:pan-y!important;}
 .tm-char-sync-actions .btn{font-size:11px;white-space:normal;min-height:40px;padding:7px 5px}
 @media(max-width:350px){.tm-char-sync-actions{grid-template-columns:1fr}}
 </style>
+<style>
+.tm-char-conflict{border:1px solid #536d84;border-radius:6px;background:linear-gradient(135deg,#1b2a3c,#151d2b);padding:13px;display:grid;gap:10px}
+.tm-char-conflict [hidden]{display:none!important}
+.tm-char-conflict-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.tm-char-conflict-head strong{font-size:13px;color:#e9d6ae}
+.tm-char-conflict-head span{font:9px var(--font-label);color:#a4c5d3}
+#tm-char-conflict-compare{min-height:40px;background:#35515e;color:#f4f8fa;font-size:11px}
+.tm-char-conflict-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}
+.tm-char-conflict-grid article{border:1px solid #54717a;padding:10px;background:#101a28;min-width:0}
+.tm-char-conflict-grid small{display:block;font-size:9px;color:#95d7d7;font-weight:bold}
+.tm-char-conflict-grid p{white-space:pre-line;overflow-wrap:anywhere;font-size:12px;color:#f2e5ce;line-height:1.5;margin:7px 0 0}
+.tm-char-conflict-actions{display:grid;gap:7px;margin-top:11px}
+.tm-char-conflict-actions button{white-space:normal;min-height:44px;font-size:11px}
+#tm-char-conflict-dismiss{margin-top:5px;border:1px solid #4c637c;width:100%;text-decoration:none}
+#tm-char-conflict-status[data-state=error]{color:#ffc2ae}
+@media(max-width:420px){.tm-char-conflict-grid{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1145,6 +1162,24 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
                 <button id="tm-char-sync-check" class="btn" type="button">Comprobar nube</button>
               </div>
             </section>
+            <section id="tm-char-conflict" class="tm-char-conflict" aria-label="Comparar versiones de partida">
+                <div class="tm-char-conflict-head"><strong>¿Hay dos versiones de tu partida?</strong><span>RECUPERACIÓN SEGURA</span></div>
+                <p class="tm-hub-hint">Compara el progreso del celular con el guardado de Supabase. No se modifica nada al comparar.</p>
+                <button id="tm-char-conflict-compare" class="btn" type="button">Comparar versiones</button>
+                <div id="tm-char-conflict-results" hidden>
+                  <div class="tm-char-conflict-grid">
+                    <article><small>EN ESTE CELULAR</small><p id="tm-char-conflict-local"></p></article>
+                    <article><small>EN SUPABASE</small><p id="tm-char-conflict-cloud"></p></article>
+                  </div>
+                  <p class="tm-hub-hint">La experiencia o las mascotas no determinan cuál versión es más reciente. Revisa los datos antes de elegir.</p>
+                  <div id="tm-char-conflict-actions" class="tm-char-conflict-actions" hidden>
+                    <button id="tm-char-conflict-use-cloud" class="btn btn-gold" type="button">Recuperar nube en este celular</button>
+                    <button id="tm-char-conflict-use-local" class="btn" type="button">Conservar este celular y actualizar nube</button>
+                  </div>
+                  <button id="tm-char-conflict-dismiss" class="tm-hub-secondary" type="button">Cancelar · No cambiar nada</button>
+                </div>
+                <p id="tm-char-conflict-status" class="tm-hub-hint" role="status" aria-live="polite">Las versiones se compararán antes de ofrecer acciones.</p>
+              </section>
             <div class="tm-hub-section-title">
               <div><div class="tm-step"><span>02</span><strong>Elige tu personaje</strong></div>
                 <small id="tm-hub-count">Buscando personajes…</small></div>
@@ -1377,6 +1412,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 <script src="account-center.js?v=account-center-20261110-v2"></script>
 <script src="entry-gate.js?v=tm-vangelium-entry-20261111-v6"></script>
 <script src="character-sync.js?v=tm-per-character-20261111-v1"></script>
+<script src="conflict-center.js?v=tm-conflicts-20261111-v1"></script>
 
 </body>
 </html>
