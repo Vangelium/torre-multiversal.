@@ -415,7 +415,12 @@ $("tm-entry-guest-btn").addEventListener("click",function(){run(async function()
  await ensureEngine();
  if(!window.confirm("Continuar sin cuenta? El progreso se guardará SOLO en este celular de prueba."))
    return;
+ var pending=$("creator");
+ var saved=rawLocal();
  wrap.hidden=true;
+ // En instalaciones nuevas el motor ya dejó abierto el creador inicial.
+ if(pending&&!pending.hidden)return;
+ if(!saved||!saved.data.profile.character){$("btn-character").click();return;}
  $("btn-solo").click();
 })});
 $("tm-entry-new-btn").addEventListener("click",function(){run(async function(){
@@ -425,7 +430,9 @@ $("tm-entry-new-btn").addEventListener("click",function(){run(async function(){
    throw Error("Para crear un segundo personaje sin sobrescribir tu partida, primero debemos habilitar la creación independiente. Conserva este personaje y usa Vincular.");
  }
  if(!window.confirm("Abrir creador de personajes? La partida local actual quedará como punto de partida."))return;
- wrap.hidden=true;$("btn-character").click();
+ wrap.hidden=true;
+ var creator=$("creator");
+ if(!creator||creator.hidden)$("btn-character").click();
 })});
 cloud.auth.onAuthStateChange(function(event){
  if(event==="PASSWORD_RECOVERY"){
