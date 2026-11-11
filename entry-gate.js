@@ -343,7 +343,7 @@ async function authReady(){
  if(res.error)throw res.error;
  user=res.data.user;
  if(!user){view("login");return}
- $("tm-entry-user").textContent=user.email||"Cuenta conectada";
+ $("tm-entry-account").textContent=user.email||"Cuenta conectada";
  view("characters");
  await loadCharacters();
  notice("Elige un personaje para continuar. Las partidas locales permanecen protegidas.");
