@@ -158,7 +158,7 @@ async function ensureBaseline(info){
    return;
  }
  fail("Conflicto: la nube y este celular tienen versiones diferentes de "+info.local.name+
-   ". No sobrescribí nada. Entra a «Cambiar cuenta o personaje» para comparar y recuperar la copia adecuada.",true);
+   ". No sobrescribí nada. Pulsa «Comparar versiones» en Pausa → Cuenta para decidir.",true);
  throw Error("VERSION_CONFLICT");
 }
 async function performSave(force){
@@ -234,7 +234,7 @@ async function enable(){
  if(info.previous && (info.previous.revision!==Number(info.remote.revision)||
       info.previous.fingerprint!==info.remote.fingerprint) &&
       info.digest!==info.remote.fingerprint){
-   fail("La nube tiene una versión distinta. No se activó el autoguardado. Revisa primero el personaje en Vangelium.",true);
+   fail("La nube tiene otra versión de este personaje. Pulsa «Comparar versiones» antes de activar el autoguardado.",true);
    return;
  }
  await ensureBaseline(info);
