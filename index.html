@@ -111,6 +111,7 @@
  font:14px/1.42 system-ui,"Trebuchet MS",sans-serif;
 }
 .tm-entry[hidden],.tm-entry [hidden]{display:none!important;}
+body:has(#tm-entry:not([hidden])){touch-action:pan-y!important;}
 .tm-entry *{box-sizing:border-box;}
 .tm-entry-backdrop{position:fixed;inset:0;pointer-events:none;opacity:.66;overflow:hidden;z-index:-1;}
 .tm-entry-glow{position:absolute;left:50%;top:5%;width:65vmin;height:65vmin;transform:translateX(-50%);
@@ -962,6 +963,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
       <button id="btn-combat-trial" class="btn btn-gold" type="button">Probar combos · Nivel 1</button>
       <p class="note">Dos rivales para practicar. Tu nivel, equipo y posición de la partida se conservan.</p>
       <div class="row-buttons">
+        <button id="tm-entry-open-btn" class="btn" type="button">Cambiar cuenta o personaje</button>
         <button id="btn-solo" class="btn" type="button">Jugar solo</button>
         <button id="btn-create" class="btn btn-gold" type="button">Crear partida</button>
       </div>
