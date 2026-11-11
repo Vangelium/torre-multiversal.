@@ -401,6 +401,11 @@ async function refresh(){
    notice("Personajes actualizados. No cambió ninguna partida local.");
  });
 }
+$("tm-entry-open-btn").addEventListener("click",function(){
+ wrap.hidden=false;
+ view("loading");
+ authReady().catch(function(e){view("login");notice(messageOf(e),true)});
+});
 $("tm-entry-login-btn").addEventListener("click",function(){signIn(false)});
 $("tm-entry-register-btn").addEventListener("click",function(){signIn(true)});
 $("tm-entry-forgot-btn").addEventListener("click",forgot);
