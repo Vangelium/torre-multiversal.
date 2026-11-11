@@ -85,7 +85,7 @@ function element(tag,klass,textValue){
   return node;
 }
 function directSource(record){
-  return record.kind==="slot"?"Autoguardado":"Respaldo";
+  return record.kind==="slot"?"Ranura de autoguardado":"Copia histórica";
 }
 async function fetchData(){
   if(!account)return;
@@ -188,7 +188,7 @@ async function refreshAccount(){
     if(u){await fetchData();status("Cuenta conectada. Elige tu personaje y pulsa «Continuar».")}
     else{renderCharacters();status("Inicia sesión para ver los personajes asociados a tu correo.")}
   }else if(u&&account){account=u;showAccount();}
-  else showAccount();
+  else {showAccount();status("Inicia sesión para ver los personajes asociados a tu correo.");}
 }
 async function signIn(register){
   await run(async function(){
@@ -339,6 +339,8 @@ async function restore(item){
   showAccount();
   renderCharacters();
   status("Personaje recuperado: "+saved.name+" · "+saved.xp+" XP · "+saved.pets+" mascotas. Ya puedes continuar jugando.");
+  var resume=$("btn-resume"),pause=$("pause"),creator=$("creator");
+  if(resume&&pause&&!pause.hidden&&(!creator||creator.hidden)&&saved.data.profile.character){resume.click();}
 }
 async function restorePrevious(){
   if(!account)throw Error("No hay sesión.");
