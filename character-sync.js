@@ -200,7 +200,9 @@ async function performSave(force){
    return;
  }
  if(epoch!==requestEpoch||!same(active,ctx)){
-   fail("La cuenta o el personaje cambió durante la operación. Revisa la nube antes de volver a activar.",true);
+   // Nunca tocar las preferencias de otro personaje si cambió mientras
+   // Supabase respondía. El bloqueo CAS ya protegió la revisión remota.
+   setStatus("La cuenta o personaje cambió durante el envío. Comprueba la nube antes de continuar.",true);
    return;
  }
  if(Number(update.data.revision)!==Number(info.remote.revision)+1 ||
@@ -295,10 +297,22 @@ $("tm-char-sync-check").addEventListener("click",function(){run(async function()
  await reloadState();
  if(active&&!started)setStatus("Guardado remoto comprobado. No se envió ningún progreso. Pulsa Activar para sincronizar.");
 })});
+window.__TM_SYNC_REFRESH__=function(){
+ requestEpoch++;
+ started=false;
+ if(busy){
+   setStatus("Terminando una operación anterior antes de cambiar de personaje.");
+   setTimeout(function(){reloadState().catch(function(e){setStatus(String(e.message||e),true)})},1200);
+   return;
+ }
+ reloadState().catch(function(e){setStatus(String(e.message||e),true)});
+};
 cloud.auth.onAuthStateChange(function(){
  requestEpoch++;
  started=false;
- setTimeout(function(){reloadState().catch(function(e){fail(String(e.message||e),true)})},0);
+ setTimeout(function(){
+   reloadState().catch(function(e){setStatus(String(e.message||e),true)});
+ },0);
 });
 setInterval(function(){
  if(!started||busy||!active)return;
