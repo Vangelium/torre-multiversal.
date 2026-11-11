@@ -295,7 +295,7 @@ $("tm-char-sync-off").addEventListener("click",function(){run(stop)});
 $("tm-char-sync-now").addEventListener("click",function(){run(function(){return performSave(true)})});
 $("tm-char-sync-check").addEventListener("click",function(){run(async function(){
  await reloadState();
- if(active&&!started)setStatus("Guardado remoto comprobado. No se envió ningún progreso. Pulsa Activar para sincronizar.");
+ // reloadState informa también los conflictos; no ocultar su advertencia.
 })});
 window.__TM_SYNC_REFRESH__=function(){
  requestEpoch++;
