@@ -133,8 +133,8 @@ function render(){
    groups.get(item.id).push(item);
  }
  $("tm-entry-count").textContent=groups.size===1?"1 personaje disponible":groups.size+" personajes disponibles";
- for(var versions of groups.values()){
-   var choice=versions[0],card=node("article","tm-entry-character");
+ for(const versions of groups.values()){
+   const choice=versions[0],card=node("article","tm-entry-character");
    var top=node("div","tm-entry-charhead"),portrait=node("div","tm-entry-avatar",choice.name.slice(0,1).toUpperCase());
    portrait.setAttribute("aria-hidden","true");
    top.appendChild(portrait);
