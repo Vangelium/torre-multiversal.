@@ -96,3 +96,26 @@ Migraciones reales versionadas en el repo: `20261111075939_tm_character_saves_ad
 El centro de cuentas de la beta lista primero `tm_character_saves`; conserva después `tm_cloud_saves` (slot anterior) y `tm_legacy_backups`. El botón **Vincular y guardar este personaje** crea/actualiza su ranura mediante compare-and-swap y guarda la última revisión conocida por usuario y personaje en el namespace local de beta. Ante discrepancias NO sobreescribe; requiere recuperación de la versión remota o respaldo histórico explícito. Esta vinculación es aún una copia cliente no verificada, **no** inventario autoritativo.
 
 QA móvil pendiente. La beta cambia solo `beta/account-center.js` y `beta/index.html` en main; el juego oficial raíz no se fusionó. Se mantiene alerta Auth externa por protección de contraseñas filtradas desactivada.
+
+---
+
+## 11/11/2026, fase adicional: creación independiente de varios personajes (beta)
+
+**Objetivo:** solucionar el bloqueo anterior de «Crear personaje», que no permitía crear un segundo personaje sin riesgo de sustituir el progreso único en `tm.save`.
+
+### Implementación
+- Script `entry-gate.js` tanto en la rama de desarrollo como en `main:beta/entry-gate.js`; interfaz `beta/index.html` con botón **+ Crear personaje nuevo**. Caché del script invalidada mediante `v6`.
+- La beta conserva el motor `beta/game.js` original. No se cambió ninguna línea del motor ni el sitio oficial raíz.
+- **Archivo local por cuenta:** antes de cambiar o iniciar otro perfil, invoca el exportador TM1 del motor para incluir posición/progreso reciente, comprueba checksum y archiva una copia independiente con índice `tm.entry.local.index.<uid>` y entradas `tm.entry.archive.<uid>.*`. Verifica cada escritura. No elimina ni limita artificialmente las copias del archivo.
+- **Creación de nuevo personaje:** con sesión verificada, guarda el perfil anterior y los slots locales del motor; registra `tm.entry.pending.<uid>` y, si ya existe un personaje diseñado, limpia *solo* las claves activas de la beta con posibilidad de rollback inmediato ante fallos; recarga la página para que el motor genere nuevo `profile.id`. No reutiliza la ID anterior. No toca `localStorage['tm.save']` del juego oficial.
+- **Primer personaje:** si no había aspecto, el motor conserva su nuevo ID actual y muestra directamente el creador, sin recarga ni borrado innecesario.
+- **Al pulsar Despertar:** comprueba cuenta, ID, checksum y personaje final; archiva la copia recién creada; crea una nueva fila no verificada `tm_character_saves` para ese `(user_id,profile_id)`, solo si no existe una versión diferente, y después entra en juego. Si falla la nube, conserva la copia local y muestra una ruta para vincularla manualmente. No sobreescribe personajes antiguos.
+- **Cambiar personaje:** ahora archiva el estado fresco con el exportador del motor antes de importar otro, en vez de confiar solo en la última versión de `tm.save`. Las copias archivadas se ven en «Buscar personajes de este celular».
+- Este diseño sigue siendo **beta**: el motor mantiene una ranura local activa a la vez. El almacenamiento archivado protege las demás al cambiar. La propiedad de objetos/monedas sigue sin autoridad server-side.
+
+### Verificación ejecutada
+- Sintaxis de JavaScript: válida.
+- Simulación de creación de segundo personaje: conserva Yonnah y copia previa, limpia solo slots beta, reinicia el motor, crea Nnn con ID diferente, vincula a la cuenta y entra en modo solitario. Todas las condiciones pasaron. Almacenamiento oficial sin modificar.
+- Simulación de creación del **primer personaje**: usa su ID inicial, se vincula y entra sin recarga. Superada.
+- Pruebas previas de login, selección de personajes y recuperación por checksum ya pasaron. Falta **QA real en Android** sobre creación, recarga, conexión lenta, cuota de almacenamiento y multijugador.
+- **No fusionar PR #1** a producción antes del QA.
