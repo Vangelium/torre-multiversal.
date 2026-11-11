@@ -90,6 +90,12 @@
 .tm-manual-legacy {padding:10px;border:1px solid #394655;background:#151c25;display:grid;gap:9px;}
 .tm-manual-legacy > *:not(summary) {margin-top:8px;}
 .tm-manual-legacy textarea {width:100%;min-height:70px;user-select:text;-webkit-user-select:text;}
+.tm-hub-scan{text-decoration:none;border:1px solid #7894a1;background:#192d35;padding:9px 10px;min-height:42px;color:#c4e8ec;}
+.tm-hub-local-copies{display:grid;gap:8px}
+.tm-hub-local-copy{background:#17232e;padding:11px;border:1px solid #66858d;display:grid;gap:6px}
+.tm-hub-local-copy strong{font-size:13px;color:#f4deb2}
+.tm-hub-local-copy small{font-size:11px;color:var(--dim)}
+.tm-hub-local-copy .btn{font-size:10px;white-space:normal}
 @media(max-width:400px){.tm-hub-heading h2{font-size:20px}.tm-profile-name strong{font-size:18px}.tm-hub-section{padding:10px}.tm-hub-session{flex-wrap:wrap}}
 </style>
 </head>
@@ -1033,6 +1039,8 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
               <strong>¿No aparece tu personaje?</strong>
               <p>Abre la beta en el celular donde lo tienes y pulsa este botón con <b>su cuenta correcta</b>. Así aparecerá aquí cuando entres en otro móvil.</p>
               <button id="tm-hub-backup" class="btn tm-hub-primary" type="button">Guardar personaje de este celular</button>
+              <button id="tm-hub-scan" class="tm-hub-secondary tm-hub-scan" type="button">Buscar partidas anteriores de este celular</button>
+              <div id="tm-hub-local-copies" class="tm-hub-local-copies" role="list" aria-live="polite" hidden></div>
             </div>
             <details id="tm-hub-advanced" class="tm-hub-advanced">
               <summary>Opciones avanzadas y autoguardado</summary>
@@ -1189,7 +1197,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 </div>
 <script src="three.min.js?v=r128"></script>
 <script src="game.js?v=beta-isolated-20261110"></script>
-<script src="account-center.js?v=account-center-20261110-v1"></script>
+<script src="account-center.js?v=account-center-20261110-v2"></script>
 <script src="cloud-auto.js?v=beta-auto-20261110-v1"></script>
 
 </body>
