@@ -190,6 +190,18 @@ body:has(#tm-entry:not([hidden])){touch-action:pan-y!important;}
 @media(max-height:450px){.tm-entry{place-items:start center}.tm-entry-box{max-height:calc(100dvh - 18px);padding:12px}.tm-entry-sign{margin-bottom:9px}.tm-entry-sign h1{font-size:24px}}
 @media(prefers-reduced-motion:reduce){.tm-entry-progress::before{animation:none;width:100%;}}
 </style>
+<style>
+.tm-char-sync-panel{border:1px solid #5a7f85;background:linear-gradient(150deg,#162b38,#13212f);padding:13px;display:grid;gap:9px;box-shadow:inset 0 0 0 1px #253f4a}
+.tm-char-sync-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tm-char-sync-head strong{display:block;font-size:14px;color:#f1dba5}
+.tm-char-sync-head small{display:block;font-size:11px;color:#a9c2c7;margin-top:4px}
+.tm-char-sync-tag{font-size:9px;color:#dccb9a;border:1px solid #7d7050;padding:4px 6px}
+#tm-char-sync-status{margin:0;line-height:1.5;font-size:12px;color:#b9dee1;min-height:20px}
+#tm-char-sync-status[data-state=error]{color:#ffc4a4}
+.tm-char-sync-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.tm-char-sync-actions .btn{font-size:11px;white-space:normal;min-height:40px;padding:7px 5px}
+@media(max-width:350px){.tm-char-sync-actions{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1118,6 +1130,21 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
               <div class="tm-hub-local-icon" aria-hidden="true">⌂</div>
               <div><span>PARTIDA QUE TIENES EN ESTE CELULAR</span><strong id="tm-hub-local">Buscando partida…</strong></div>
             </div>
+            <section id="tm-char-sync" class="tm-char-sync-panel" aria-label="Sincronización por personaje">
+              <div class="tm-char-sync-head">
+                <div><strong>Sincronización de este personaje</strong>
+                <small id="tm-char-sync-name">Comprobando cuenta y personaje…</small></div>
+                <span class="tm-char-sync-tag">BETA</span>
+              </div>
+              <p class="tm-hub-hint">Opcional. Guarda el progreso de cada personaje por separado cada 2 minutos de juego activo. Se detiene ante conflictos o en cooperativo.</p>
+              <p id="tm-char-sync-status" role="status" aria-live="polite">Desactivado hasta que lo autorices.</p>
+              <div class="tm-char-sync-actions">
+                <button id="tm-char-sync-on" class="btn btn-gold" type="button">Activar autoguardado</button>
+                <button id="tm-char-sync-off" class="btn" type="button" hidden>Pausar autoguardado</button>
+                <button id="tm-char-sync-now" class="btn" type="button" disabled>Guardar ahora</button>
+                <button id="tm-char-sync-check" class="btn" type="button">Comprobar nube</button>
+              </div>
+            </section>
             <div class="tm-hub-section-title">
               <div><div class="tm-step"><span>02</span><strong>Elige tu personaje</strong></div>
                 <small id="tm-hub-count">Buscando personajes…</small></div>
@@ -1136,18 +1163,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
             </div>
             <details id="tm-hub-advanced" class="tm-hub-advanced">
               <summary>Opciones avanzadas y autoguardado</summary>
-              <div id="tm-auto" class="tm-cloud-panel" role="group" aria-label="Guardado automático experimental">
-                <h3>Autoguardado experimental</h3>
-                <p class="tm-hub-hint">Actualiza una ranura por cuenta cada 3 minutos de juego activo, fuera del cooperativo. Puede pausarse al detectar otro celular.</p>
-                <p id="tm-auto-cloud" class="tm-hub-hint">Consultando ranura…</p>
-                <div class="tm-hub-actions">
-                  <button id="tm-auto-enable" class="btn" type="button">Activar</button>
-                  <button id="tm-auto-stop" class="btn" type="button" hidden>Detener</button>
-                  <button id="tm-auto-restore" class="btn" type="button" disabled>Recuperar ranura</button>
-                  <button id="tm-auto-refresh" class="btn" type="button">Actualizar ranura</button>
-                </div>
-                <p id="tm-auto-status" class="tm-hub-hint" role="status" aria-live="polite"></p>
-              </div>
+              <p class="tm-hub-hint">La ranura experimental antigua sigue conservada en Supabase y puedes recuperarla desde el selector de Vangelium. Ya no se actualiza automáticamente para evitar mezclar personajes.</p>
               <button id="tm-hub-history-backup" class="btn" type="button">Crear respaldo histórico del personaje actual</button>
               <button id="tm-hub-previous" class="btn" type="button" hidden>Volver a la partida local anterior</button>
               <p class="tm-hub-hint">Los respaldos históricos aparecen agrupados por personaje. Sus otras versiones están dentro de cada tarjeta.</p>
@@ -1359,8 +1375,8 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 <script src="three.min.js?v=r128"></script>
 <script src="game.js?v=tm-cloud-20261110"></script>
 <script src="account-center.js?v=account-center-20261110-v2"></script>
-<script src="cloud-auto.js?v=beta-auto-20261110-v1"></script>
 <script src="entry-gate.js?v=tm-vangelium-entry-20261111-v6"></script>
+<script src="character-sync.js?v=tm-per-character-20261111-v1"></script>
 
 </body>
 </html>
