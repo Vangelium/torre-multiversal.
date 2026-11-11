@@ -244,7 +244,13 @@ async function completeCreation(){
      }).select("revision,profile_id").single();
      if(written.error)throw written.error;
    }
+   storage.setItem("tm.char.sync.source."+user.id,"linked:"+current.id);
+   storage.setItem("tm.gateway.selected."+user.id,current.id);
+   var syncRevision=existing.data?Number(existing.data.revision):1;
+   storeVerified("tm.char.sync.base."+user.id+"."+encodeURIComponent(current.id),
+     JSON.stringify({revision:syncRevision,fingerprint:digest}));
    storage.removeItem(pendingKey(user.id));
+   if(typeof window.__TM_SYNC_REFRESH__==="function")setTimeout(window.__TM_SYNC_REFRESH__,0);
    // El primer guardado ya quedó vinculado. El resto continúa con la
    // actualización de revisiones, no con una subida arbitraria.
    await loadCharacters();
@@ -438,13 +444,21 @@ async function newest(record){
  if(data.id!==record.id)throw Error("El contenido de esta partida cambió. Actualiza la lista.");
  return data;
 }
-function rememberChoice(record){
+async function rememberChoice(record,snapshot){
  if(!user)return;
- storage.setItem("tm.gateway.selected."+user.id,record.id);
- var key="tm.hub.character.revision."+user.id+"."+encodeURIComponent(record.id);
- if(record.source==="linked")
+ var uid=user.id,id=snapshot.id;
+ storage.setItem("tm.gateway.selected."+uid,id);
+ var key="tm.hub.character.revision."+uid+"."+encodeURIComponent(id);
+ if(record&&record.source==="linked"){
    storage.setItem(key,String(record.revision));
- else if(storage.removeItem)storage.removeItem(key);
+   var digest=await fingerprint(snapshot.data);
+   storeVerified("tm.char.sync.base."+uid+"."+encodeURIComponent(id),
+     JSON.stringify({revision:Number(record.revision),fingerprint:digest}));
+   storage.setItem("tm.char.sync.source."+uid,"linked:"+id);
+ }else{
+   storage.setItem("tm.char.sync.source."+uid,"other:"+id);
+   if(storage.removeItem)storage.removeItem(key);
+ }
 }
 async function useSnapshot(snapshot,source){
  await ensureEngine();
@@ -463,7 +477,8 @@ async function useSnapshot(snapshot,source){
    if(result!=="Partida cargada.")
      throw Error("El motor no confirmó la restauración: "+(result||"sin respuesta."));
  }
- if(source)rememberChoice(source);
+ await rememberChoice(source,snapshot);
+ if(typeof window.__TM_SYNC_REFRESH__==="function")setTimeout(window.__TM_SYNC_REFRESH__,0);
  // El motor abre su creador durante el arranque si este navegador aún
  // no tiene aspecto. Cuando importamos un personaje válido, cerramos ese
  // panel anterior antes de iniciar la sesión; no tocamos su contenido.
