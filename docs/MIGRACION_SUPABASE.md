@@ -87,3 +87,12 @@ La versión beta actualizada muestra nombre, XP, número de mascotas y fecha de 
 - **Seguridad Supabase**: ninguna alerta nueva en las tablas; permanece advertencia de configuración Auth de comprobación de contraseñas filtradas deshabilitada, pendiente de resolver en el dashboard si está disponible.
 - **Importante para Opus**: no migrar aún las ranuras a autoridad económica. No fusionar PR #1 sin validación real y plan de resolución de conflictos; el juego oficial sigue intacto.
 
+
+---
+
+## 11/11/2026: ranuras por personaje y seguridad
+Migraciones reales versionadas en el repo: `20261111075939_tm_character_saves_additive_beta`, `20261111080304_tm_character_saves_remove_anon_grants` (recuperadas desde el historial aplicado), y `20261111173201_tm_character_saves_guard_and_restrict_grants` (aplicada ahora). Tabla `tm_character_saves`, clave compuesta `(user_id, profile_id)`, RLS de propietario, INSERT/SELECT/UPDATE, sin TRUNCATE/DELETE para clientes. Trigger evita cambio de propietario o perfil y exige incremento +1 de revisión.
+
+El centro de cuentas de la beta lista primero `tm_character_saves`; conserva después `tm_cloud_saves` (slot anterior) y `tm_legacy_backups`. El botón **Vincular y guardar este personaje** crea/actualiza su ranura mediante compare-and-swap y guarda la última revisión conocida por usuario y personaje en el namespace local de beta. Ante discrepancias NO sobreescribe; requiere recuperación de la versión remota o respaldo histórico explícito. Esta vinculación es aún una copia cliente no verificada, **no** inventario autoritativo.
+
+QA móvil pendiente. La beta cambia solo `beta/account-center.js` y `beta/index.html` en main; el juego oficial raíz no se fusionó. Se mantiene alerta Auth externa por protección de contraseñas filtradas desactivada.
