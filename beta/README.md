@@ -14,3 +14,28 @@ Publicación prevista: https://vangelium.github.io/torre-multiversal./beta/
 - Validar registro, confirmación de correo, copias, restauración, cierre de sesión y multijugador real en dos dispositivos antes de fusionar el PR.
 
 Regreso al juego oficial: https://vangelium.github.io/torre-multiversal./
+
+## Guardados por personaje (11-11-2026, etapa beta)
+- Nueva tabla aditiva `tm_character_saves`: clave compuesta `(user_id, profile_id)`, RLS por cuenta, datos no verificados.
+- La tabla antigua `tm_cloud_saves` y `tm_legacy_backups` permanecen intactas y consultables.
+- Autoguardado opt-in por cuenta **y personaje**. Tras cambiar de personaje debe activarse para el nuevo; no reutilizar las preferencias previas.
+- Antes de fusionar: probar dos teléfonos, dos usuarios y múltiples personajes, cambios concurrentes, inicio/cierre de sesión, red cortada y multijugador. Nada de publicación automática.
+
+## Presentación de Vangelium y OAuth (iteración beta)
+- `vangelium-intro.js` muestra una portada animada **una vez por sesión**; usar `?intro=1` para volver a verla. No toca guardados ni sesiones.
+- Google y Apple usan `signInWithOAuth` con retorno al directorio beta. Sus botones ya están conectados, **pero no funcionarán hasta configurar ambos proveedores externos y la URL autorizada de redirección** en Supabase.
+- Sigue disponible entrar/crear cuenta con correo y contraseña. No confiar en coincidencias de correo para fusionar automáticamente identidades de proveedores.
+- Corregido el botón de actualizar ranura, que antes retornaba sin consultar mientras la operación se marcaba ocupada.
+- No hay cambios en `main`; no fusionar antes de probar dos teléfonos y la recuperación de todos los personajes.
+
+## Seguridad al cambiar entre tres o más personajes
+- Antes de cualquier restauración o cierre de sesión, el centro de cuenta conserva una copia local por **`user_id + profile_id`**; además conserva la versión anterior inmediata de esa copia.
+- «Buscar personajes y copias de este celular» descubre esas copias separadas y las muestra al usuario de la cuenta correspondiente.
+- No son sustitutos de sincronización en nube: pérdida total del móvil o borrado de datos del navegador puede hacerlas inaccesibles.
+- Supabase puede asociar automáticamente identidades cuando los proveedores verifican el mismo correo; nunca asumir que Apple Private Relay y Gmail corresponden a una misma cuenta.
+
+## Protección contra mezcla de cuentas
+- El navegador marca la cuenta propietaria del personaje **solo después de una restauración de cuenta o un respaldo explícito confirmado**.
+- Los archivos no atribuidos previamente se conservan como `unassigned` y no se vinculan automáticamente a la cuenta que acaba de entrar.
+- Al cambiar de cuenta, el buscador de copias individuales muestra los guardados de la cuenta actual y los locales sin atribución; no muestra los archivados bajo otra cuenta.
+- Nota beta: el selector de partidas locales manuales todavía requiere auditoría de privacidad en un dispositivo compartido; no usar esta beta en un móvil público.

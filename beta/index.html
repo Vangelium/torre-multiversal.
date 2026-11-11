@@ -98,6 +98,31 @@
 .tm-hub-local-copy .btn{font-size:10px;white-space:normal}
 @media(max-width:400px){.tm-hub-heading h2{font-size:20px}.tm-profile-name strong{font-size:18px}.tm-hub-section{padding:10px}.tm-hub-session{flex-wrap:wrap}}
 </style>
+<style>
+/* VANGELIUM Games - Intro beta aislada del motor */
+#tm-vangelium-intro{position:fixed;inset:0;z-index:2147483600;display:grid;place-items:center;overflow:auto;min-height:100dvh;padding:calc(22px + env(safe-area-inset-top)) 18px calc(22px + env(safe-area-inset-bottom));box-sizing:border-box;background:radial-gradient(ellipse at 50% 43%,#272b4c 0%,#111627 46%,#05070f 100%);color:#f7e8ca;font-family:system-ui,sans-serif;isolation:isolate;text-align:center}
+#tm-vangelium-intro[hidden]{display:none!important}
+.tm-vg-sky{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.tm-vg-sky::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 65% 16%,#d3bc8d 0 2px,transparent 3px),radial-gradient(circle at 17% 40%,#fff 0 1px,transparent 2px),radial-gradient(circle at 45% 18%,#fff 0 1px,transparent 2px),linear-gradient(0deg,#0b101b 0%,transparent 60%);opacity:.8}
+.tm-vg-tower{position:absolute;bottom:5%;left:50%;width:84px;height:48%;transform:translateX(-50%);clip-path:polygon(34% 0,45% 0,50% 5%,55% 0,66% 0,71% 16%,63% 16%,72% 34%,67% 34%,73% 55%,70% 55%,80% 100%,20% 100%,30% 55%,27% 55%,33% 34%,28% 34%,37% 16%,29% 16%);background:linear-gradient(90deg,#17151f,#39304b 44%,#0b1223 78%);box-shadow:0 0 28px #a88ed0;filter:drop-shadow(0 0 18px #55529a)}
+.tm-vg-mist{position:absolute;bottom:0;left:-20%;right:-20%;height:34%;background:radial-gradient(ellipse at 50% 90%,#8d7ba350,transparent 65%);animation:tmVgMist 8s ease-in-out infinite alternate}
+.tm-vg-content{z-index:1;position:relative;display:grid;justify-items:center;gap:14px;width:min(560px,100%);padding:24px 12px;filter:drop-shadow(0 3px 15px #0009)}
+.tm-vg-symbol{width:74px;height:74px;display:grid;place-items:center;clip-path:polygon(50% 0,96% 25%,96% 75%,50% 100%,4% 75%,4% 25%);background:linear-gradient(145deg,#bda2fa,#6353a5);color:#0e0c1d;font-weight:900;font-size:42px;box-shadow:0 0 40px #a890fd}
+.tm-vg-studio{font-size:clamp(28px,8vw,60px);letter-spacing:.16em;font-weight:900;line-height:1.1;text-indent:.16em}
+.tm-vg-caption{font-size:12px;letter-spacing:.5em;text-indent:.5em;color:#d1b57d;text-transform:uppercase}
+.tm-vg-rule{height:1px;width:170px;background:linear-gradient(90deg,transparent,#d4b478,transparent);margin:5px}
+.tm-vg-title{font-size:clamp(18px,5.5vw,32px);letter-spacing:.16em;font-weight:850;margin:0}
+.tm-vg-text{font-size:13px;line-height:1.5;color:#d8cde1;max-width:340px;margin:0}
+.tm-vg-enter{display:block;width:min(280px,100%);min-height:49px;border:1px solid #debf72;border-radius:6px;background:linear-gradient(#e2bd6a,#88632d);font:700 15px system-ui,sans-serif;color:#18131c;cursor:pointer;box-shadow:0 5px 18px #0009}
+.tm-vg-enter:focus-visible{outline:3px solid #fff;outline-offset:4px}
+.tm-vg-tiny{font-size:11px;color:#baa7c9}
+.tm-vg-social{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.tm-vg-social button{min-height:46px;background:#f2eee8;color:#18212c;border:1px solid #ddd;font:700 13px system-ui,sans-serif;border-radius:6px;cursor:pointer}
+.tm-vg-social button:focus-visible{outline:2px solid #9fd9ff;outline-offset:2px}
+.tm-vg-divider{font:11px system-ui,sans-serif;text-align:center;color:#a8b4c6}
+@keyframes tmVgMist{from{transform:translateX(-3%)}to{transform:translateX(3%)}}
+@media(prefers-reduced-motion:reduce){.tm-vg-mist{animation:none}}
+</style>
 </head>
 <body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -784,6 +809,19 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 }
 </style>
 
+<section id="tm-vangelium-intro" hidden role="dialog" aria-modal="true" aria-label="Presentación Vangelium Games">
+  <div class="tm-vg-sky" aria-hidden="true"><div class="tm-vg-tower"></div><div class="tm-vg-mist"></div></div>
+  <div class="tm-vg-content">
+    <div class="tm-vg-symbol" aria-hidden="true">V</div>
+    <div class="tm-vg-studio">VANGELIUM</div>
+    <div class="tm-vg-caption">Games</div>
+    <div class="tm-vg-rule"></div>
+    <h2 class="tm-vg-title">TORRE MULTIVERSAL</h2>
+    <p class="tm-vg-text">Más allá de la niebla, una Torre espera por quienes se atrevan a ascender.</p>
+    <button id="tm-vg-enter" class="tm-vg-enter" type="button">ENTRAR AL JUEGO</button>
+    <span class="tm-vg-tiny">Presentación beta · Puedes omitirla</span>
+  </div>
+</section>
 <div id="app" class="app">
   <canvas id="game" aria-label="Mundo de Torre Multiversal"></canvas>
   <div id="touch-zone" class="touch-zone" hidden>
@@ -1006,6 +1044,12 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
           </div>
           <section id="tm-auth-view" class="tm-hub-section" aria-label="Iniciar sesión">
             <div class="tm-step"><span>01</span><strong>Entra a tu cuenta</strong></div>
+            <div class="tm-vg-social">
+              <button id="tm-hub-google" type="button" aria-label="Continuar con Google">Google</button>
+              <button id="tm-hub-apple" type="button" aria-label="Continuar con Apple">Apple</button>
+            </div>
+            <p class="tm-hub-hint">Estos accesos requieren configurar Google/Apple en Supabase. Si ya tienes una cuenta de correo, entra primero con tu método anterior para localizar tus personajes.</p>
+            <div class="tm-vg-divider">O ENTRA CON TU CORREO Y CONTRASEÑA</div>
             <label for="tm-hub-login-email">Correo de tu cuenta</label>
             <input id="tm-hub-login-email" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="correo@ejemplo.com">
             <label for="tm-hub-login-password">Contraseña</label>
@@ -1039,14 +1083,14 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
               <strong>¿No aparece tu personaje?</strong>
               <p>Abre la beta en el celular donde lo tienes y pulsa este botón con <b>su cuenta correcta</b>. Así aparecerá aquí cuando entres en otro móvil.</p>
               <button id="tm-hub-backup" class="btn tm-hub-primary" type="button">Guardar personaje de este celular</button>
-              <button id="tm-hub-scan" class="tm-hub-secondary tm-hub-scan" type="button">Buscar partidas anteriores de este celular</button>
+              <button id="tm-hub-scan" class="tm-hub-secondary tm-hub-scan" type="button">Buscar personajes y copias de este celular</button>
               <div id="tm-hub-local-copies" class="tm-hub-local-copies" role="list" aria-live="polite" hidden></div>
             </div>
             <details id="tm-hub-advanced" class="tm-hub-advanced">
               <summary>Opciones avanzadas y autoguardado</summary>
               <div id="tm-auto" class="tm-cloud-panel" role="group" aria-label="Guardado automático experimental">
                 <h3>Autoguardado experimental</h3>
-                <p class="tm-hub-hint">Actualiza una ranura por cuenta cada 3 minutos de juego activo, fuera del cooperativo. Puede pausarse al detectar otro celular.</p>
+                <p class="tm-hub-hint">Guarda una ranura independiente por personaje cada 3 minutos de juego activo, fuera del cooperativo. Debes activarlo para cada personaje.</p>
                 <p id="tm-auto-cloud" class="tm-hub-hint">Consultando ranura…</p>
                 <div class="tm-hub-actions">
                   <button id="tm-auto-enable" class="btn" type="button">Activar</button>
@@ -1197,8 +1241,9 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 </div>
 <script src="three.min.js?v=r128"></script>
 <script src="game.js?v=beta-isolated-20261110"></script>
-<script src="account-center.js?v=account-center-20261110-v2"></script>
-<script src="cloud-auto.js?v=beta-auto-20261110-v1"></script>
+<script src="account-center.js?v=character-saves-20261111-v4"></script>
+<script src="cloud-auto.js?v=character-saves-20261111-v2"></script>
+<script src="vangelium-intro.js?v=vg-intro-20261111-v1"></script>
 
 </body>
 </html>
