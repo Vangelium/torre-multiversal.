@@ -98,6 +98,96 @@
 .tm-hub-local-copy .btn{font-size:10px;white-space:normal}
 @media(max-width:400px){.tm-hub-heading h2{font-size:20px}.tm-profile-name strong{font-size:18px}.tm-hub-section{padding:10px}.tm-hub-session{flex-wrap:wrap}}
 </style>
+<style>
+/* Vangelium: puerta de entrada a la beta. No cambia el motor 3D. */
+.tm-entry {
+ position:fixed;z-index:9998;inset:0;isolation:isolate;
+ display:grid;place-items:center;overflow-y:auto;overscroll-behavior:contain;
+ padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right))
+ max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
+ background:radial-gradient(ellipse at 50% 10%,#243e53 0%,#111c2d 42%,#080d17 100%);
+ color:#eee8d8;touch-action:pan-y;-webkit-user-select:text;user-select:text;
+ font:14px/1.42 system-ui,"Trebuchet MS",sans-serif;
+}
+.tm-entry[hidden],.tm-entry [hidden]{display:none!important;}
+.tm-entry *{box-sizing:border-box;}
+.tm-entry-backdrop{position:fixed;inset:0;pointer-events:none;opacity:.66;overflow:hidden;z-index:-1;}
+.tm-entry-glow{position:absolute;left:50%;top:5%;width:65vmin;height:65vmin;transform:translateX(-50%);
+ background:radial-gradient(circle,#b88e434a 0%,#2e556333 35%,transparent 68%);
+ filter:blur(20px);}
+.tm-entry-tower{position:absolute;left:50%;bottom:0;transform:translateX(-50%);
+ width:min(42vw,230px);height:75vh;opacity:.27;filter:drop-shadow(0 0 16px #5198a9);}
+.tm-entry-tower::before{content:"";position:absolute;bottom:0;left:21%;width:58%;height:75%;
+ background:linear-gradient(90deg,#182432,#35485a 48%,#14202a);clip-path:polygon(0 14%,50% 0,100% 14%,100% 100%,0 100%);}
+.tm-entry-tower::after{content:"";position:absolute;bottom:75%;left:38%;width:24%;height:22%;
+ background:#334c5c;clip-path:polygon(50% 0,100% 35%,100% 100%,0 100%,0 35%);}
+.tm-entry-box{width:min(100%,520px);max-height:calc(100dvh - 26px);min-height:0;overflow-y:auto;
+ border:1px solid #94703c;background:linear-gradient(180deg,rgba(23,35,51,.97),rgba(11,19,32,.98));
+ box-shadow:0 20px 65px #000a,inset 0 0 0 3px #202d41;position:relative;
+ padding:clamp(15px,3.4vw,26px);border-radius:13px;}
+.tm-entry-sign{text-align:center;display:grid;gap:5px;justify-items:center;margin-bottom:16px;}
+.tm-entry-studio{color:#e9bf69;letter-spacing:.24em;font:700 11px/1.2 system-ui,sans-serif;}
+.tm-entry-separator{width:84px;height:1px;background:linear-gradient(90deg,transparent,#a27f48,transparent);margin:3px 0;}
+.tm-entry-sign h1{font:800 clamp(22px,5vw,31px)/1.06 system-ui,sans-serif;margin:0;color:#fff4db;letter-spacing:-.035em;text-shadow:0 0 18px #c09c514f;}
+.tm-entry-sign p{margin:0;color:#a7bacc;font-size:12px;}
+.tm-entry-stage{display:grid;gap:10px;}
+.tm-entry-step{font:700 11px system-ui,sans-serif;color:#f4ce8e;letter-spacing:.035em;text-transform:uppercase;}
+.tm-entry-stage label{font-size:12px;color:#dfe9f0;font-weight:650;}
+.tm-entry-stage input{background:#0b1524;border:1px solid #60768e;color:#fff;border-radius:7px;
+ min-height:46px;padding:10px 12px;font:15px system-ui,sans-serif;width:100%;min-width:0;}
+.tm-entry-stage input:focus,.tm-entry button:focus-visible,.tm-entry a:focus-visible{outline:2px solid #80d5d8;outline-offset:2px;}
+.tm-entry button{cursor:pointer;min-height:43px;border-radius:7px;border:1px solid #60718d;
+ padding:9px 12px;font:650 13px/1.2 system-ui,sans-serif;}
+.tm-entry button:disabled{opacity:.62;cursor:progress;}
+.tm-entry-mainbtn{background:linear-gradient(180deg,#f0cc80,#cb9853);color:#271c0d;border-color:#d8aa5a!important;width:100%;font-weight:750!important;min-height:48px!important;}
+.tm-entry-minor{color:#d8e7f0;background:#263b4f;border-color:#517289!important;}
+.tm-entry-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.tm-entry-actions button{flex:1 1 145px;}
+.tm-entry-help{margin:1px 0;color:#9aafc4;font-size:12px;line-height:1.5;}
+.tm-entry-user{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;
+ background:#102d37;border:1px solid #346b76;border-radius:8px;}
+.tm-entry-user div{min-width:0;}
+.tm-entry-user span{display:block;color:#95c0bd;font-size:10px;font-weight:700;}
+.tm-entry-user strong{display:block;color:#f6f2df;overflow-wrap:anywhere;font-size:13px;margin-top:4px;}
+.tm-entry-user button{background:none;color:#99dbe0;text-decoration:underline;border:0;min-height:35px;padding:3px;}
+.tm-entry-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.tm-entry-heading strong{font-size:15px;color:#f4e4c0;}
+.tm-entry-heading small{display:block;color:#96a9ba;font-size:11px;margin-top:3px;}
+.tm-entry-list{display:grid;gap:9px;}
+.tm-entry-character{border:1px solid #4e7283;border-radius:9px;padding:11px;display:grid;gap:9px;
+ background:linear-gradient(110deg,#273f4d,#1b2b3e);}
+.tm-entry-charhead{display:flex;gap:11px;align-items:center;}
+.tm-entry-avatar{width:45px;height:45px;display:grid;place-items:center;flex-shrink:0;
+ background:#a37843;color:#231a12;border-radius:9px;border:2px solid #dfb76c;font:800 21px system-ui,sans-serif;}
+.tm-entry-charmeta{min-width:0;display:grid;gap:3px;}
+.tm-entry-charmeta strong{font-size:18px;color:#ffdfa2;overflow-wrap:anywhere;}
+.tm-entry-charmeta span{font-size:12px;color:#c2d4dc;}
+.tm-entry-tag{margin:0;font-size:11px;color:#a7bdc7;}
+.tm-entry-history{border-top:1px dashed #536c79;padding-top:3px;}
+.tm-entry-history summary,.tm-entry-local summary{cursor:pointer;color:#9bd7d8;padding:7px 2px;font-size:12px;}
+.tm-entry-history button{width:100%;margin-top:6px;text-align:left;}
+.tm-entry-local{border-top:1px solid #344b62;padding-top:10px;display:grid;gap:8px;}
+.tm-entry-local-card{display:grid;gap:7px;border:1px solid #3f576c;padding:11px;background:#142335;border-radius:7px;}
+.tm-entry-local-card strong{color:#fff0ca;font-size:13px;}
+.tm-entry-local-card small{color:#a5b8c9;font-size:11px;}
+.tm-entry-local-card button{white-space:normal;}
+.tm-entry-alert{padding:10px 12px;color:#b9d6e8;border-left:3px solid #71b5c6;
+ background:rgba(18,53,73,.6);font-size:12px;line-height:1.45;min-height:40px;}
+.tm-entry-alert[data-state="error"]{color:#ffd1bf;border-color:#e88d78;background:#4c252b99;}
+.tm-entry-empty{border:1px dashed #687d91;padding:11px;border-radius:8px;color:#c4d5df;font-size:12px;}
+.tm-entry-footer{display:flex;justify-content:space-between;gap:8px;align-items:center;
+ border-top:1px solid #304356;padding-top:12px;margin-top:13px;}
+.tm-entry-footer span{font-size:10px;color:#829bab;}
+.tm-entry-footer a{font-size:11px;color:#9bd7e5;text-decoration:underline;}
+.tm-entry-links{display:flex;gap:9px;justify-content:space-between;flex-wrap:wrap;}
+.tm-entry-links button{color:#9ddbe3;text-decoration:underline;background:none;border:0;padding:4px;font-size:12px;}
+.tm-entry-loading{display:grid;gap:12px;text-align:center;justify-items:center;padding:20px 8px;}
+.tm-entry-progress{height:4px;width:65%;border-radius:8px;background:#283c53;overflow:hidden;}
+.tm-entry-progress::before{content:"";display:block;width:36%;height:100%;background:#deb16a;animation:tm-entry-load 1.65s ease-in-out infinite;}
+@keyframes tm-entry-load{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
+@media(max-height:450px){.tm-entry{place-items:start center}.tm-entry-box{max-height:calc(100dvh - 18px);padding:12px}.tm-entry-sign{margin-bottom:9px}.tm-entry-sign h1{font-size:24px}}
+@media(prefers-reduced-motion:reduce){.tm-entry-progress::before{animation:none;width:100%;}}
+</style>
 </head>
 <body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1196,10 +1286,78 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
     </div>
   </div>
 </div>
+<!-- Pantalla Vangelium de acceso. Solo beta, aislada del motor principal. -->
+<section id="tm-entry" class="tm-entry" aria-label="Acceso a Torre Multiversal">
+ <div class="tm-entry-backdrop" aria-hidden="true"><div class="tm-entry-glow"></div><div class="tm-entry-tower"></div></div>
+ <div class="tm-entry-box">
+  <header class="tm-entry-sign">
+   <div class="tm-entry-studio">VANGELIUM</div>
+   <div class="tm-entry-separator"></div>
+   <h1>Torre Multiversal</h1>
+   <p>Tu universo. Tus personajes. Tu historia.</p>
+  </header>
+  <div id="tm-entry-loading" class="tm-entry-loading" role="status">
+   <strong>Preparando tu aventura…</strong>
+   <div class="tm-entry-progress"></div>
+   <p class="tm-entry-help">Verificando la sesión y los guardados de la cuenta.</p>
+  </div>
+  <div id="tm-entry-login" class="tm-entry-stage" hidden>
+   <div class="tm-entry-step">Paso 1 · Inicia sesión</div>
+   <label for="tm-entry-email">Correo electrónico</label>
+   <input id="tm-entry-email" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="tu@correo.com">
+   <label for="tm-entry-password">Contraseña</label>
+   <input id="tm-entry-password" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Mínimo 8 caracteres">
+   <button id="tm-entry-login-btn" class="tm-entry-mainbtn" type="button">Entrar y ver mis personajes</button>
+   <div class="tm-entry-links">
+    <button id="tm-entry-register-btn" type="button">Crear cuenta</button>
+    <button id="tm-entry-forgot-btn" type="button">Recuperar contraseña</button>
+   </div>
+   <p class="tm-entry-help">Si ya tienes una cuenta en otro celular, elige «Entrar». No hace falta registrarte otra vez.</p>
+  </div>
+  <div id="tm-entry-characters" class="tm-entry-stage" hidden>
+   <div class="tm-entry-user">
+    <div><span>CUENTA CONECTADA</span><strong id="tm-entry-account"></strong></div>
+    <button id="tm-entry-logout-btn" type="button">Cambiar</button>
+   </div>
+   <div class="tm-entry-step">Paso 2 · Elige tu personaje</div>
+   <div class="tm-entry-heading">
+    <div><strong>Selecciona tu partida</strong><small id="tm-entry-count"></small></div>
+    <button id="tm-entry-refresh-btn" class="tm-entry-minor" type="button">Actualizar</button>
+   </div>
+   <div id="tm-entry-list" class="tm-entry-list" role="list" aria-live="polite"></div>
+   <div id="tm-entry-empty" class="tm-entry-empty" hidden>
+    Esta cuenta aún no tiene personajes en la nube. Puedes buscar una copia del celular y vincularla a tu correo.
+   </div>
+   <details id="tm-entry-local" class="tm-entry-local">
+    <summary>Buscar personajes de este celular</summary>
+    <div id="tm-entry-local-list" class="tm-entry-list"></div>
+   </details>
+   <div class="tm-entry-actions">
+    <button id="tm-entry-scan-btn" class="tm-entry-minor" type="button">Buscar en este celular</button>
+    <button id="tm-entry-new-btn" class="tm-entry-minor" type="button">Crear personaje</button>
+   </div>
+   <p class="tm-entry-help">Los respaldos históricos aparecen como «Copia recuperable». Para vincularlos definitivamente, ve a Pausa → Cuenta → Vincular y guardar.</p>
+  </div>
+  <div id="tm-entry-reset" class="tm-entry-stage" hidden>
+   <div class="tm-entry-step">Recuperar acceso</div>
+   <label for="tm-entry-new-password">Nueva contraseña</label>
+   <input id="tm-entry-new-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="Mínimo 8 caracteres">
+   <button id="tm-entry-reset-btn" class="tm-entry-mainbtn" type="button">Guardar contraseña</button>
+  </div>
+  <p id="tm-entry-status" class="tm-entry-alert" role="status" aria-live="polite">Conectando con Supabase…</p>
+  <div class="tm-entry-footer"><span>BETA · PRUEBAS DE CUENTA</span>
+   <a href="../">Abrir juego oficial</a>
+  </div>
+  <div class="tm-entry-links" style="margin-top:6px">
+    <button id="tm-entry-guest-btn" type="button">Jugar sin cuenta (local)</button>
+  </div>
+ </div>
+</section>
 <script src="three.min.js?v=r128"></script>
 <script src="game.js?v=beta-isolated-20261110"></script>
 <script src="account-center.js?v=account-center-20261111-v3"></script>
 <script src="cloud-auto.js?v=beta-auto-20261110-v1"></script>
+<script src="entry-gate.js?v=tm-vangelium-entry-20261111-v2"></script>
 
 </body>
 </html>
