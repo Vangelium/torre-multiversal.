@@ -79,6 +79,187 @@ function rawLocal(){
  try{var raw=storage.getItem("tm.save");return raw?decode(raw):null}
  catch(e){return null}
 }
+
+/* Archivo local de personajes. Antes de abandonar una partida o crear otra,
+   guardamos una copia independiente y verificamos la escritura. Ninguna
+   copia archivada se utiliza como valor económico verificado. */
+function localIndexKey(uid){return "tm.entry.local.index."+uid}
+function pendingKey(uid){return "tm.entry.pending."+uid}
+function safeIndex(uid){
+ try{
+   var raw=storage.getItem(localIndexKey(uid)),rows=raw?JSON.parse(raw):[];
+   return Array.isArray(rows)?rows.filter(function(x){
+     return x&&typeof x.id==="string"&&typeof x.key==="string"&&
+       x.key.startsWith("tm.entry.archive."+uid+".");
+   }):[];
+ }catch(e){return []}
+}
+function storeVerified(key,raw){
+ storage.setItem(key,raw);
+ if(storage.getItem(key)!==raw)
+   throw Error("No pude proteger la partida en el almacenamiento local. No se cambiará de personaje.");
+}
+function archiveRaw(raw,label,uid){
+ if(typeof raw!=="string"||!raw)return null;
+ var snapshot=null;
+ try{snapshot=decode(raw)}catch(e){}
+ var index=safeIndex(uid);
+ var timestamp=Date.now();
+ var key="tm.entry.archive."+uid+"."+timestamp+"."+(index.length+1);
+ storeVerified(key,raw);
+ var meta={key:key,id:snapshot?snapshot.id:"",name:snapshot?snapshot.name:"Copia sin verificar",
+   xp:snapshot?snapshot.xp:0,pets:snapshot?snapshot.pets:0,
+   createdAt:timestamp,label:String(label||"Copia local").slice(0,80)};
+ index.push(meta);
+ storeVerified(localIndexKey(uid),JSON.stringify(index));
+ return meta;
+}
+function currentExport(){
+ // El exportador oficial incorpora la posición más reciente en el mundo.
+ $("btn-export").click();
+ var code=String($("export-out").value||"");
+ if(!code.startsWith("TM1:"))throw Error("No pude exportar el personaje actual. No se reemplazará.");
+ var binary=atob(code.slice(4).replace(/\s+/g,""));
+ var bytes=Uint8Array.from(binary,function(ch){return ch.charCodeAt(0)});
+ var raw=new TextDecoder("utf-8",{fatal:true}).decode(bytes);
+ return decode(raw);
+}
+function safeguardCurrent(){
+ var fresh=currentExport();
+ var local=rawLocal();
+ var uid=user?user.id:"local";
+ if(local&&local.raw!==fresh.raw)archiveRaw(local.raw,"Guardado previo del motor",uid);
+ archiveRaw(fresh.raw,"Último progreso antes de cambiar personaje",uid);
+ return fresh;
+}
+function backupEngineSlots(uid,priorMain){
+ var slotKeys=["tm.save","tm.save.bak","tm.combat.save","tm.combat.save.bak",
+   "tm.experimental.save","tm.experimental.save.bak"];
+ var preserved={};
+ for(var name of slotKeys){
+   var raw=storage.getItem(name);
+   if(raw!==null){
+     preserved[name]=raw;
+     if(raw!==priorMain)archiveRaw(raw,"Copia protegida: "+name,uid);
+   }
+ }
+ return preserved;
+}
+async function createNewCharacter(){
+ await ensureEngine();
+ await confirmUser();
+ var uid=user.id;
+ var previous=currentExport();
+ if(storage.getItem(pendingKey(uid)))
+   throw Error("Hay una creación anterior pendiente. Complétala antes de empezar otra.");
+ var message="¿Crear un personaje NUEVO en "+(user.email||"esta cuenta")+"?\n\n"+
+   (previous.data.profile.character
+     ?"Personaje activo: "+previous.name+" · "+previous.xp+" XP. Guardaré una copia independiente antes de crear el nuevo."
+     :"Todavía no hay un personaje terminado en este celular.")+
+   "\n\nLos personajes existentes en Supabase no se eliminarán. El nuevo aparecerá después de diseñarlo.";
+ if(!window.confirm(message))return;
+ var current=rawLocal();
+ var existing=backupEngineSlots(uid,current&&current.raw);
+ archiveRaw(previous.raw,"Última partida antes de crear personaje",uid);
+ if(!previous.data.profile.character){
+   // Si el motor ya abrió un creador inicial, basta con terminarlo.
+   storeVerified(pendingKey(uid),JSON.stringify({uid:uid,previousId:previous.id,at:Date.now(),newCharacter:true,allowExistingId:true}));
+   wrap.hidden=true;
+   var creator=$("creator");
+   if(!creator||creator.hidden)$("btn-character").click();
+   return;
+ }
+ var pending={uid:uid,previousId:previous.id,at:Date.now(),newCharacter:true};
+ storeVerified(pendingKey(uid),JSON.stringify(pending));
+ try{
+   for(var key of ["tm.save","tm.save.bak","tm.combat.save","tm.combat.save.bak",
+                      "tm.experimental.save","tm.experimental.save.bak"]){
+     if(storage.getItem(key)!==null)storage.removeItem(key);
+     if(storage.getItem(key)!==null)throw Error("No pude preparar una ranura nueva. Se canceló.");
+   }
+ }catch(e){
+   // Revertir la eliminación antes de volver al menú.
+   for(var [name,raw] of Object.entries(existing))storage.setItem(name,raw);
+   storage.removeItem(pendingKey(uid));
+   throw e;
+ }
+ notice("Partida anterior protegida. Abriendo el creador de un personaje independiente.");
+ // Reinicia el motor para obtener un nuevo ID. Nunca reutilizar el personaje anterior.
+ location.reload();
+}
+async function resumePendingCreation(){
+ if(!user)return false;
+ var pendingRaw=storage.getItem(pendingKey(user.id));
+ if(!pendingRaw)return false;
+ var pending;
+ try{pending=JSON.parse(pendingRaw)}catch(e){return false}
+ if(pending.uid!==user.id||!pending.newCharacter)return false;
+ await ensureEngine();
+ var value=rawLocal();
+ if(value&&value.data.profile.character&&(value.id!==pending.previousId||pending.allowExistingId)){
+   await completeCreation();
+   return true;
+ }
+ if(value&&value.id===pending.previousId&&value.data.profile.character){
+   notice("No apareció un ID nuevo. Se detuvo la creación para proteger el personaje anterior.",true);
+   return false;
+ }
+ wrap.hidden=true;
+ var creator=$("creator");
+ if(!creator||creator.hidden)$("btn-character").click();
+ return true;
+}
+var completingCreation=false;
+async function completeCreation(){
+ if(completingCreation)return;
+ completingCreation=true;
+ try{
+   if(!user)return;
+   var pendingRaw=storage.getItem(pendingKey(user.id));
+   if(!pendingRaw)return;
+   var pending=JSON.parse(pendingRaw);
+   if(pending.uid!==user.id||!pending.newCharacter)return;
+   await ensureEngine();
+   var current=currentExport();
+   if(!current.data.profile.character)return;
+   if(current.id===pending.previousId&&!pending.allowExistingId){
+     throw Error("El personaje nuevo heredó un ID existente. No fue vinculado a la nube.");
+   }
+   archiveRaw(current.raw,"Personaje creado en Vangelium",user.id);
+   await confirmUser();
+   var digest=await fingerprint(current.data);
+   var existing=await cloud.from("tm_character_saves")
+     .select("revision,fingerprint").eq("user_id",user.id)
+     .eq("profile_id",current.id).maybeSingle();
+   if(existing.error)throw existing.error;
+   if(existing.data){
+     if(existing.data.fingerprint!==digest)
+       throw Error("El personaje ya tiene otra revisión en la nube. Se guardó localmente, pero no se sobrescribió.");
+   }else{
+     var size=new TextEncoder().encode(JSON.stringify({raw:current.raw})).length;
+     if(size>1000000)throw Error("El personaje supera el límite de respaldo beta.");
+     var written=await cloud.from("tm_character_saves").insert({
+       user_id:user.id,profile_id:current.id,save_version:current.version,
+       payload:{raw:current.raw},fingerprint:digest,revision:1,verified:false
+     }).select("revision,profile_id").single();
+     if(written.error)throw written.error;
+   }
+   storage.removeItem(pendingKey(user.id));
+   // El primer guardado ya quedó vinculado. El resto continúa con la
+   // actualización de revisiones, no con una subida arbitraria.
+   await loadCharacters();
+   wrap.hidden=true;
+   notice("Creaste y vinculaste a "+current.name+". Se conservó la partida anterior.");
+   $("btn-solo").click();
+ }catch(error){
+   wrap.hidden=false;
+   view("characters");
+   showLocal();
+   $("tm-entry-local").open=true;
+   notice("Tu nuevo personaje permanece protegido en este celular. No se completó la vinculación: "+
+     messageOf(error)+". Pulsa «Vincular» junto a su copia local.",true);
+ }finally{completingCreation=false}
+}
 function toCode(raw){
  var binary="",encoded=new TextEncoder().encode(raw);
  for(var i=0;i<encoded.length;i+=8192)binary+=String.fromCharCode.apply(null,encoded.subarray(i,i+8192));
@@ -178,6 +359,10 @@ function availableLocal(){
   ["Copia de seguridad de esta beta",storage,"tm.save.bak"]
  ];
  if(user){
+   for(var entry of safeIndex(user.id))
+     lookups.push([entry.label+" · "+prettyTime(entry.createdAt),storage,entry.key]);
+ }
+ if(user){
    lookups.push(["Antes de cambiar personaje",storage,"tm.hub.previous."+user.id]);
    lookups.push(["Antes de entrar desde Vangelium",storage,"tm.gateway.previous."+user.id]);
    lookups.push(["Antes de restaurar desde nube",storage,"tm.cloud.pre_restore"]);
@@ -263,15 +448,12 @@ function rememberChoice(record){
 }
 async function useSnapshot(snapshot,source){
  await ensureEngine();
- var old=rawLocal();
- if(!old||old.raw!==snapshot.raw){
-   if(old){
-     var pre="tm.gateway.previous."+(user?user.id:"local");
-     storage.setItem(pre,old.raw);
-     if(user)storage.setItem("tm.hub.previous."+user.id,old.raw);
-     if(storage.getItem(pre)!==old.raw)
-       throw Error("No pude proteger la partida anterior. Se canceló el cambio.");
-   }
+ var old=currentExport();
+ if(old.raw!==snapshot.raw){
+   var pre="tm.gateway.previous."+(user?user.id:"local");
+   archiveRaw(old.raw,"Antes de cambiar personaje",user?user.id:"local");
+   storeVerified(pre,old.raw);
+   if(user)storeVerified("tm.hub.previous."+user.id,old.raw);
    var code=toCode(snapshot.raw);
    $("import-in").value=code;
    $("save-status").textContent="";
@@ -387,6 +569,7 @@ async function authReady(){
  view("characters");
  await loadCharacters();
  notice("Elige un personaje para continuar. Las partidas locales permanecen protegidas.");
+ if(await resumePendingCreation())return;
 }
 async function signIn(register){
  await run(async function(){
@@ -465,17 +648,13 @@ $("tm-entry-guest-btn").addEventListener("click",function(){run(async function()
  if(!saved||!saved.data.profile.character){$("btn-character").click();return;}
  $("btn-solo").click();
 })});
-$("tm-entry-new-btn").addEventListener("click",function(){run(async function(){
- await ensureEngine();
- var current=rawLocal();
- if(current&&current.data.profile.character){
-   throw Error("Para crear un segundo personaje sin sobrescribir tu partida, primero debemos habilitar la creación independiente. Conserva este personaje y usa Vincular.");
- }
- if(!window.confirm("Abrir creador de personajes? La partida local actual quedará como punto de partida."))return;
- wrap.hidden=true;
- var creator=$("creator");
- if(!creator||creator.hidden)$("btn-character").click();
-})});
+$("tm-entry-new-btn").addEventListener("click",function(){
+ run(createNewCharacter);
+});
+$("cr-ok").addEventListener("click",function(){
+ if(!user||!storage.getItem(pendingKey(user.id)))return;
+ setTimeout(function(){completeCreation();},150);
+});
 cloud.auth.onAuthStateChange(function(event){
  if(event==="PASSWORD_RECOVERY"){
    recovery=true;view("reset");
