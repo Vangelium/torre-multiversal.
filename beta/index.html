@@ -1037,8 +1037,8 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
             </div>
             <div class="tm-hub-savebox">
               <strong>¿No aparece tu personaje?</strong>
-              <p>Abre la beta en el celular donde lo tienes y pulsa este botón con <b>su cuenta correcta</b>. Así aparecerá aquí cuando entres en otro móvil.</p>
-              <button id="tm-hub-backup" class="btn tm-hub-primary" type="button">Guardar personaje de este celular</button>
+              <p>Si este personaje está en el celular, vincúlalo aquí a la cuenta correcta. Después aparecerá en tus otros dispositivos, sin borrar los demás.</p>
+              <button id="tm-hub-backup" class="btn tm-hub-primary" type="button">Vincular y guardar este personaje</button>
               <button id="tm-hub-scan" class="tm-hub-secondary tm-hub-scan" type="button">Buscar partidas anteriores de este celular</button>
               <div id="tm-hub-local-copies" class="tm-hub-local-copies" role="list" aria-live="polite" hidden></div>
             </div>
@@ -1056,6 +1056,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
                 </div>
                 <p id="tm-auto-status" class="tm-hub-hint" role="status" aria-live="polite"></p>
               </div>
+              <button id="tm-hub-history-backup" class="btn" type="button">Crear respaldo histórico del personaje actual</button>
               <button id="tm-hub-previous" class="btn" type="button" hidden>Volver a la partida local anterior</button>
               <p class="tm-hub-hint">Los respaldos históricos aparecen agrupados por personaje. Sus otras versiones están dentro de cada tarjeta.</p>
             </details>
@@ -1197,7 +1198,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 </div>
 <script src="three.min.js?v=r128"></script>
 <script src="game.js?v=beta-isolated-20261110"></script>
-<script src="account-center.js?v=account-center-20261110-v2"></script>
+<script src="account-center.js?v=account-center-20261111-v3"></script>
 <script src="cloud-auto.js?v=beta-auto-20261110-v1"></script>
 
 </body>
