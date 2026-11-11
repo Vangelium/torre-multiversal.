@@ -150,6 +150,8 @@ async function createNewCharacter(){
  await confirmUser();
  var uid=user.id;
  var previous=currentExport();
+ if(storage.getItem(pendingKey(uid)))
+   throw Error("Hay una creación anterior pendiente. Complétala antes de empezar otra.");
  var message="¿Crear un personaje NUEVO en "+(user.email||"esta cuenta")+"?\n\n"+
    (previous.data.profile.character
      ?"Personaje activo: "+previous.name+" · "+previous.xp+" XP. Guardaré una copia independiente antes de crear el nuevo."
@@ -161,14 +163,12 @@ async function createNewCharacter(){
  archiveRaw(previous.raw,"Última partida antes de crear personaje",uid);
  if(!previous.data.profile.character){
    // Si el motor ya abrió un creador inicial, basta con terminarlo.
-   storeVerified(pendingKey(uid),JSON.stringify({uid:uid,previousId:previous.id,at:Date.now(),newCharacter:true}));
+   storeVerified(pendingKey(uid),JSON.stringify({uid:uid,previousId:previous.id,at:Date.now(),newCharacter:true,allowExistingId:true}));
    wrap.hidden=true;
    var creator=$("creator");
    if(!creator||creator.hidden)$("btn-character").click();
    return;
  }
- if(storage.getItem(pendingKey(uid)))
-   throw Error("Ya hay una creación pendiente. Completa o recupera esa partida antes de empezar otra.");
  var pending={uid:uid,previousId:previous.id,at:Date.now(),newCharacter:true};
  storeVerified(pendingKey(uid),JSON.stringify(pending));
  try{
@@ -196,7 +196,7 @@ async function resumePendingCreation(){
  if(pending.uid!==user.id||!pending.newCharacter)return false;
  await ensureEngine();
  var value=rawLocal();
- if(value&&value.id!==pending.previousId&&value.data.profile.character){
+ if(value&&value.data.profile.character&&(value.id!==pending.previousId||pending.allowExistingId)){
    await completeCreation();
    return true;
  }
@@ -222,7 +222,7 @@ async function completeCreation(){
    await ensureEngine();
    var current=currentExport();
    if(!current.data.profile.character)return;
-   if(current.id===pending.previousId){
+   if(current.id===pending.previousId&&!pending.allowExistingId){
      throw Error("El personaje nuevo heredó un ID existente. No fue vinculado a la nube.");
    }
    archiveRaw(current.raw,"Personaje creado en Vangelium",user.id);
@@ -448,16 +448,12 @@ function rememberChoice(record){
 }
 async function useSnapshot(snapshot,source){
  await ensureEngine();
- var old=rawLocal();
- if(!old||old.raw!==snapshot.raw){
-   if(old){
-     var pre="tm.gateway.previous."+(user?user.id:"local");
-     // Capturar también la posición más reciente desde el motor.
-     var fresh=currentExport();
-     archiveRaw(fresh.raw,"Antes de cambiar personaje",user?user.id:"local");
-     storeVerified(pre,fresh.raw);
-     if(user)storeVerified("tm.hub.previous."+user.id,fresh.raw);
-   }
+ var old=currentExport();
+ if(old.raw!==snapshot.raw){
+   var pre="tm.gateway.previous."+(user?user.id:"local");
+   archiveRaw(old.raw,"Antes de cambiar personaje",user?user.id:"local");
+   storeVerified(pre,old.raw);
+   if(user)storeVerified("tm.hub.previous."+user.id,old.raw);
    var code=toCode(snapshot.raw);
    $("import-in").value=code;
    $("save-status").textContent="";
