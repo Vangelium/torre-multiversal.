@@ -147,3 +147,32 @@ En la conversación del 10/11/2026, después de restaurar una partida con la bet
 - Al tocar **Continuar con [personaje]**, se recupera la ranura recién consultada, preserva la anterior en `tm.hub.previous.<uid>`, memoriza revisión local cuando la fuente es `tm_character_saves`, y reanuda el juego si la escena del personaje ya existe. Detecta una revisión desactualizada y no carga datos obsoletos. Los respaldos y copias locales no se convierten automáticamente en slots vinculados sin pulsar guardar.
 - **Seguridad**: guardar desde el cliente sigue siendo un JSON de usuario `verified=false`; todavía NO es prueba criptográfica de propiedad ni autoridad para moneda, mascotas comerciales, objetos o clasificaciones. Perfiles duplicados entre cuentas aún son posibles (por ejemplo, una copia histórica replicada); no declarar resuelto el problema de propiedad global hasta disponer de validación server-side.
 - **Pruebas simuladas ejecutadas**: creación, actualización de revisión, bloqueo desde otro móvil, guardado histórico independiente; restauración con preservación local, reanudación sin importación redundante y rechazo de revisión obsoleta. Todas pasaron. **Pruebas físicas beta pendientes**: vincular un personaje real en el celular origen, abrirlo desde otro móvil, modificar progreso y actualizar, comprobar bloqueo de escritura obsoleta, multijugador. El sitio oficial permanece intacto y PR #1 sigue en draft.
+
+
+## 11/11/2026: nuevo acceso Vangelium ANTES de jugar (beta separada)
+Se completó una nueva puerta de entrada visual para la beta, cumpliendo parte del flujo de estudio Vangelium → acceso → personajes → entrar. El motor 3D y cliente Realtime no fueron modificados. Esta fase todavía usa **correo y contraseña**, no Google/Apple OAuth (pendiente de configurar los providers y revisar callbacks).
+
+### Archivos y despliegue
+- Nueva UI/CSS responsive en `beta/index.html` (y equivalente `index.html` de la rama del PR).
+- Nuevo JavaScript `beta/entry-gate.js` (y `entry-gate.js` en PR).
+- URL de pruebas: https://vangelium.github.io/torre-multiversal./beta/?revision=14
+- Menú de la beta: botón adicional **Cambiar cuenta o personaje** para volver al selector sin recargar.
+- Gate independiente con alto z-index que solo se oculta tras selección o entrada local confirmada. El motor sigue arrancando detrás. No se tocó `game.js` de raíz ni `beta/game.js`.
+- Se mantiene enlace explícito **Abrir juego oficial**, sin autenticar, en caso de incidencia.
+
+### Comportamiento y restricciones
+- Muestra branding VANGELIUM, email/password, registro, recuperación, sesión activa, lista de personajes vinculados y respaldos históricos.
+- Consulta exclusivamente filas del usuario mediante `tm_character_saves`, `tm_legacy_backups` y `tm_cloud_saves` bajo RLS. Agrupa por ID de perfil. Prioriza ranuras vinculadas; presenta otras versiones bajo detalle desplegable. No interpreta un correo como propiedad criptográfica del personaje.
+- Cada tarjeta tiene **Continuar con [personaje]**: consulta de nuevo la copia elegida y verifica versión CAS cuando corresponde, valida TM1 y checksum, conserva la partida local en `tm.gateway.previous.<user_id>` y `tm.hub.previous.<user_id>`, acciona el importador oficial y espera confirmación de «Partida cargada.» antes de iniciar modo solo. Guarda la revisión local para continuar con la ranura vinculada.
+- Las copias antiguas y slots experimentales ofrecen **Vincular [personaje] a esta cuenta** con confirmación, insertando una nueva fila de personaje solo si no existe. **Nunca sobrescribe una versión existente diferente**. Lo mismo para copias locales.
+- **Buscar personajes de este celular** recorre almacenamiento de beta y guardados/copia de seguridad del juego oficial en **solo lectura**; permite recuperación explícita, no importa ni vincula sin confirmar.
+- Modo local disponible con advertencia de que no guarda en la nube. **Crear personaje** solo abre el creador cuando no hay otro personaje con aspecto en el guardado local; no crea múltiples perfiles independientes aún (trabajo posterior de Opus). No intentar forzar creación y perder otro personaje.
+- Previene la superposición del creador que el motor puede abrir al arrancar si la beta no tiene un personaje inicial. Si importa un personaje ya diseñado, cierra el overlay del creador antes de pulsar Jugar solo; si falta aspecto, mantiene abierto el creador. Respeta arranque del motor, detiene la acción si el boot aún no termina o hay error, y muestra error legible si no se puede inicializar Auth.
+- Mantener import/export TM1 y menú Pausa → Cuenta como herramientas avanzadas, no sustituir la persistencia existente mientras dure la beta.
+
+### Verificación / QA
+- Test de sintaxis JavaScript, IDs únicos y presencia de todos los elementos.
+- Pruebas simuladas: correo inválido/credenciales erróneas, login correcto, dos personajes diferentes, carga de personaje y reanudación, copia previa local, vinculación directa desde respaldo, control de revisión y cierre del creador inicial con personaje recuperado. Todas pasaron.
+- NO se ha verificado todavía carga HTTP real de GitHub Pages mediante navegador remoto ni prueba física del nuevo selector en Android/iPhone. **No fusionar PR #1.**
+- Evitar mezclas accidentales de personajes: el acceso no sube ni restaura partidas sin botón y confirmación.
+- Pendiente: creación independiente de varios personajes, integración auténtica de Google/Apple OAuth, persistencia automática por personaje (no confundir con ranura opt-in antigua), autoridad de inventario y economía del servidor, regresión cooperativa.
