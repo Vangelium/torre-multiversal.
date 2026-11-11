@@ -1,5 +1,5 @@
 /* Torre Multiversal · Centro de cuenta beta (v1).
-   Un correo es identidad, un personaje es una partida. Nunca suponer
+   La identidad es auth.user.id; un personaje es una partida. Nunca suponer
    que iniciar sesion significa importar automáticamente un personaje.
    Los historiales TM1 no confieren objetos ni moneda oficial.
 */
@@ -260,6 +260,20 @@ async function refreshAccount(){
   }else if(u&&account){account=u;showAccount();}
   else {showAccount();status("Inicia sesión para ver los personajes asociados a tu correo.");}
 }
+async function socialLogin(provider){
+  await run(async function(){
+    if(provider!=="google"&&provider!=="apple")throw Error("Proveedor de inicio de sesión no compatible.");
+    // El proveedor debe estar habilitado en Supabase y configurado con su OAuth externo.
+    // No se hace vinculación automática a una cuenta anterior basada solo en el correo.
+    var response=await client.auth.signInWithOAuth({
+      provider:provider,options:{redirectTo:location.origin+location.pathname}
+    });
+    if(response.error)throw Error("No está disponible el acceso con "+
+      (provider==="google"?"Google":"Apple")+
+      ". Comprueba la configuración OAuth o entra con tu correo actual. Detalle: "+response.error.message);
+    status("Abriendo la autorización de "+(provider==="google"?"Google":"Apple")+"…");
+  });
+}
 async function signIn(register){
   await run(async function(){
     var email=$("tm-hub-login-email").value.trim();
@@ -435,6 +449,8 @@ async function restorePrevious(){
 async function refresh(){
   await run(async function(){await refreshAccount();if(account)await fetchData();status("Lista actualizada. El personaje del celular no cambió.");});
 }
+$("tm-hub-google").addEventListener("click",function(){socialLogin("google")});
+$("tm-hub-apple").addEventListener("click",function(){socialLogin("apple")});
 $("tm-hub-login").addEventListener("click",function(){signIn(false)});
 $("tm-hub-register").addEventListener("click",function(){signIn(true)});
 $("tm-hub-forgot").addEventListener("click",resetPassword);

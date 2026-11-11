@@ -20,3 +20,10 @@ Regreso al juego oficial: https://vangelium.github.io/torre-multiversal./
 - La tabla antigua `tm_cloud_saves` y `tm_legacy_backups` permanecen intactas y consultables.
 - Autoguardado opt-in por cuenta **y personaje**. Tras cambiar de personaje debe activarse para el nuevo; no reutilizar las preferencias previas.
 - Antes de fusionar: probar dos teléfonos, dos usuarios y múltiples personajes, cambios concurrentes, inicio/cierre de sesión, red cortada y multijugador. Nada de publicación automática.
+
+## Presentación de Vangelium y OAuth (iteración beta)
+- `vangelium-intro.js` muestra una portada animada **una vez por sesión**; usar `?intro=1` para volver a verla. No toca guardados ni sesiones.
+- Google y Apple usan `signInWithOAuth` con retorno al directorio beta. Sus botones ya están conectados, **pero no funcionarán hasta configurar ambos proveedores externos y la URL autorizada de redirección** en Supabase.
+- Sigue disponible entrar/crear cuenta con correo y contraseña. No confiar en coincidencias de correo para fusionar automáticamente identidades de proveedores.
+- Corregido el botón de actualizar ranura, que antes retornaba sin consultar mientras la operación se marcaba ocupada.
+- No hay cambios en `main`; no fusionar antes de probar dos teléfonos y la recuperación de todos los personajes.

@@ -103,7 +103,12 @@
     var query = await client.from("tm_character_saves")
       .select("profile_id,save_version,revision,fingerprint,payload,updated_at")
       .eq("user_id", account.id).eq("profile_id",profileId).maybeSingle();
-    return throwError(query);
+    var slot = throwError(query);
+    if (slot && slot.payload && typeof slot.payload.raw === "string" &&
+        decodeRaw(slot.payload.raw).id !== profileId) {
+      throw new Error("La copia de este personaje no coincide con su identificador. Se ha bloqueado la restauración para proteger tus datos.");
+    }
+    return slot;
   }
   function remember(remote) {
     knownRevision = remote.revision;
@@ -129,8 +134,8 @@
     }
     buttons();
   }
-  async function checkAccount() {
-    if (busy) return;
+  async function checkAccount(force) {
+    if (busy && !force) return;
     var response = await client.auth.getUser();
     var next = response.error ? null : response.data.user;
     var changed = (next && next.id) !== (account && account.id);
@@ -329,7 +334,7 @@
   });
   el("tm-auto-refresh").addEventListener("click",function(){
     operation(async function(){
-      await checkAccount();
+      await checkAccount(true);
       info("Estado del personaje actualizado. No se cambió tu partida.");
     });
   });
