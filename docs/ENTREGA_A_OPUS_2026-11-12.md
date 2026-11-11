@@ -199,3 +199,28 @@ Se completó una nueva puerta de entrada visual para la beta, cumpliendo parte d
 - Simulación de creación del **primer personaje**: usa su ID inicial, se vincula y entra sin recarga. Superada.
 - Pruebas previas de login, selección de personajes y recuperación por checksum ya pasaron. Falta **QA real en Android** sobre creación, recarga, conexión lenta, cuota de almacenamiento y multijugador.
 - **No fusionar PR #1** a producción antes del QA.
+
+---
+
+## 11/11/2026: sincronización automática INDIVIDUAL por personaje
+
+**Implementación real publicada** en main:beta/character-sync.js y versionada en PR #1 como character-sync.js. Archivos de beta/account-center.js, beta/entry-gate.js y beta/index.html actualizados en main y en rama de desarrollo. No se tocaron los archivos raíz de producción.
+
+### Diseño, permisos y protecciones
+- Reutiliza public.tm_character_saves con PK (user_id, profile_id), RLS por propietario y trigger CAS de revisión existente; no crea más tablas ni altera respaldos históricos.
+- UI principal de Pausa → Cuenta: Activar autoguardado, Pausar autoguardado, Guardar ahora y Comprobar nube. Opt-in expreso, preferencia individual por correo+ID de personaje.
+- Intervalo 120 segundos; no escribe si el selector de personaje, el creador, el cooperativo están abiertos o la pestaña está oculta. El motor sigue siendo dueño de las posiciones y guardados.
+- Exporta progreso fresco mediante botón del motor (incluye posición actual), comprueba checksum TM1, identidad del personaje, tamaño máximo y calcula SHA-256 de los datos. Esta huella es INTEGRIDAD, NO propiedad autenticada ni valor económico.
+- Requiere sesión de Auth y que el jugador haya cargado explícitamente ese personaje desde su ranura vinculada. Seleccionar un respaldo histórico no autoriza autoactualización.
+- Compara revisión y fingerprint remotos contra la base local obtenida al cargar o vincular el personaje. Previo a cada escritura valida payload remoto y guarda una copia de la versión remota anterior en tm.char.sync.remote.before.<uid>.<pid>. Exige confirmar que el almacenamiento local funcionó.
+- UPDATE condicional por user_id,profile_id,revision, con confirmación de revision+1 y fingerprint. El trigger PostgreSQL exige incremento exacto. Cuando dos móviles quieren actualizar la misma revisión, solo el primero avanza: el otro queda pausado, no sobreescribe.
+- Estado por personaje separado; un cambio de cuenta o personaje interrumpe la sincronización anterior. Error de red o discrepancia exige revisión/activación manual.
+- El script antiguo cloud-auto.js (una ranura global por cuenta) dejó de cargarse en el HTML de la beta para impedir duplicación de escrituras; su código y sus registros históricos tm_cloud_saves siguen intactos, recuperables desde el selector.
+
+### Pruebas ejecutadas
+- Sintaxis JS y presencia de controles.
+- Simulación de sesión + guardado: activación, revisión 1 a 2, copia previa local, conflicto con revisión 3 y bloqueo sin pérdida local.
+- Dos clientes independientes con misma cuenta y personaje: móvil A guarda revisión 2, móvil B detecta conflicto sin sobrescribirlo.
+- Pausa en cooperativo y pestaña oculta: confirmada.
+- **QA físico pendiente**: cargar la beta publicada en ambos teléfonos, seleccionar personaje vinculado, activar desde Pausa → Cuenta, avanzar progreso, guardar, recuperar en el segundo teléfono y verificar mascotas/inventario. También comprobar conflictos y pantalla de error. No declarar producción lista hasta QA.
+- Datos personales TM1 siguen verified=false, sin autoridad para economía, mascotas comerciales, inventario, monedas, pagos o rankings. Google/Apple OAuth y comparación guiada de divergencias pendientes. PR #1 debe continuar en borrador.
