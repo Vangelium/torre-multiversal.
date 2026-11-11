@@ -75,7 +75,11 @@ function showAccount(){
   if(!account){$("tm-hub-email").textContent="";return}
   $("tm-hub-email").textContent=account.email||"Cuenta";
   var value=local();
-  $("tm-hub-local").textContent=value?value.name+" · "+value.xp.toLocaleString("es-CL")+" XP · "+value.pets+" mascotas":"No hay partida guardada en este celular";
+  var owner=value&&storage.getItem("tm.hub.owner."+encodeURIComponent(value.id));
+  $("tm-hub-local").textContent=value?
+    (owner&&owner!==account.id?"Otra cuenta del dispositivo · ":"")+
+    value.name+" · "+value.xp.toLocaleString("es-CL")+" XP · "+value.pets+" mascotas":
+    "No hay partida guardada en este celular";
   $("tm-hub-previous").hidden=!storage.getItem("tm.hub.previous."+account.id);
 }
 function element(tag,klass,textValue){
@@ -189,7 +193,11 @@ function archiveCurrent(snapshot){
   // Copia local de seguridad por cuenta y personaje ANTES de cambiar.
   // Nunca se elimina un guardado antiguo al preparar el cambio.
   if(!account||!snapshot)return;
-  var suffix=account.id+"."+encodeURIComponent(snapshot.id);
+  var owner=storage.getItem("tm.hub.owner."+encodeURIComponent(snapshot.id));
+  // Un guardado sin titular conocido va a zona local no asociada.
+  // Nunca atribuir a la cuenta B el personaje abierto de la cuenta A.
+  var scope=owner||"unassigned";
+  var suffix=scope+"."+encodeURIComponent(snapshot.id);
   var key="tm.hub.local."+suffix;
   var previous=storage.getItem(key);
   if(previous&&previous!==snapshot.raw){
@@ -201,8 +209,8 @@ function archiveCurrent(snapshot){
   storage.setItem(key,snapshot.raw);
   if(storage.getItem(key)!==snapshot.raw)
     throw Error("No se pudo conservar la partida actual por personaje. No cambiaremos de personaje.");
-  storage.setItem("tm.hub.previous."+account.id,snapshot.raw);
-  if(storage.getItem("tm.hub.previous."+account.id)!==snapshot.raw)
+  storage.setItem("tm.hub.previous."+scope,snapshot.raw);
+  if(storage.getItem("tm.hub.previous."+scope)!==snapshot.raw)
     throw Error("No se pudo crear el respaldo rápido. No cambiaremos de personaje.");
 }
 function restoreLocalCopy(snapshot,label){
@@ -235,14 +243,18 @@ function scanLocal(){
     names.push(["Partida actual del juego oficial",window.localStorage,"tm.save"]);
     names.push(["Copia anterior del juego oficial",window.localStorage,"tm.save.bak"]);
   }
-  // Rescatar todas las copias individuales guardadas por personaje para
-  // esta cuenta, sin mezclar copias de otras cuentas del mismo teléfono.
-  var prefix="tm.hub.local."+account.id+".";
-  var oldPrefix="tm.hub.local.previous."+account.id+".";
+  // Mostrar solo copias de la cuenta actual y las no vinculadas.
+  // Jamás revelar automáticamente archivos locales etiquetados para otra cuenta.
+  var prefixes=[
+    "tm.hub.local."+account.id+".",
+    "tm.hub.local.previous."+account.id+".",
+    "tm.hub.local.unassigned.",
+    "tm.hub.local.previous.unassigned."
+  ];
   for(var i=0;i<storage.length;i++){
     var candidateKey=storage.key(i);
-    if(candidateKey && (candidateKey.startsWith(prefix)||candidateKey.startsWith(oldPrefix))){
-      names.push([candidateKey.startsWith(oldPrefix)?"Versión anterior de personaje":"Copia local por personaje",storage,candidateKey]);
+    if(candidateKey&&prefixes.some(function(prefix){return candidateKey.startsWith(prefix)})){
+      names.push([candidateKey.includes(".previous.")?"Versión anterior de personaje":"Copia local por personaje",storage,candidateKey]);
     }
   }
   var seen=new Set(),current=local(),found=0;
@@ -340,13 +352,16 @@ async function confirmPassword(){
 }
 async function logout(){
   await run(async function(){
-    var current=local();
-    if(current)archiveCurrent(current);
+    var localBackupWarning=false,current=local();
+    if(current)try{archiveCurrent(current)}catch(e){localBackupWarning=true}
+    // Nunca impedir el cierre de sesión por falta de espacio local.
     var result=await client.auth.signOut();
     if(result.error)throw result.error;
     account=null;records=[];groups=[];
     renderCharacters();showAccount();
-    status("Sesión cerrada. La partida de este celular no se borró.");
+    status(localBackupWarning?
+      "Sesión cerrada. No hubo espacio para una copia adicional; el guardado local anterior no se eliminó.":
+      "Sesión cerrada. La partida de este celular no se borró.",localBackupWarning);
   });
 }
 function toCode(raw){
@@ -392,6 +407,8 @@ async function backupCurrent(){
     payload:{raw:current.raw},origin:"github_pages"
   });
   if(save.error&&save.error.code!=="23505")throw save.error;
+  // Solo una vinculación explícita y confirmada marca el dueño local.
+  try{storage.setItem("tm.hub.owner."+encodeURIComponent(current.id),account.id)}catch(e){}
   await fetchData();
   status(save.error
     ?"Este personaje ya tenía una copia idéntica en esta cuenta."
@@ -430,6 +447,7 @@ function importLocal(snapshot){
   var result=$("save-status").textContent.trim();
   $("import-in").value="";
   if(result!=="Partida cargada.")throw Error("El juego no confirmó la carga: "+(result||"sin respuesta"));
+  if(account)try{storage.setItem("tm.hub.owner."+encodeURIComponent(snapshot.id),account.id)}catch(e){}
   window.dispatchEvent(new Event("tm:character-changed"));
 }
 async function restore(item){

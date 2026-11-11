@@ -33,3 +33,9 @@ Regreso al juego oficial: https://vangelium.github.io/torre-multiversal./
 - «Buscar personajes y copias de este celular» descubre esas copias separadas y las muestra al usuario de la cuenta correspondiente.
 - No son sustitutos de sincronización en nube: pérdida total del móvil o borrado de datos del navegador puede hacerlas inaccesibles.
 - Supabase puede asociar automáticamente identidades cuando los proveedores verifican el mismo correo; nunca asumir que Apple Private Relay y Gmail corresponden a una misma cuenta.
+
+## Protección contra mezcla de cuentas
+- El navegador marca la cuenta propietaria del personaje **solo después de una restauración de cuenta o un respaldo explícito confirmado**.
+- Los archivos no atribuidos previamente se conservan como `unassigned` y no se vinculan automáticamente a la cuenta que acaba de entrar.
+- Al cambiar de cuenta, el buscador de copias individuales muestra los guardados de la cuenta actual y los locales sin atribución; no muestra los archivados bajo otra cuenta.
+- Nota beta: el selector de partidas locales manuales todavía requiere auditoría de privacidad en un dispositivo compartido; no usar esta beta en un móvil público.
