@@ -27,3 +27,9 @@ Regreso al juego oficial: https://vangelium.github.io/torre-multiversal./
 - Sigue disponible entrar/crear cuenta con correo y contraseña. No confiar en coincidencias de correo para fusionar automáticamente identidades de proveedores.
 - Corregido el botón de actualizar ranura, que antes retornaba sin consultar mientras la operación se marcaba ocupada.
 - No hay cambios en `main`; no fusionar antes de probar dos teléfonos y la recuperación de todos los personajes.
+
+## Seguridad al cambiar entre tres o más personajes
+- Antes de cualquier restauración o cierre de sesión, el centro de cuenta conserva una copia local por **`user_id + profile_id`**; además conserva la versión anterior inmediata de esa copia.
+- «Buscar personajes y copias de este celular» descubre esas copias separadas y las muestra al usuario de la cuenta correspondiente.
+- No son sustitutos de sincronización en nube: pérdida total del móvil o borrado de datos del navegador puede hacerlas inaccesibles.
+- Supabase puede asociar automáticamente identidades cuando los proveedores verifican el mismo correo; nunca asumir que Apple Private Relay y Gmail corresponden a una misma cuenta.

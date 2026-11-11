@@ -185,6 +185,26 @@ function renderCharacters(){
   });
   if(!groups.length)empty.textContent="Esta cuenta todavía no tiene personajes en la nube. Crea uno o copia la partida del otro celular con «Guardar personaje de este celular».";
 }
+function archiveCurrent(snapshot){
+  // Copia local de seguridad por cuenta y personaje ANTES de cambiar.
+  // Nunca se elimina un guardado antiguo al preparar el cambio.
+  if(!account||!snapshot)return;
+  var suffix=account.id+"."+encodeURIComponent(snapshot.id);
+  var key="tm.hub.local."+suffix;
+  var previous=storage.getItem(key);
+  if(previous&&previous!==snapshot.raw){
+    var earlier="tm.hub.local.previous."+suffix;
+    storage.setItem(earlier,previous);
+    if(storage.getItem(earlier)!==previous)
+      throw Error("No se pudo conservar la versión local anterior. No cambiaremos de personaje.");
+  }
+  storage.setItem(key,snapshot.raw);
+  if(storage.getItem(key)!==snapshot.raw)
+    throw Error("No se pudo conservar la partida actual por personaje. No cambiaremos de personaje.");
+  storage.setItem("tm.hub.previous."+account.id,snapshot.raw);
+  if(storage.getItem("tm.hub.previous."+account.id)!==snapshot.raw)
+    throw Error("No se pudo crear el respaldo rápido. No cambiaremos de personaje.");
+}
 function restoreLocalCopy(snapshot,label){
   if(!account)throw Error("Inicia sesión primero.");
   if(inCoop())throw Error("Sal del cooperativo antes de recuperar un personaje.");
@@ -193,12 +213,7 @@ function restoreLocalCopy(snapshot,label){
       " XP, "+snapshot.pets+" mascotas).\nOrigen: "+label+
       "\n\n¿Recuperarla en esta beta? No se subirá a Supabase hasta que pulses «Guardar personaje de este celular»."))
     return;
-  if(current){
-    var previousKey="tm.hub.previous."+account.id;
-    storage.setItem(previousKey,current.raw);
-    if(storage.getItem(previousKey)!==current.raw)
-      throw Error("No se pudo preservar la partida actual. Se canceló la recuperación.");
-  }
+  if(current)archiveCurrent(current);
   importLocal(snapshot);
   showAccount();renderCharacters();
   $("tm-hub-local-copies").hidden=true;
@@ -219,6 +234,16 @@ function scanLocal(){
   if(window.localStorage){
     names.push(["Partida actual del juego oficial",window.localStorage,"tm.save"]);
     names.push(["Copia anterior del juego oficial",window.localStorage,"tm.save.bak"]);
+  }
+  // Rescatar todas las copias individuales guardadas por personaje para
+  // esta cuenta, sin mezclar copias de otras cuentas del mismo teléfono.
+  var prefix="tm.hub.local."+account.id+".";
+  var oldPrefix="tm.hub.local.previous."+account.id+".";
+  for(var i=0;i<storage.length;i++){
+    var candidateKey=storage.key(i);
+    if(candidateKey && (candidateKey.startsWith(prefix)||candidateKey.startsWith(oldPrefix))){
+      names.push([candidateKey.startsWith(oldPrefix)?"Versión anterior de personaje":"Copia local por personaje",storage,candidateKey]);
+    }
   }
   var seen=new Set(),current=local(),found=0;
   names.forEach(function(entry){
@@ -264,7 +289,7 @@ async function socialLogin(provider){
   await run(async function(){
     if(provider!=="google"&&provider!=="apple")throw Error("Proveedor de inicio de sesión no compatible.");
     // El proveedor debe estar habilitado en Supabase y configurado con su OAuth externo.
-    // No se hace vinculación automática a una cuenta anterior basada solo en el correo.
+    // Supabase podría vincular automáticamente identidades con correos verificados.
     var response=await client.auth.signInWithOAuth({
       provider:provider,options:{redirectTo:location.origin+location.pathname}
     });
@@ -315,6 +340,8 @@ async function confirmPassword(){
 }
 async function logout(){
   await run(async function(){
+    var current=local();
+    if(current)archiveCurrent(current);
     var result=await client.auth.signOut();
     if(result.error)throw result.error;
     account=null;records=[];groups=[];
@@ -419,13 +446,7 @@ async function restore(item){
     "\n\nPersonaje actual del celular: "+label+
     "\n\n¿Cargar este personaje? Conservaremos antes el guardado local actual.";
   if(!window.confirm(question)){status("No se cambió ningún personaje.");return}
-  var uid=account.id;
-  if(current){
-    var key="tm.hub.previous."+uid;
-    storage.setItem(key,current.raw);
-    if(storage.getItem(key)!==current.raw)
-      throw Error("No se pudo proteger el guardado anterior. No se realizó el cambio.");
-  }
+  if(current)archiveCurrent(current);
   importLocal(saved);
   showAccount();
   renderCharacters();
@@ -440,7 +461,7 @@ async function restorePrevious(){
   if(!raw)throw Error("No hay una partida anterior para recuperar.");
   var previous=parse(raw),now=local();
   if(!window.confirm("¿Volver a "+previous.name+" ("+previous.xp+" XP)? Se conservará una copia del personaje actual."))return;
-  if(now)storage.setItem("tm.hub.temporary."+account.id,now.raw);
+  if(now)archiveCurrent(now);
   importLocal(previous);
   if(now)storage.setItem("tm.hub.previous."+account.id,now.raw);
   showAccount();renderCharacters();
