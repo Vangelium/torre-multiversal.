@@ -1,4 +1,4 @@
-/* Torre Multiversal: una ranura de autoguardado por cuenta, opt-in.
+/* Torre Multiversal: una ranura de autoguardado por personaje, opt-in.
  * Solo es un respaldo PERSONAL NO VERIFICADO; no acredita items ni moneda.
  * El control de revisiones evita sobreescribir guardados hechos en otro movil.
  */
@@ -19,12 +19,12 @@
     el("tm-auto-status").textContent = msg;
     el("tm-auto-status").dataset.state = bad ? "error" : "ok";
   }
-  function key(suffix, id) {
-    return "tm.autosync." + suffix + "." + id;
+  function key(suffix, id, profileId) {
+    return "tm.autosync.v2." + suffix + "." + id + "." + (profileId || "none");
   }
   function turnOff(message, bad) {
     enabled = false;
-    if (account) storage.setItem(key("enabled", account.id), "0");
+    if (account && knownProfile) storage.setItem(key("enabled", account.id, knownProfile), "0");
     buttons();
     if (message) info(message, bad);
   }
@@ -98,31 +98,32 @@
     value.fingerprint = await hashData(value.data);
     return value;
   }
-  async function getRemote() {
-    var query = await client.from("tm_cloud_saves")
+  async function getRemote(profileId) {
+    if (!account || !profileId) return null;
+    var query = await client.from("tm_character_saves")
       .select("profile_id,save_version,revision,fingerprint,payload,updated_at")
-      .eq("user_id", account.id).maybeSingle();
+      .eq("user_id", account.id).eq("profile_id",profileId).maybeSingle();
     return throwError(query);
   }
   function remember(remote) {
     knownRevision = remote.revision;
     knownFingerprint = remote.fingerprint;
     knownProfile = remote.profile_id;
-    storage.setItem(key("revision",account.id), String(remote.revision));
-    storage.setItem(key("fingerprint",account.id), remote.fingerprint);
-    storage.setItem(key("profile",account.id), remote.profile_id);
+    storage.setItem(key("revision",account.id,remote.profile_id), String(remote.revision));
+    storage.setItem(key("fingerprint",account.id,remote.profile_id), remote.fingerprint);
+    storage.setItem(key("profile",account.id,remote.profile_id), remote.profile_id);
   }
   function display(remote) {
     selectedRemote = remote;
     if (!remote) {
-      el("tm-auto-cloud").textContent = "Ranura remota: vacia. Todavia no hay guardado automatico.";
+      el("tm-auto-cloud").textContent = "Este personaje todavía no tiene guardado automático.";
     } else {
       var preview;
       try { preview = decodeRaw(remote.payload.raw); }
       catch (_) { preview = {name:"Copia no valida"}; }
       var when = new Date(remote.updated_at);
       el("tm-auto-cloud").textContent =
-        "Ranura de esta cuenta: " + preview.name +
+        "Ranura de " + preview.name +
         " | revision " + remote.revision +
         " | " + (Number.isNaN(when.getTime())?"Fecha desconocida":when.toLocaleString("es-CL"));
     }
@@ -134,35 +135,58 @@
     var next = response.error ? null : response.data.user;
     var changed = (next && next.id) !== (account && account.id);
     if (changed) {
-      account = next;
-      enabled = false;
+      account = next; enabled = false;
       knownRevision = null; knownFingerprint = null; knownProfile = null;
       selectedRemote = null;
     }
     if (!account) {
       display(null);
-      info("Accede con tu correo en Respaldo en la nube para activar la sincronizacion.");
+      info("Inicia sesión para sincronizar tu personaje.");
       return;
     }
-    var remote = await getRemote();
+    var current = null;
+    try {
+      var raw = storage.getItem("tm.save");
+      if (raw) current = decodeRaw(raw);
+    } catch (_) { /* Nunca modificar una copia corrupta. */ }
+    if (!current) {
+      enabled = false; display(null);
+      info("Selecciona o crea un personaje antes de activar su guardado.");
+      return;
+    }
+    var profileId = current.id;
+    if (knownProfile && knownProfile !== profileId) {
+      turnOff("Cambiaste de personaje. La sincronización anterior se pausó.",true);
+      knownRevision = null; knownFingerprint = null; knownProfile = null;
+    }
+    var remote = await getRemote(profileId);
     display(remote);
-    if (!changed || !remote) {
-      if (!remote && storage.getItem(key("enabled",account.id)) === "1")
-        turnOff("La ranura ya no existe. La sincronizacion esta pausada.",true);
+    var activeKey = key("enabled",account.id,profileId);
+    if (!remote) {
+      enabled = false;
+      if (storage.getItem(activeKey)==="1") {
+        storage.setItem(activeKey,"0");
+        info("La copia de este personaje ya no está disponible. Sincronización pausada.",true);
+      } else info("Este personaje todavía no tiene guardado automático. Pulsa Activar para crear uno.");
       return;
     }
-    if (storage.getItem(key("enabled",account.id)) === "1") {
-      var rev = Number(storage.getItem(key("revision",account.id)));
-      var profile = storage.getItem(key("profile",account.id));
-      if (rev === remote.revision && profile === remote.profile_id) {
-        knownRevision = rev;
-        knownFingerprint = storage.getItem(key("fingerprint",account.id));
-        knownProfile = profile;
-        enabled = true;
-        buttons();
-        info("Autoguardado activo. Solo se subiran cambios de esta cuenta y personaje.");
-      } else turnOff("La nube cambio desde otro dispositivo. Compara la ranura antes de reactivar.",true);
-    } else info("Autoguardado desactivado. Tus respaldos historicos siguen intactos.");
+    if (storage.getItem(activeKey)==="1") {
+      var rev=Number(storage.getItem(key("revision",account.id,profileId)));
+      var savedProfile=storage.getItem(key("profile",account.id,profileId));
+      if (rev===remote.revision && savedProfile===profileId) {
+        knownRevision=rev;
+        knownFingerprint=storage.getItem(key("fingerprint",account.id,profileId));
+        knownProfile=profileId; enabled=true;
+        info("Autoguardado activo para " + current.name + ".");
+      } else {
+        enabled=false; storage.setItem(activeKey,"0");
+        info("Otro dispositivo cambió este personaje. Actualiza y revisa antes de guardar.",true);
+      }
+    } else {
+      enabled=false;
+      info("Autoguardado desactivado para " + current.name + ". Puedes activarlo aquí.");
+    }
+    buttons();
   }
   async function saveCurrent(activate) {
     if (!account) throw new Error("Primero entra en tu cuenta.");
@@ -171,7 +195,14 @@
     if (userResult.error || !userResult.data.user || userResult.data.user.id !== account.id)
       throw new Error("La sesion ha cambiado. Inicia sesion nuevamente.");
     var current = await getLocal(true);
-    var remote = await getRemote();
+    if (!activate && knownProfile && current.id !== knownProfile) {
+      turnOff("Cambiaste de personaje. No se sobrescribió el guardado anterior.",true);
+      return;
+    }
+    if (activate && knownProfile && current.id !== knownProfile) {
+      knownRevision=null; knownFingerprint=null; knownProfile=null; enabled=false;
+    }
+    var remote = await getRemote(current.id);
     display(remote);
 
     if (!remote) {
@@ -179,7 +210,7 @@
         turnOff("Otra sesion elimino la ranura. Se detuvo el autoguardado.",true);
         return;
       }
-      var added = await client.from("tm_cloud_saves").insert({
+      var added = await client.from("tm_character_saves").insert({
         user_id:account.id, profile_id:current.id, save_version:current.version,
         payload:{raw:current.raw}, fingerprint:current.fingerprint,
         revision:1, verified:false
@@ -190,7 +221,7 @@
       }
       remember(added.data);
       enabled = true;
-      storage.setItem(key("enabled",account.id),"1");
+      storage.setItem(key("enabled",account.id,current.id),"1");
       info("Primer guardado sincronizado: " + current.name + ". El progreso local se conservo.");
       buttons();
       return;
@@ -206,7 +237,7 @@
       }
       remember(remote);
       enabled = true;
-      storage.setItem(key("enabled",account.id),"1");
+      storage.setItem(key("enabled",account.id,current.id),"1");
       info("Autoguardado activado para " + current.name + ".");
       buttons();
       return;
@@ -228,10 +259,11 @@
       remember(remote);
       return;
     }
-    var updated = await client.from("tm_cloud_saves").update({
+    var updated = await client.from("tm_character_saves").update({
       save_version:current.version, payload:{raw:current.raw},
-      fingerprint:current.fingerprint,revision:knownRevision+1
-    }).eq("user_id",account.id).eq("revision",knownRevision)
+      fingerprint:current.fingerprint,revision:knownRevision+1,
+      updated_at:new Date().toISOString()
+    }).eq("user_id",account.id).eq("profile_id",current.id).eq("revision",knownRevision)
       .select("revision,profile_id,fingerprint,updated_at").maybeSingle();
     if (updated.error || !updated.data) {
       turnOff("Conflicto de versiones. No se ha sobreescrito la nube.",true);
@@ -245,8 +277,10 @@
     if (!account) throw new Error("Primero entra con la cuenta deseada.");
     var room = el("room-chip");
     if (room && !room.hidden) throw new Error("Sal de la sala multijugador antes de restaurar.");
-    var remote = await getRemote();
-    if (!remote) throw new Error("Esta cuenta no tiene ranura para recuperar.");
+    var localRaw=storage.getItem("tm.save");
+    if (!localRaw) throw new Error("Elige primero un personaje.");
+    var remote=await getRemote(decodeRaw(localRaw).id);
+    if (!remote) throw new Error("Este personaje no tiene copia automática para recuperar.");
     if (!remote.payload || typeof remote.payload.raw !== "string")
       throw new Error("La ranura de la nube no tiene datos validos.");
     var restored = decodeRaw(remote.payload.raw);
@@ -295,10 +329,12 @@
   });
   el("tm-auto-refresh").addEventListener("click",function(){
     operation(async function(){
-      var remote = await getRemote();
-      display(remote);
-      info("Estado de la ranura actualizado. No se cambio tu partida.");
+      await checkAccount();
+      info("Estado del personaje actualizado. No se cambió tu partida.");
     });
+  });
+  window.addEventListener("tm:character-changed",function(){
+    setTimeout(function(){checkAccount().catch(function(e){info(String(e.message||e),true);});},0);
   });
   client.auth.onAuthStateChange(function(){
     setTimeout(function(){checkAccount().catch(function(e){info(String(e.message||e),true);});},0);

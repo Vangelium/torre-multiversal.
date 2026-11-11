@@ -85,17 +85,20 @@ function element(tag,klass,textValue){
   return node;
 }
 function directSource(record){
-  return record.kind==="slot"?"Ranura de autoguardado":"Copia histórica";
+  return record.kind==="character_slot"?"Guardado por personaje":
+      record.kind==="slot"?"Ranura antigua de cuenta":"Copia histórica";
 }
 async function fetchData(){
   if(!account)return;
   var uid=account.id;
   var res=await Promise.all([
     client.from("tm_legacy_backups").select("id,created_at,save_version,payload,verified").order("created_at",{ascending:false}).limit(20),
-    client.from("tm_cloud_saves").select("user_id,payload,profile_id,revision,updated_at").eq("user_id",uid).maybeSingle()
+    client.from("tm_cloud_saves").select("user_id,payload,profile_id,revision,updated_at").eq("user_id",uid).maybeSingle(),
+    client.from("tm_character_saves").select("user_id,payload,profile_id,revision,updated_at").eq("user_id",uid).order("updated_at",{ascending:false}).limit(50)
   ]);
   if(res[0].error)throw res[0].error;
   if(res[1].error)throw res[1].error;
+  if(res[2].error)throw res[2].error;
   if(!account||account.id!==uid)return;
   records=[];rawSnapshots.clear();
   var slot=res[1].data;
@@ -107,6 +110,15 @@ async function fetchData(){
     }catch(e){
       status("La ranura automática de esta cuenta no es válida. Los respaldos históricos siguen disponibles.",true);
     }
+  }
+  for(var charSlot of res[2].data||[]){
+    try {
+      var fresh=parse(charSlot.payload&&charSlot.payload.raw);
+      if(fresh.id!==charSlot.profile_id)continue;
+      records.push(Object.assign({},fresh,{kind:"character_slot",uid:uid,
+        sourceId:charSlot.profile_id,revision:charSlot.revision,
+        stamp:charSlot.updated_at||"",time:Date.parse(charSlot.updated_at)||0}));
+    } catch(e) { /* Las copias antiguas permanecen disponibles. */ }
   }
   for(var row of res[0].data||[]){
     try{
@@ -171,7 +183,7 @@ function renderCharacters(){
     }
     area.appendChild(card);
   });
-  if(!groups.length)empty.textContent="Esta cuenta todavía no tiene personajes respaldados. Si el personaje está en otro celular, abre esta beta allí y pulsa «Guardar personaje de este celular».";
+  if(!groups.length)empty.textContent="Esta cuenta todavía no tiene personajes en la nube. Crea uno o copia la partida del otro celular con «Guardar personaje de este celular».";
 }
 function restoreLocalCopy(snapshot,label){
   if(!account)throw Error("Inicia sesión primero.");
@@ -347,7 +359,13 @@ async function backupCurrent(){
 async function getFresh(record){
   if(!account||record.uid!==account.id)throw Error("La cuenta cambió. Vuelve a cargar los personajes.");
   var resp;
-  if(record.kind==="slot"){
+  if(record.kind==="character_slot"){
+    resp=await client.from("tm_character_saves")
+      .select("revision,payload").eq("user_id",account.id).eq("profile_id",record.id).maybeSingle();
+    if(resp.error)throw resp.error;
+    if(!resp.data||resp.data.revision!==record.revision)
+      throw Error("El personaje fue actualizado en otro celular. Pulsa «Actualizar» antes de continuar.");
+  } else if(record.kind==="slot"){
     resp=await client.from("tm_cloud_saves")
       .select("revision,payload").eq("user_id",account.id).maybeSingle();
     if(resp.error)throw resp.error;
@@ -371,6 +389,7 @@ function importLocal(snapshot){
   var result=$("save-status").textContent.trim();
   $("import-in").value="";
   if(result!=="Partida cargada.")throw Error("El juego no confirmó la carga: "+(result||"sin respuesta"));
+  window.dispatchEvent(new Event("tm:character-changed"));
 }
 async function restore(item){
   if(!account)throw Error("Inicia sesión primero.");

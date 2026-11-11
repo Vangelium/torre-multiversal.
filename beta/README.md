@@ -14,3 +14,9 @@ Publicación prevista: https://vangelium.github.io/torre-multiversal./beta/
 - Validar registro, confirmación de correo, copias, restauración, cierre de sesión y multijugador real en dos dispositivos antes de fusionar el PR.
 
 Regreso al juego oficial: https://vangelium.github.io/torre-multiversal./
+
+## Guardados por personaje (11-11-2026, etapa beta)
+- Nueva tabla aditiva `tm_character_saves`: clave compuesta `(user_id, profile_id)`, RLS por cuenta, datos no verificados.
+- La tabla antigua `tm_cloud_saves` y `tm_legacy_backups` permanecen intactas y consultables.
+- Autoguardado opt-in por cuenta **y personaje**. Tras cambiar de personaje debe activarse para el nuevo; no reutilizar las preferencias previas.
+- Antes de fusionar: probar dos teléfonos, dos usuarios y múltiples personajes, cambios concurrentes, inicio/cierre de sesión, red cortada y multijugador. Nada de publicación automática.
