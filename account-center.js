@@ -103,12 +103,14 @@ async function rememberLinked(uid,snapshot,rev){
   storage.setItem("tm.gateway.selected."+uid,snapshot.id);
   if(typeof window.__TM_SYNC_REFRESH__==="function")
     setTimeout(window.__TM_SYNC_REFRESH__,0);
+  if(typeof window.__TM_CONFLICT_RESET__==="function")window.__TM_CONFLICT_RESET__();
 }
 function resetRevision(uid,pid){
   if(storage.removeItem)storage.removeItem(revisionKey(uid,pid));
   storage.setItem("tm.char.sync.source."+uid,"other:"+pid);
   if(typeof window.__TM_SYNC_REFRESH__==="function")
     setTimeout(window.__TM_SYNC_REFRESH__,0);
+  if(typeof window.__TM_CONFLICT_RESET__==="function")window.__TM_CONFLICT_RESET__();
 }
 function enterWorld(saved){
   var resume=$("btn-resume"),pause=$("pause"),creator=$("creator");
