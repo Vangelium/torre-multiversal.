@@ -173,6 +173,64 @@ function renderCharacters(){
   });
   if(!groups.length)empty.textContent="Esta cuenta todavía no tiene personajes respaldados. Si el personaje está en otro celular, abre esta beta allí y pulsa «Guardar personaje de este celular».";
 }
+function restoreLocalCopy(snapshot,label){
+  if(!account)throw Error("Inicia sesión primero.");
+  if(inCoop())throw Error("Sal del cooperativo antes de recuperar un personaje.");
+  var current=local();
+  if(!window.confirm("Esta copia local contiene "+snapshot.name+" ("+snapshot.xp+
+      " XP, "+snapshot.pets+" mascotas).\nOrigen: "+label+
+      "\n\n¿Recuperarla en esta beta? No se subirá a Supabase hasta que pulses «Guardar personaje de este celular»."))
+    return;
+  if(current){
+    var previousKey="tm.hub.previous."+account.id;
+    storage.setItem(previousKey,current.raw);
+    if(storage.getItem(previousKey)!==current.raw)
+      throw Error("No se pudo preservar la partida actual. Se canceló la recuperación.");
+  }
+  importLocal(snapshot);
+  showAccount();renderCharacters();
+  $("tm-hub-local-copies").hidden=true;
+  status("Copia recuperada: "+snapshot.name+". Para asociarla a esta cuenta, pulsa «Guardar personaje de este celular».");
+}
+function scanLocal(){
+  if(!account)throw Error("Inicia sesión para buscar copias locales.");
+  var list=$("tm-hub-local-copies");
+  list.replaceChildren();
+  list.hidden=false;
+  var names=[
+    ["Partida antes de la última restauración",storage,"tm.hub.previous."+account.id],
+    ["Copia temporal de restauración",storage,"tm.hub.temporary."+account.id],
+    ["Guardado anterior de nube",storage,"tm.cloud.pre_restore"],
+    ["Guardado anterior del autoguardado",storage,"tm.cloud.slot.pre_restore"],
+    ["Copia local del juego beta",storage,"tm.save.bak"]
+  ];
+  if(window.localStorage){
+    names.push(["Partida actual del juego oficial",window.localStorage,"tm.save"]);
+    names.push(["Copia anterior del juego oficial",window.localStorage,"tm.save.bak"]);
+  }
+  var seen=new Set(),current=local(),found=0;
+  names.forEach(function(entry){
+    var raw;
+    try{raw=entry[1].getItem(entry[2]);}catch(e){return}
+    if(!raw||seen.has(raw)||(current&&raw===current.raw))return;
+    var snapshot;
+    try{snapshot=parse(raw)}catch(e){return}
+    seen.add(raw);found++;
+    var card=element("div","tm-hub-local-copy");
+    card.appendChild(element("strong","",snapshot.name+" · "+snapshot.xp.toLocaleString("es-CL")+" XP · "+snapshot.pets+" mascotas"));
+    card.appendChild(element("small","",entry[0]));
+    var restoreButton=element("button","btn","Recuperar "+snapshot.name+" en esta beta");
+    restoreButton.type="button";
+    restoreButton.addEventListener("click",function(){run(function(){restoreLocalCopy(snapshot,entry[0])})});
+    card.appendChild(restoreButton);
+    list.appendChild(card);
+  });
+  if(!found)list.appendChild(element("p","tm-hub-hint",
+      "No hay otras partidas recuperables en este navegador. Comprueba el celular donde jugaste originalmente con ese personaje."));
+  status(found?("Encontré "+found+" copia"+(found===1?"":"s")+" local"+(found===1?"":"es")+
+    ". Elige la que corresponda. No se ha cambiado ninguna partida."):
+    "No encontré copias antiguas en este navegador. La partida puede seguir en el otro celular.");
+}
 async function refreshAccount(){
   var session=await client.auth.getSession();
   if(session.error)throw session.error;
@@ -365,6 +423,7 @@ $("tm-hub-update-password").addEventListener("click",confirmPassword);
 $("tm-hub-logout").addEventListener("click",logout);
 $("tm-hub-refresh").addEventListener("click",refresh);
 $("tm-hub-backup").addEventListener("click",function(){run(backupCurrent)});
+$("tm-hub-scan").addEventListener("click",function(){run(scanLocal)});
 $("tm-hub-previous").addEventListener("click",function(){run(restorePrevious)});
 client.auth.onAuthStateChange(function(event){
   if(event==="PASSWORD_RECOVERY"){
