@@ -33,6 +33,65 @@
 #tm-cloud-status[data-state=error] {color:#ff9f9f}
 #tm-cloud-status[data-state=ok] {color:var(--moss)}
 </style>
+<style>
+/* Centro de Cuenta v1 · mismo lenguaje de RPG, jerarquía móvil clara. */
+.tm-hub {display:grid;gap:14px;font-family:var(--font-ui);min-width:0;}
+.tm-hub [hidden],.tm-manual-legacy [hidden]{display:none!important;}
+.tm-hub-heading {padding:16px 14px;background:linear-gradient(150deg,#273347 0%,#121925 72%);border:2px solid #0b0e17;box-shadow:inset 0 0 0 2px #936a28;}
+.tm-hub-eyebrow,.tm-hub-session span,.tm-hub-local span {display:block;color:var(--gold);font:9px var(--font-label);letter-spacing:.035em;}
+.tm-hub-heading h2 {margin:8px 0 6px;font:700 22px var(--font-ui);line-height:1.05;color:var(--parchment);}
+.tm-hub-heading p,.tm-hub-savebox p,.tm-hub-hint {font-size:12px;line-height:1.45;color:var(--dim);margin:0;}
+.tm-hub-section {display:grid;gap:8px;padding:14px;border:1px solid #46546b;background:#151e2d;}
+.tm-hub-section label {font-weight:700;font-size:12px;}
+.tm-hub input[type=email],.tm-hub input[type=password] {
+  min-height:46px;width:100%;border:1px solid #586b80;border-radius:5px;
+  background:#0d1420;color:#fff;padding:10px 12px;font-size:15px;
+}
+.tm-hub input:focus,.tm-hub button:focus-visible {outline:2px solid var(--crystal);outline-offset:2px;}
+.tm-hub-primary {width:100%;min-height:49px;white-space:normal;font:700 12px var(--font-label);letter-spacing:.01em;}
+.tm-hub-links {display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:5px;}
+.tm-hub-links button,.tm-hub-secondary {border:0;background:none;text-decoration:underline;color:#85d7e4;cursor:pointer;font:600 12px var(--font-ui);min-height:36px;padding:3px;}
+.tm-step {display:flex;gap:9px;align-items:center;margin-bottom:6px;}
+.tm-step span {display:grid;place-items:center;background:var(--gold);color:#271804;border-radius:50%;width:26px;height:26px;font:700 11px var(--font-label);flex-shrink:0;}
+.tm-step strong {font:700 14px var(--font-label);color:var(--parchment);}
+.tm-hub-session {display:flex;align-items:center;justify-content:space-between;gap:6px;background:#1a2835;padding:12px;border:1px solid #4a646d;}
+.tm-hub-session strong {display:block;overflow-wrap:anywhere;font-size:13px;margin-top:6px;}
+.tm-hub-local {display:flex;align-items:center;gap:9px;padding:12px;background:#132c2d;border:1px solid #30635e;}
+.tm-hub-local-icon {font-size:28px;color:var(--moss);min-width:35px;text-align:center;}
+.tm-hub-local strong {display:block;font-size:13px;margin-top:5px;overflow-wrap:anywhere;}
+.tm-hub-section-title {display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.tm-hub-section-title small {display:block;color:var(--dim);font-size:11px;margin-left:35px;}
+.tm-character-list {display:grid;gap:12px;}
+.tm-profile {border:1px solid #53617b;background:linear-gradient(180deg,#25334a,#151e2d);padding:13px;display:grid;gap:10px;box-shadow:inset 0 0 0 2px #1e2938;}
+.tm-profile-local {border-color:#528c71;}
+.tm-profile-head {display:flex;align-items:center;gap:12px;}
+.tm-profile-glyph {display:grid;place-items:center;background:linear-gradient(140deg,#d59d3c,#765122);border:2px solid #49320b;width:46px;height:46px;flex-shrink:0;font:700 22px var(--font-label);color:#241408;}
+.tm-profile-name {min-width:0;display:grid;gap:4px;}
+.tm-profile-name strong {font-size:21px;line-height:1.08;overflow-wrap:anywhere;color:#ffe1a1;}
+.tm-profile-name span {font-size:11px;color:#bfcacb;}
+.tm-profile-stats {display:flex;flex-wrap:wrap;gap:8px;}
+.tm-profile-stats span {font-size:12px;color:#dce8ec;background:#15212d;padding:6px 9px;border:1px solid #34425b;}
+.tm-profile-meta {font-size:10px;color:var(--dim);margin:0;}
+.tm-profile-history summary,.tm-hub-advanced summary,.tm-manual-legacy summary {font-size:12px;cursor:pointer;color:#92d7e1;padding:9px 2px;}
+.tm-profile-history {border-top:1px dashed #4e5e71;padding-top:3px;}
+.tm-hub-history-item {margin-top:6px;width:100%;white-space:normal;text-align:left;font:11px var(--font-ui);}
+.tm-hub-empty {padding:15px 12px;border:1px dashed #73828c;background:#1b2630;font-size:12px;line-height:1.5;color:#d0d8dd;}
+.tm-hub-savebox {border:1px solid #806e39;background:#272619;padding:14px;display:grid;gap:10px;}
+.tm-hub-savebox strong {font-size:14px;color:#f6d589;}
+.tm-hub-savebox p {color:#e0d0a8;}
+.tm-hub-savebox .btn {background:#334a53;}
+.tm-hub-advanced {border:1px solid #33465a;background:#121a25;padding:9px 12px;}
+.tm-hub-advanced h3 {font-size:14px;margin:8px 0 4px;}
+.tm-hub-advanced > .tm-cloud-panel {display:grid;gap:8px;margin-bottom:12px;}
+.tm-hub-actions {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
+.tm-hub-actions .btn {white-space:normal;padding:8px 5px;font-size:10px;}
+.tm-hub-status {margin:0;min-height:24px;font-size:12px;line-height:1.45;color:#a9cfe5;}
+.tm-hub-status[data-kind=error] {color:#ffb4a6;}
+.tm-manual-legacy {padding:10px;border:1px solid #394655;background:#151c25;display:grid;gap:9px;}
+.tm-manual-legacy > *:not(summary) {margin-top:8px;}
+.tm-manual-legacy textarea {width:100%;min-height:70px;user-select:text;-webkit-user-select:text;}
+@media(max-width:400px){.tm-hub-heading h2{font-size:20px}.tm-profile-name strong{font-size:18px}.tm-hub-section{padding:10px}.tm-hub-session{flex-wrap:wrap}}
+</style>
 </head>
 <body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -852,7 +911,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
         <button type="button" role="tab" id="tabbtn-game" aria-selected="true" aria-controls="tab-game">Partida</button>
         <button type="button" role="tab" id="tabbtn-combat" aria-selected="false" aria-controls="tab-combat">Combate</button>
         <button type="button" role="tab" id="tabbtn-settings" aria-selected="false" aria-controls="tab-settings">Ajustes</button>
-        <button type="button" role="tab" id="tabbtn-save" aria-selected="false" aria-controls="tab-save">Guardado</button>
+        <button type="button" role="tab" id="tabbtn-save" aria-selected="false" aria-controls="tab-save">Cuenta</button>
       </div>
       <div id="tab-game" class="tab" role="tabpanel">
         <button id="btn-resume" class="btn btn-gold" type="button">Continuar</button>
@@ -933,63 +992,86 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
         <label class="check"><input id="chk-fps" type="checkbox"> Mostrar datos técnicos (fps y red)</label>
       </div>
       <div id="tab-save" class="tab" role="tabpanel" hidden>
-        <p class="note">La partida se guarda sola en este navegador. Para llevarla a otro aparato, copia el código y pégalo allí.</p>
-        <button id="btn-export" class="btn" type="button">Crear código de partida</button>
-        <textarea id="export-out" readonly aria-label="Código de partida" hidden></textarea>
-        <button id="btn-copy-export" class="btn" type="button" hidden>Copiar código</button>
-        <label for="import-in">Pegar código de otra partida</label>
-        <textarea id="import-in" placeholder="TM1:…"></textarea>
-        <button id="btn-import" class="btn" type="button">Cargar partida</button>
-        <p id="save-status" class="note" role="status"></p>
-        <div id="tm-cloud" class="tm-cloud" aria-label="Respaldo de la partida en la nube">
-          <h2>Respaldo en la nube <small>Beta</small></h2>
-          <p class="note">Opcional: guarda una copia personal asociada a tu cuenta. El guardado del navegador sigue funcionando como siempre. Estos respaldos no acreditan monedas ni objetos en la economía futura.</p>
-          <div id="tm-cloud-auth" class="tm-cloud-panel">
-            <label for="tm-cloud-email">Correo electrónico</label>
-            <input id="tm-cloud-email" type="email" autocomplete="email" inputmode="email" maxlength="254" placeholder="correo@ejemplo.com">
-            <label for="tm-cloud-password">Contraseña (mínimo 8 caracteres)</label>
-            <input id="tm-cloud-password" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Tu contraseña">
-            <div class="tm-cloud-actions">
-              <button id="tm-cloud-login" class="btn btn-gold" type="button">Entrar</button>
-              <button id="tm-cloud-register" class="btn" type="button">Crear cuenta</button>
-            </div>
+        <div id="tm-hub" class="tm-hub" aria-label="Cuenta y personajes">
+          <div class="tm-hub-heading">
+            <div class="tm-hub-eyebrow">TORRE MULTIVERSAL · CUENTA</div>
+            <h2>Tu cuenta y personajes</h2>
+            <p>Entra con tu correo. Después elige el personaje que quieres continuar. Nada se cambia sin tu autorización.</p>
           </div>
-          <p class="note"><strong>¿Ya tienes cuenta?</strong> En el segundo móvil toca Entrar, no Crear cuenta. Iniciar sesión no sustituye automáticamente el personaje: luego selecciona tu copia y pulsa Restaurar.</p>
-          <button id="tm-cloud-forgot" class="btn" type="button">¿Olvidaste tu contraseña?</button>
-          <div id="tm-cloud-ready" class="tm-cloud-panel" hidden>
-            <p id="tm-cloud-account" class="note"></p>
-            <div id="tm-auto" class="tm-cloud-panel" role="group" aria-label="Guardado automático experimental">
-              <h3 style="margin:6px 0 0;font-size:14px;">Guardado automático <small>Experimental</small></h3>
-              <p class="note">Opcional. Una sola ranura por cuenta, actualización cada 3 minutos de juego activo (pausada en cooperativo). Detecta cambios realizados desde otro celular antes de sobrescribir. No reemplaza las copias históricas.</p>
-              <p id="tm-auto-cloud" class="note">Consultando ranura…</p>
-              <div class="tm-cloud-actions">
-                <button id="tm-auto-enable" class="btn btn-gold" type="button">Activar autoguardado</button>
-                <button id="tm-auto-stop" class="btn" type="button" hidden>Detener autoguardado</button>
-                <button id="tm-auto-restore" class="btn" type="button" disabled>Recuperar ranura</button>
-                <button id="tm-auto-refresh" class="btn" type="button">Actualizar ranura</button>
+          <section id="tm-auth-view" class="tm-hub-section" aria-label="Iniciar sesión">
+            <div class="tm-step"><span>01</span><strong>Entra a tu cuenta</strong></div>
+            <label for="tm-hub-login-email">Correo de tu cuenta</label>
+            <input id="tm-hub-login-email" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="correo@ejemplo.com">
+            <label for="tm-hub-login-password">Contraseña</label>
+            <input id="tm-hub-login-password" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Tu contraseña">
+            <button id="tm-hub-login" class="btn btn-gold tm-hub-primary" type="button">Entrar y ver mis personajes</button>
+            <div class="tm-hub-links">
+              <button id="tm-hub-register" type="button">Crear cuenta nueva</button>
+              <button id="tm-hub-forgot" type="button">Recuperar contraseña</button>
+            </div>
+            <p class="tm-hub-hint">¿Ya creaste una cuenta en el otro móvil? Usa <b>Entrar</b>, no «Crear cuenta».</p>
+          </section>
+          <section id="tm-account-view" hidden aria-label="Personajes de la cuenta">
+            <div class="tm-hub-session">
+              <div><span>CUENTA CONECTADA</span><strong id="tm-hub-email"></strong></div>
+              <button id="tm-hub-logout" class="tm-hub-secondary" type="button" hidden>Cambiar cuenta</button>
+            </div>
+            <div class="tm-hub-local">
+              <div class="tm-hub-local-icon" aria-hidden="true">⌂</div>
+              <div><span>PARTIDA QUE TIENES EN ESTE CELULAR</span><strong id="tm-hub-local">Buscando partida…</strong></div>
+            </div>
+            <div class="tm-hub-section-title">
+              <div><div class="tm-step"><span>02</span><strong>Elige tu personaje</strong></div>
+                <small id="tm-hub-count">Buscando personajes…</small></div>
+              <button id="tm-hub-refresh" class="tm-hub-secondary" type="button">Actualizar</button>
+            </div>
+            <div id="tm-hub-characters" class="tm-character-list" role="list" aria-live="polite"></div>
+            <div id="tm-hub-empty" class="tm-hub-empty" hidden>
+              Esta cuenta todavía no tiene personajes guardados.
+            </div>
+            <div class="tm-hub-savebox">
+              <strong>¿No aparece tu personaje?</strong>
+              <p>Abre la beta en el celular donde lo tienes y pulsa este botón con <b>su cuenta correcta</b>. Así aparecerá aquí cuando entres en otro móvil.</p>
+              <button id="tm-hub-backup" class="btn tm-hub-primary" type="button">Guardar personaje de este celular</button>
+            </div>
+            <details id="tm-hub-advanced" class="tm-hub-advanced">
+              <summary>Opciones avanzadas y autoguardado</summary>
+              <div id="tm-auto" class="tm-cloud-panel" role="group" aria-label="Guardado automático experimental">
+                <h3>Autoguardado experimental</h3>
+                <p class="tm-hub-hint">Actualiza una ranura por cuenta cada 3 minutos de juego activo, fuera del cooperativo. Puede pausarse al detectar otro celular.</p>
+                <p id="tm-auto-cloud" class="tm-hub-hint">Consultando ranura…</p>
+                <div class="tm-hub-actions">
+                  <button id="tm-auto-enable" class="btn" type="button">Activar</button>
+                  <button id="tm-auto-stop" class="btn" type="button" hidden>Detener</button>
+                  <button id="tm-auto-restore" class="btn" type="button" disabled>Recuperar ranura</button>
+                  <button id="tm-auto-refresh" class="btn" type="button">Actualizar ranura</button>
+                </div>
+                <p id="tm-auto-status" class="tm-hub-hint" role="status" aria-live="polite"></p>
               </div>
-              <p id="tm-auto-status" class="note" role="status" aria-live="polite">Desactivado hasta que lo autorices.</p>
-            </div>
-            <button id="tm-cloud-backup" class="btn btn-gold" type="button">Respaldar partida actual</button>
-            <label for="tm-cloud-list">Mis copias (máximo 20)</label>
-            <select id="tm-cloud-list" aria-label="Elegir copia de partida"></select>
-            <p id="tm-cloud-selected" class="note" aria-live="polite">Selecciona una copia para comprobar su personaje.</p>
-            <div class="tm-cloud-actions">
-              <button id="tm-cloud-refresh" class="btn" type="button">Actualizar lista</button>
-              <button id="tm-cloud-restore" class="btn" type="button">Restaurar copia</button>
-              <button id="tm-cloud-delete" class="btn btn-danger" type="button">Eliminar copia</button>
-            </div>
-            <button id="tm-cloud-signout" class="btn" type="button">Cerrar sesión</button>
-            <p class="note">Restaurar reemplaza el progreso local solo después de confirmar y conserva una copia anterior.</p>
-          </div>
-
-          <div id="tm-cloud-reset-panel" class="tm-cloud-panel" hidden>
-            <label for="tm-cloud-new-password">Nueva contraseña</label>
-            <input id="tm-cloud-new-password" type="password" minlength="8" maxlength="128" autocomplete="new-password" placeholder="Mínimo 8 caracteres">
-            <button id="tm-cloud-update-password" class="btn btn-gold" type="button">Guardar contraseña nueva</button>
-          </div>
-          <p id="tm-cloud-status" class="note" role="status" aria-live="polite">Cargando servicio de respaldos…</p>
+              <button id="tm-hub-previous" class="btn" type="button" hidden>Volver a la partida local anterior</button>
+              <p class="tm-hub-hint">Los respaldos históricos aparecen agrupados por personaje. Sus otras versiones están dentro de cada tarjeta.</p>
+            </details>
+          </section>
+          <section id="tm-hub-reset-view" class="tm-hub-section" hidden>
+            <div class="tm-step"><span>✓</span><strong>Recuperar acceso</strong></div>
+            <label for="tm-hub-new-password">Nueva contraseña</label>
+            <input id="tm-hub-new-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="Mínimo 8 caracteres">
+            <button id="tm-hub-update-password" class="btn btn-gold tm-hub-primary" type="button">Guardar contraseña nueva</button>
+          </section>
+          <p id="tm-hub-status" class="tm-hub-status" role="status" aria-live="polite">Comprobando la sesión…</p>
         </div>
+
+        <details class="tm-manual-legacy">
+          <summary>Transferencia manual de partidas (código TM1)</summary>
+          <p class="note">Este método sigue disponible si no puedes acceder a tu correo o necesitas traer una partida de otro dominio.</p>
+          <button id="btn-export" class="btn" type="button">Crear código de partida</button>
+          <textarea id="export-out" readonly aria-label="Código de partida" hidden></textarea>
+          <button id="btn-copy-export" class="btn" type="button" hidden>Copiar código</button>
+          <label for="import-in">Pegar código de otra partida</label>
+          <textarea id="import-in" placeholder="TM1:…"></textarea>
+          <button id="btn-import" class="btn" type="button">Cargar partida</button>
+          <p id="save-status" class="note" role="status"></p>
+        </details>
       </div>
     </div>
   </section>
@@ -1107,7 +1189,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 </div>
 <script src="three.min.js?v=r128"></script>
 <script src="game.js?v=beta-isolated-20261110"></script>
-<script src="cloud-save.js?v=beta-recovery-20261110-r3"></script>
+<script src="account-center.js?v=account-center-20261110-v1"></script>
 <script src="cloud-auto.js?v=beta-auto-20261110-v1"></script>
 
 </body>
