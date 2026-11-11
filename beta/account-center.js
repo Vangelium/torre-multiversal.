@@ -94,8 +94,21 @@ function revisionKey(uid,pid){
 function noteRevision(uid,pid,rev){
   storage.setItem(revisionKey(uid,pid),String(rev));
 }
+async function rememberLinked(uid,snapshot,rev){
+  noteRevision(uid,snapshot.id,rev);
+  var fp=await finger(snapshot.data);
+  storage.setItem("tm.char.sync.base."+uid+"."+encodeURIComponent(snapshot.id),
+    JSON.stringify({revision:Number(rev),fingerprint:fp}));
+  storage.setItem("tm.char.sync.source."+uid,"linked:"+snapshot.id);
+  storage.setItem("tm.gateway.selected."+uid,snapshot.id);
+  if(typeof window.__TM_SYNC_REFRESH__==="function")
+    setTimeout(window.__TM_SYNC_REFRESH__,0);
+}
 function resetRevision(uid,pid){
   if(storage.removeItem)storage.removeItem(revisionKey(uid,pid));
+  storage.setItem("tm.char.sync.source."+uid,"other:"+pid);
+  if(typeof window.__TM_SYNC_REFRESH__==="function")
+    setTimeout(window.__TM_SYNC_REFRESH__,0);
 }
 function enterWorld(saved){
   var resume=$("btn-resume"),pause=$("pause"),creator=$("creator");
@@ -382,11 +395,11 @@ async function backupCurrent(){
       if(added.error.code==="23505")throw Error("Otro dispositivo creó este personaje. Pulsa Actualizar y vuelve a comprobarlo.");
       throw added.error;
     }
-    noteRevision(uid,current.id,added.data.revision);
+    await rememberLinked(uid,current,added.data.revision);
     await fetchData();
     status("Personaje vinculado: "+current.name+" ("+current.xp+" XP). Ya aparecerá al entrar desde otro celular.");
   }else if(existing.fingerprint===fingerprint){
-    noteRevision(uid,current.id,existing.revision);
+    await rememberLinked(uid,current,existing.revision);
     await fetchData();
     status(current.name+" ya está guardado en esta cuenta. No hace falta duplicarlo.");
   }else{
@@ -409,7 +422,7 @@ async function backupCurrent(){
       status("Otra sesión guardó antes. No se sobrescribió la nube. Actualiza tus personajes.",true);
       return;
     }
-    noteRevision(uid,current.id,updated.data.revision);
+    await rememberLinked(uid,current,updated.data.revision);
     await fetchData();
     status("Guardado actualizado: "+current.name+" ("+current.xp+" XP). Revisión "+updated.data.revision+".");
   }
@@ -480,7 +493,7 @@ async function restore(item){
   if(inCoop())throw Error("Sal de la sala multijugador antes de cambiar de personaje.");
   var saved=await getFresh(item),current=local();
   if(current&&current.raw===saved.raw){
-    if(item.kind==="character")noteRevision(account.id,saved.id,item.revision);
+    if(item.kind==="character")await rememberLinked(account.id,saved,item.revision);
     else resetRevision(account.id,saved.id);
     status("Ya tienes este personaje en el celular. Puedes seguir jugando.");
     enterWorld(saved);
@@ -500,7 +513,7 @@ async function restore(item){
       throw Error("No se pudo proteger el guardado anterior. No se realizó el cambio.");
   }
   importLocal(saved);
-  if(item.kind==="character")noteRevision(account.id,saved.id,item.revision);
+  if(item.kind==="character")await rememberLinked(account.id,saved,item.revision);
   else resetRevision(account.id,saved.id);
   showAccount();
   renderCharacters();
