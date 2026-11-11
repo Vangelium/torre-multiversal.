@@ -271,15 +271,18 @@ async function useSnapshot(snapshot,source){
      throw Error("El motor no confirmó la restauración: "+(result||"sin respuesta."));
  }
  if(source)rememberChoice(source);
- wrap.hidden=true;
- // Importar sin aspecto puede abrir el creador. Nunca saltarse esa pantalla.
+ // El motor abre su creador durante el arranque si este navegador aún
+ // no tiene aspecto. Cuando importamos un personaje válido, cerramos ese
+ // panel anterior antes de iniciar la sesión; no tocamos su contenido.
  var creator=$("creator");
- if(creator&&!creator.hidden)return;
- if(snapshot.data.profile.character){
-   $("btn-solo").click();
- }else{
-   $("btn-character").click();
+ if(snapshot.data.profile.character&&creator&&!creator.hidden)creator.hidden=true;
+ wrap.hidden=true;
+ // Si el personaje de la copia aún no tiene aspecto, respeta el creador.
+ if(!snapshot.data.profile.character){
+   if(!creator||creator.hidden)$("btn-character").click();
+   return;
  }
+ $("btn-solo").click();
 }
 async function openRemote(record){
  if(!user||user.id!==record.owner)throw Error("Esta partida no corresponde a la cuenta conectada.");
