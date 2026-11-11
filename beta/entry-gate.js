@@ -146,6 +146,7 @@ function render(){
      choice.source==="automatic"?"Ranura de autoguardado":"Respaldo recuperable";
    card.appendChild(node("p","tm-entry-tag",tag+" · "+prettyTime(choice.stamp)));
    card.appendChild(cardButton("Continuar con "+choice.name,function(){return openRemote(choice)}));
+   if(choice.source!=="linked")card.appendChild(cardButton("Vincular "+choice.name+" a esta cuenta",function(){return attachCloud(choice)},true));
    if(versions.length>1){
      var details=node("details","tm-entry-history");
      details.appendChild(node("summary","",versions.length-1+" versiones anteriores"));
@@ -308,6 +309,32 @@ async function fingerprint(data){
  var bytes=new TextEncoder().encode(JSON.stringify(data));
  var hash=await crypto.subtle.digest("SHA-256",bytes);
  return "sha256:"+Array.from(new Uint8Array(hash)).map(function(b){return b.toString(16).padStart(2,"0")}).join("");
+}
+async function attachCloud(record){
+ await confirmUser();
+ if(record.owner!==user.id)throw Error("La cuenta cambió. Actualiza tus personajes.");
+ var snapshot=await newest(record);
+ if(!window.confirm("¿Vincular el personaje "+snapshot.name+" ("+snapshot.xp+" XP) a "+
+   (user.email||"")+"?\nEste respaldo es una copia personal no verificada. No prueba propiedad ni concede moneda del servidor."))return;
+ var existing=await cloud.from("tm_character_saves")
+   .select("revision,fingerprint").eq("user_id",user.id)
+   .eq("profile_id",snapshot.id).maybeSingle();
+ if(existing.error)throw existing.error;
+ var digest=await fingerprint(snapshot.data);
+ if(existing.data){
+   if(existing.data.fingerprint!==digest)
+     throw Error("Este personaje ya tiene otro progreso vinculado. No se sobrescribió. Revísalo antes de decidir.");
+ }else{
+   if(new TextEncoder().encode(JSON.stringify({raw:snapshot.raw})).length>1000000)
+     throw Error("La copia supera el límite beta de 1 MB.");
+   var insert=await cloud.from("tm_character_saves").insert({
+     user_id:user.id,profile_id:snapshot.id,save_version:snapshot.version,
+     payload:{raw:snapshot.raw},fingerprint:digest,revision:1,verified:false
+   }).select("profile_id,revision").single();
+   if(insert.error)throw insert.error;
+ }
+ await loadCharacters();
+ notice(snapshot.name+" quedó vinculado a esta cuenta. Ya puedes continuar con él en cualquier celular.");
 }
 async function attachLocal(record){
  await confirmUser();
