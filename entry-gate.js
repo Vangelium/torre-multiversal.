@@ -7,7 +7,17 @@
 var cloud=window.__TM_CLOUD_CLIENT__;
 var wrap=document.getElementById("tm-entry");
 var storage=window.__TM_BETA_STORAGE__;
-if(!wrap||!cloud||!storage)return;
+if(!wrap)return;
+if(!cloud||!storage){
+  var spinner=document.getElementById("tm-entry-loading");
+  var status=document.getElementById("tm-entry-status");
+  if(spinner)spinner.hidden=true;
+  if(status){
+    status.dataset.state="error";
+    status.textContent="No se pudo iniciar la sesión o el almacenamiento de la beta. Ninguna partida fue modificada. Puedes abrir el juego oficial desde el enlace inferior.";
+  }
+  return;
+}
 var $=function(id){return document.getElementById(id)};
 var user=null,rows=[],busy=false,localRecords=[],recovery=false;
 function notice(message,isError){
