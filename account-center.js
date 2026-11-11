@@ -85,43 +85,77 @@ function element(tag,klass,textValue){
   return node;
 }
 function directSource(record){
-  return record.kind==="slot"?"Ranura de autoguardado":"Copia histórica";
+  if(record.kind==="character")return "Guardado vinculado a tu cuenta";
+  return record.kind==="slot"?"Ranura experimental":"Copia histórica";
 }
+function revisionKey(uid,pid){
+  return "tm.hub.character.revision."+uid+"."+encodeURIComponent(pid);
+}
+function noteRevision(uid,pid,rev){
+  storage.setItem(revisionKey(uid,pid),String(rev));
+}
+function resetRevision(uid,pid){
+  if(storage.removeItem)storage.removeItem(revisionKey(uid,pid));
+}
+function enterWorld(saved){
+  var resume=$("btn-resume"),pause=$("pause"),creator=$("creator");
+  if(resume&&pause&&!pause.hidden&&(!creator||creator.hidden)&&saved.data.profile.character)
+    resume.click();
+}
+
 async function fetchData(){
   if(!account)return;
   var uid=account.id;
   var res=await Promise.all([
-    client.from("tm_legacy_backups").select("id,created_at,save_version,payload,verified").order("created_at",{ascending:false}).limit(20),
-    client.from("tm_cloud_saves").select("user_id,payload,profile_id,revision,updated_at").eq("user_id",uid).maybeSingle()
+    client.from("tm_legacy_backups")
+      .select("id,created_at,save_version,payload,verified")
+      .order("created_at",{ascending:false}).limit(20),
+    client.from("tm_cloud_saves")
+      .select("user_id,payload,profile_id,revision,updated_at")
+      .eq("user_id",uid).maybeSingle(),
+    client.from("tm_character_saves")
+      .select("user_id,profile_id,payload,revision,fingerprint,updated_at")
+      .eq("user_id",uid).order("updated_at",{ascending:false}).limit(50)
   ]);
-  if(res[0].error)throw res[0].error;
-  if(res[1].error)throw res[1].error;
+  for(var query of res)if(query.error)throw query.error;
   if(!account||account.id!==uid)return;
   records=[];rawSnapshots.clear();
+  for(var personal of res[2].data||[]){
+    try{
+      var linked=parse(personal.payload&&personal.payload.raw);
+      if(linked.id!==personal.profile_id)continue;
+      records.push(Object.assign({},linked,{kind:"character",uid:uid,
+        sourceId:personal.profile_id,revision:personal.revision,
+        stamp:personal.updated_at||"",time:Date.parse(personal.updated_at)||0}));
+    }catch(e){/* Invalid slots are not available to load. */}
+  }
   var slot=res[1].data;
   if(slot&&slot.payload){
     try{
       var snapshot=parse(slot.payload.raw);
-      records.push(Object.assign({},snapshot,{kind:"slot",uid:uid,
-        sourceId:uid,revision:slot.revision,stamp:slot.updated_at||"",time:Date.parse(slot.updated_at)||0}));
-    }catch(e){
-      status("La ranura automática de esta cuenta no es válida. Los respaldos históricos siguen disponibles.",true);
-    }
+      if(snapshot.id===slot.profile_id)
+        records.push(Object.assign({},snapshot,{kind:"slot",uid:uid,
+          sourceId:uid,revision:slot.revision,stamp:slot.updated_at||"",
+          time:Date.parse(slot.updated_at)||0}));
+    }catch(e){/* Old experimental slot might be invalid; backups remain accessible. */}
   }
   for(var row of res[0].data||[]){
     try{
       var candidate=parse(row.payload&&row.payload.raw);
       records.push(Object.assign({},candidate,{kind:"backup",uid:uid,
         sourceId:row.id,stamp:row.created_at||"",time:Date.parse(row.created_at)||0}));
-    }catch(e){/* omit invalid records from primary actions */}
+    }catch(e){/* Omit damaged history copies. */}
   }
-  records.sort(function(a,b){return b.time-a.time});
-  var map=new Map();
-  records.forEach(function(item){
-    if(!map.has(item.id))map.set(item.id,[]);
-    map.get(item.id).push(item);
+  var rank={character:3,slot:2,backup:1};
+  records.sort(function(a,b){
+    return (rank[b.kind]-rank[a.kind]) || b.time-a.time;
   });
-  groups=Array.from(map.values());
+  var byProfile=new Map();
+  records.forEach(function(item){
+    if(!byProfile.has(item.id))byProfile.set(item.id,[]);
+    byProfile.get(item.id).push(item);
+  });
+  groups=Array.from(byProfile.values());
   renderCharacters();
   showAccount();
 }
@@ -143,7 +177,9 @@ function renderCharacters(){
     top.appendChild(glyph);
     var names=element("div","tm-profile-name");
     names.appendChild(element("strong","",newest.name));
-    names.appendChild(element("span","",current&&newest.id===current.id?"Personaje que tienes abierto":"Disponible en esta cuenta"));
+    names.appendChild(element("span","",
+      newest.kind==="character"?"Vinculado a esta cuenta":
+      (current&&newest.id===current.id?"Personaje abierto · copia recuperable":"Copia recuperable de esta cuenta")));
     top.appendChild(names);
     card.appendChild(top);
     var stats=element("div","tm-profile-stats");
@@ -188,6 +224,7 @@ function restoreLocalCopy(snapshot,label){
       throw Error("No se pudo preservar la partida actual. Se canceló la recuperación.");
   }
   importLocal(snapshot);
+  resetRevision(account.id,snapshot.id);
   showAccount();renderCharacters();
   $("tm-hub-local-copies").hidden=true;
   status("Copia recuperada: "+snapshot.name+". Para asociarla a esta cuenta, pulsa «Guardar personaje de este celular».");
@@ -317,37 +354,103 @@ async function finger(data){
   return "sha256:"+Array.from(new Uint8Array(digest)).map(function(n){return n.toString(16).padStart(2,"0")}).join("");
 }
 async function backupCurrent(){
-  if(!account)throw Error("Primero inicia sesión.");
+  if(!account)throw Error("Inicia sesión primero.");
+  if(inCoop())throw Error("Sal del cooperativo para guardar un personaje.");
+  var uid=account.id;
   var user=await client.auth.getUser();
-  if(user.error||!user.data.user||user.data.user.id!==account.id)
+  if(user.error||!user.data.user||user.data.user.id!==uid)
     throw Error("La sesión cambió. Vuelve a entrar.");
   var current=exportNow();
   if(records.some(function(r){return r.id!==current.id}) &&
-    !window.confirm("Esta cuenta ya contiene otro personaje. ¿Guardar también "+
-      current.name+" ("+current.xp+" XP) en este correo? Revisa que sea la cuenta correcta."))
+    !window.confirm("Esta cuenta contiene otro personaje. ¿Vincular también "+
+      current.name+" ("+current.xp+" XP) a este correo? No se eliminarán los demás."))
     return;
   if(new TextEncoder().encode(JSON.stringify({raw:current.raw})).length>1000000)
     throw Error("El guardado supera el límite de 1 MB.");
+  var fingerprint=await finger(current.data);
+  var query=await client.from("tm_character_saves")
+    .select("revision,fingerprint,profile_id")
+    .eq("user_id",uid).eq("profile_id",current.id).maybeSingle();
+  if(query.error)throw query.error;
+  var existing=query.data;
+  if(!existing){
+    var added=await client.from("tm_character_saves").insert({
+      user_id:uid,profile_id:current.id,save_version:current.version,
+      payload:{raw:current.raw},fingerprint:fingerprint,revision:1,verified:false
+    }).select("revision,profile_id,fingerprint").single();
+    if(added.error){
+      if(added.error.code==="23505")throw Error("Otro dispositivo creó este personaje. Pulsa Actualizar y vuelve a comprobarlo.");
+      throw added.error;
+    }
+    noteRevision(uid,current.id,added.data.revision);
+    await fetchData();
+    status("Personaje vinculado: "+current.name+" ("+current.xp+" XP). Ya aparecerá al entrar desde otro celular.");
+  }else if(existing.fingerprint===fingerprint){
+    noteRevision(uid,current.id,existing.revision);
+    await fetchData();
+    status(current.name+" ya está guardado en esta cuenta. No hace falta duplicarlo.");
+  }else{
+    var known=Number(storage.getItem(revisionKey(uid,current.id))||"0");
+    if(known!==Number(existing.revision)||known<1){
+      await fetchData();
+      status("Hay una versión diferente de "+current.name+" en la nube. No la sobrescribí. Para conservar el progreso de este celular, crea una copia histórica en Opciones avanzadas. Luego elige qué versión cargar.",true);
+      return;
+    }
+    if(!window.confirm("¿Actualizar "+current.name+" en tu cuenta con la partida de este celular? La nube pasará de revisión "+known+" a "+(known+1)+"."))
+      return;
+    var updated=await client.from("tm_character_saves").update({
+      save_version:current.version,payload:{raw:current.raw},
+      fingerprint:fingerprint,revision:known+1
+    }).eq("user_id",uid).eq("profile_id",current.id).eq("revision",known)
+      .select("revision,profile_id,fingerprint").maybeSingle();
+    if(updated.error)throw updated.error;
+    if(!updated.data){
+      await fetchData();
+      status("Otra sesión guardó antes. No se sobrescribió la nube. Actualiza tus personajes.",true);
+      return;
+    }
+    noteRevision(uid,current.id,updated.data.revision);
+    await fetchData();
+    status("Guardado actualizado: "+current.name+" ("+current.xp+" XP). Revisión "+updated.data.revision+".");
+  }
+  // Perfil de conveniencia, NO propiedad económica del personaje.
   var profile=await client.from("tm_players").upsert({
-    user_id:account.id,display_name:current.name,
+    user_id:uid,display_name:current.name,
     legacy_profile_id:current.id,updated_at:new Date().toISOString()
   },{onConflict:"user_id"});
-  if(profile.error)throw profile.error;
-  var save=await client.from("tm_legacy_backups").insert({
+  if(profile.error)
+    status("El personaje se guardó, pero no se pudo actualizar el alias de la cuenta.",true);
+}
+async function backupHistorical(){
+  if(!account)throw Error("Inicia sesión primero.");
+  var u=await client.auth.getUser();
+  if(u.error||!u.data.user||u.data.user.id!==account.id)
+    throw Error("Tu sesión cambió. Inicia sesión otra vez.");
+  var current=exportNow();
+  if(new TextEncoder().encode(JSON.stringify({raw:current.raw})).length>1000000)
+    throw Error("El respaldo supera el límite beta de 1 MB.");
+  var result=await client.from("tm_legacy_backups").insert({
     user_id:account.id,import_key:await finger(current.data),
     save_format:"tm",save_version:current.version,
     payload:{raw:current.raw},origin:"github_pages"
   });
-  if(save.error&&save.error.code!=="23505")throw save.error;
+  if(result.error&&result.error.code!=="23505")throw result.error;
   await fetchData();
-  status(save.error
-    ?"Este personaje ya tenía una copia idéntica en esta cuenta."
-    :"Se guardó una copia de "+current.name+" ("+current.xp+" XP) en esta cuenta.");
+  status(result.error?"Esta versión ya existe en tu historial.":
+    "Copia histórica guardada sin sustituir tu personaje vinculado.");
 }
 async function getFresh(record){
   if(!account||record.uid!==account.id)throw Error("La cuenta cambió. Vuelve a cargar los personajes.");
   var resp;
-  if(record.kind==="slot"){
+  if(record.kind==="character"){
+    resp=await client.from("tm_character_saves")
+      .select("revision,payload,profile_id").eq("user_id",account.id)
+      .eq("profile_id",record.id).maybeSingle();
+    if(resp.error)throw resp.error;
+    if(!resp.data||Number(resp.data.revision)!==Number(record.revision)||
+       resp.data.profile_id!==record.id)
+      throw Error("Este personaje se actualizó desde otro celular. Pulsa «Actualizar» antes de continuar.");
+  }else if(record.kind==="slot"){
     resp=await client.from("tm_cloud_saves")
       .select("revision,payload").eq("user_id",account.id).maybeSingle();
     if(resp.error)throw resp.error;
@@ -377,7 +480,10 @@ async function restore(item){
   if(inCoop())throw Error("Sal de la sala multijugador antes de cambiar de personaje.");
   var saved=await getFresh(item),current=local();
   if(current&&current.raw===saved.raw){
-    status("Ya tienes exactamente este guardado de "+saved.name+" en el celular. Puedes seguir jugando.");
+    if(item.kind==="character")noteRevision(account.id,saved.id,item.revision);
+    else resetRevision(account.id,saved.id);
+    status("Ya tienes este personaje en el celular. Puedes seguir jugando.");
+    enterWorld(saved);
     return;
   }
   var label=current?current.name+" ("+current.xp+" XP)":"ninguno";
@@ -394,11 +500,12 @@ async function restore(item){
       throw Error("No se pudo proteger el guardado anterior. No se realizó el cambio.");
   }
   importLocal(saved);
+  if(item.kind==="character")noteRevision(account.id,saved.id,item.revision);
+  else resetRevision(account.id,saved.id);
   showAccount();
   renderCharacters();
   status("Personaje recuperado: "+saved.name+" · "+saved.xp+" XP · "+saved.pets+" mascotas. Ya puedes continuar jugando.");
-  var resume=$("btn-resume"),pause=$("pause"),creator=$("creator");
-  if(resume&&pause&&!pause.hidden&&(!creator||creator.hidden)&&saved.data.profile.character){resume.click();}
+  enterWorld(saved);
 }
 async function restorePrevious(){
   if(!account)throw Error("No hay sesión.");
@@ -409,6 +516,7 @@ async function restorePrevious(){
   if(!window.confirm("¿Volver a "+previous.name+" ("+previous.xp+" XP)? Se conservará una copia del personaje actual."))return;
   if(now)storage.setItem("tm.hub.temporary."+account.id,now.raw);
   importLocal(previous);
+  resetRevision(account.id,previous.id);
   if(now)storage.setItem("tm.hub.previous."+account.id,now.raw);
   showAccount();renderCharacters();
   status("Recuperaste el personaje anterior "+previous.name+".");
@@ -423,6 +531,7 @@ $("tm-hub-update-password").addEventListener("click",confirmPassword);
 $("tm-hub-logout").addEventListener("click",logout);
 $("tm-hub-refresh").addEventListener("click",refresh);
 $("tm-hub-backup").addEventListener("click",function(){run(backupCurrent)});
+$("tm-hub-history-backup").addEventListener("click",function(){run(backupHistorical)});
 $("tm-hub-scan").addEventListener("click",function(){run(scanLocal)});
 $("tm-hub-previous").addEventListener("click",function(){run(restorePrevious)});
 client.auth.onAuthStateChange(function(event){
