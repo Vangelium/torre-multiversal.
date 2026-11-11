@@ -144,3 +144,30 @@ QA móvil pendiente. La beta cambia solo `beta/account-center.js` y `beta/index.
 - Pausa en cooperativo y pestaña oculta: confirmada.
 - **QA físico pendiente**: cargar la beta publicada en ambos teléfonos, seleccionar personaje vinculado, activar desde Pausa → Cuenta, avanzar progreso, guardar, recuperar en el segundo teléfono y verificar mascotas/inventario. También comprobar conflictos y pantalla de error. No declarar producción lista hasta QA.
 - Datos personales TM1 siguen verified=false, sin autoridad para economía, mascotas comerciales, inventario, monedas, pagos o rankings. Google/Apple OAuth y comparación guiada de divergencias pendientes. PR #1 debe continuar en borrador.
+
+---
+
+## 11/11/2026: comparador visual de conflictos y elección sin pérdida de copias
+
+**Publicación beta:** `main:beta/conflict-center.js` y `beta/index.html`; equivalentes `conflict-center.js` e `index.html` en rama PR #1. Se modificaron `character-sync.js`, `entry-gate.js` y `account-center.js` para dirigir al comparador y limpiar vistas antiguas tras cambiar personaje. Los archivos raíz del juego oficial en `main` no cambiaron.
+
+**Flujo UX**: en Pausa → Cuenta → Comparar versiones se muestran nombre, XP, mascotas y origen de los dos guardados de un mismo personaje; para la nube, además fecha y revisión. Las estadísticas no constituyen una regla automática de calidad. Ningún cambio por consultar. Si son distintos, ofrecer:
+1. Recuperar versión de Supabase en este celular (requiere confirmación).
+2. Conservar versión del celular como principal y actualizar Supabase (requiere doble confirmación).
+3. Cancelar sin modificar nada.
+
+**Guardarraíles**:
+- La comparación exige sesión Auth, selección explícita de personaje VINCULADO (uid + profile ID), misma identidad local/remota, integridad de checksum TM1 y de SHA-256 de los datos remotos, no cooperativo, no creador y menú Pausa abierto.
+- Ambas opciones comprueban de nuevo el estado antes de actuar; si cambió la partida local o la revisión remota, abortan y obligan a comparar otra vez.
+- Antes de sustituir un guardado: copiar ambas versiones por separado en almacenamiento local de la beta con escritura verificada, además de crear (o detectar copia ya existente de) ambas versiones en `tm_legacy_backups` usando import_key=SHA-256(data), `verified=false`. Se respeta el límite de 20 respaldos por cuenta: si la nube no puede proteger las dos copias, NO se permite sobrescribir ninguna.
+- Recuperar nube: usar importador del motor, comprobar confirmación «Partida cargada.», mantener la versión anterior en historial, fijar revisión base y pausar autoguardado hasta reactivación voluntaria.
+- Conservar celular: UPDATE `tm_character_saves` filtrado por uid, pid y revisión previa CAS; el trigger PostgreSQL exige +1 y prohíbe cambiar identidad. Si otro teléfono escribió durante el proceso, 0 filas: rechazar y conservar respaldos.
+- El comparador limpia su pantalla tras cambio de cuenta o personaje y nunca combina automáticamente inventario/monedas/mascotas. Los datos son respaldos personales no verificados y NO constituyen autoridad económica.
+
+**Pruebas automatizadas simuladas realizadas**:
+- Comparación visual correcta; elegir nube ⇒ restaura local, archiva dos versiones, 0 UPDATE.
+- Elegir celular ⇒ revisión remota +1, archiva dos versiones, 1 UPDATE CAS.
+- Falta de cupo/backups ⇒ abortar sin cargar ni actualizar.
+- Cambio de revisión entre comparación y selección ⇒ abortar sin escritura.
+- Estructura DOM, sintaxis JS y caché versionada de los cuatro scripts.
+**Prueba real Android/iOS pendiente**. No fusionar PR #1 hasta verificaciones físicas y evaluación del esquema de economía autoritativa. No se eliminó ningún respaldo histórico.
