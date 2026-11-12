@@ -67,7 +67,7 @@ function decode(raw){
  return {raw:raw,data:env.data,id:id,name:String(p.name||"Viajero").slice(0,40),
    xp:Number.isFinite(+p.xp)?Math.max(0,Math.floor(+p.xp)):0,
    pets:Array.isArray(env.data.progress.companions)?env.data.progress.companions.length:0,
-   version:env.v};
+   version:env.v,ready:!!p.character};
 }
 function node(tag,className,label){
  var n=document.createElement(tag);
@@ -104,6 +104,12 @@ function archiveRaw(raw,label,uid){
  var snapshot=null;
  try{snapshot=decode(raw)}catch(e){}
  var index=safeIndex(uid);
+ // Evitar copias idénticas y miles de entradas por abrir personajes.
+ if(snapshot){
+   for(var prior of index){
+     if(prior.id===snapshot.id && storage.getItem(prior.key)===raw)return prior;
+   }
+ }
  var timestamp=Date.now();
  var key="tm.entry.archive."+uid+"."+timestamp+"."+(index.length+1);
  storeVerified(key,raw);
@@ -325,85 +331,207 @@ function render(){
  var container=$("tm-entry-list");
  container.replaceChildren();
  $("tm-entry-account").textContent=user&&user.email||"";
- var groups=new Map();
- for(var item of rows){
-   if(!groups.has(item.id))groups.set(item.id,[]);
-   groups.get(item.id).push(item);
- }
- $("tm-entry-count").textContent=groups.size===1?"1 personaje disponible":groups.size+" personajes disponibles";
- for(const versions of groups.values()){
-   const choice=versions[0],card=node("article","tm-entry-character");
-   var top=node("div","tm-entry-charhead"),portrait=node("div","tm-entry-avatar",choice.name.slice(0,1).toUpperCase());
-   portrait.setAttribute("aria-hidden","true");
-   top.appendChild(portrait);
-   var meta=node("div","tm-entry-charmeta");
+ // El selector principal no debe mezclar personajes con copias de seguridad.
+ const linked=rows.filter(r=>r.source==="linked"&&r.ready);
+ $("tm-entry-count").textContent=linked.length===1?"1 personaje vinculado":
+  linked.length+" personajes vinculados";
+ for(const choice of linked){
+   const card=node("article","tm-entry-character");
+   const top=node("div","tm-entry-charhead");
+   const portrait=node("div","tm-entry-avatar",choice.name.slice(0,1).toUpperCase());
+   portrait.setAttribute("aria-hidden","true");top.appendChild(portrait);
+   const meta=node("div","tm-entry-charmeta");
    meta.appendChild(node("strong","",choice.name));
-   meta.appendChild(node("span","",choice.xp.toLocaleString("es-CL")+" XP · "+choice.pets+" mascotas"));
+   meta.appendChild(node("span","",choice.xp.toLocaleString("es-CL")+
+     " XP · "+choice.pets+" mascotas"));
    top.appendChild(meta);card.appendChild(top);
-   var tag=choice.source==="linked"?"Personaje vinculado":
-     choice.source==="automatic"?"Ranura de autoguardado":"Respaldo recuperable";
-   card.appendChild(node("p","tm-entry-tag",tag+" · "+prettyTime(choice.stamp)));
-   card.appendChild(cardButton("Continuar con "+choice.name,function(){return openRemote(choice)}));
-   if(choice.source!=="linked")card.appendChild(cardButton("Vincular "+choice.name+" a esta cuenta",function(){return attachCloud(choice)},true));
-   if(versions.length>1){
-     var details=node("details","tm-entry-history");
-     details.appendChild(node("summary","",versions.length-1+" versiones anteriores"));
-     versions.slice(1).forEach(function(older){
-       details.appendChild(cardButton(
-          prettyTime(older.stamp)+" · "+older.xp+" XP · "+older.pets+" mascotas",
-          function(){return openRemote(older)},true));
-     });
-     card.appendChild(details);
-   }
+   card.appendChild(node("p","tm-entry-tag","Personaje de tu cuenta"));
+   card.appendChild(cardButton("Jugar con "+choice.name,function(){return openRemote(choice)}));
    container.appendChild(card);
  }
- $("tm-entry-empty").hidden=groups.size!==0;
+ $("tm-entry-empty").hidden=linked.length!==0;
+ renderBackups();
  showLocal();
 }
+function renderBackups(){
+ const list=$("tm-entry-backups-list");if(!list)return;
+ list.replaceChildren();
+ const copies=rows.filter(r=>r.source!=="linked");
+ const cloudOld=copies.filter(r=>r.source==="historical").length;
+ $("tm-entry-backups-count").textContent=copies.length+
+   (copies.length===1?" copia disponible":" copias disponibles");
+ if(!copies.length){
+   list.appendChild(node("p","tm-entry-help",
+     "No tienes copias históricas en la nube. Tus personajes vinculados siguen disponibles."));
+   return;
+ }
+ const groups=new Map();
+ for(const rec of copies){
+   if(!groups.has(rec.id))groups.set(rec.id,[]);
+   groups.get(rec.id).push(rec);
+ }
+ for(const arr of groups.values()){
+   const first=arr[0],card=node("article","tm-entry-local-card");
+   card.appendChild(node("strong","",first.name+" · "+arr.length+
+     (arr.length===1?" copia":" copias")));
+   const details=node("details","tm-entry-history");
+   details.appendChild(node("summary","","Ver copias y gestionar"));
+   for(const rec of arr){
+     const row=node("div","tm-entry-copy-row");
+     row.appendChild(node("small","",rec.source==="historical"?"Respaldo del historial":"Autoguardado antiguo"));
+     row.appendChild(node("small","",prettyTime(rec.stamp)+" · "+
+       rec.xp.toLocaleString("es-CL")+" XP · "+rec.pets+" mascotas"+
+       (rec.ready?"":" · sin aspecto terminado")));
+     row.appendChild(cardButton(rec.ready?"Recuperar copia":"Completar borrador",
+       function(){return openRemote(rec)},true));
+     if(rec.ready)row.appendChild(cardButton("Vincular a mi cuenta",
+       function(){return attachCloud(rec)},true));
+     if(rec.source==="historical")row.appendChild(cardButton("Eliminar respaldo",
+       function(){return deleteCloudCopy(rec)},true));
+     if(rec.source==="automatic")row.appendChild(cardButton("Eliminar ranura antigua",
+       function(){return deleteLegacyCopy(rec)},true));
+     details.appendChild(row);
+   }
+   card.appendChild(details);
+   list.appendChild(card);
+ }
+}
 function availableLocal(){
- var result=[],seen=new Set(),lookups=[
-  ["Partida de esta beta",storage,"tm.save"],
-  ["Copia de seguridad de esta beta",storage,"tm.save.bak"]
+ const result=[],seen=new Set(),lookups=[
+  ["Partida activa de esta beta",storage,"tm.save",false],
+  ["Copia de seguridad automática",storage,"tm.save.bak",false]
  ];
  if(user){
-   for(var entry of safeIndex(user.id))
-     lookups.push([entry.label+" · "+prettyTime(entry.createdAt),storage,entry.key]);
- }
- if(user){
-   lookups.push(["Antes de cambiar personaje",storage,"tm.hub.previous."+user.id]);
-   lookups.push(["Antes de entrar desde Vangelium",storage,"tm.gateway.previous."+user.id]);
-   lookups.push(["Antes de restaurar desde nube",storage,"tm.cloud.pre_restore"]);
-   lookups.push(["Antes de restaurar ranura",storage,"tm.cloud.slot.pre_restore"]);
+   for(const item of safeIndex(user.id))
+     lookups.push([item.label+" · "+prettyTime(item.createdAt),storage,item.key,true]);
+   for(const [label,key] of [
+     ["Antes de cambiar personaje","tm.hub.previous."+user.id],
+     ["Antes de entrar desde Vangelium","tm.gateway.previous."+user.id],
+     ["Antes de restaurar nube","tm.cloud.pre_restore"],
+     ["Antes de restaurar ranura","tm.cloud.slot.pre_restore"]
+   ])lookups.push([label,storage,key,false]);
  }
  if(window.localStorage){
-   lookups.push(["Partida del juego oficial (solo lectura)",window.localStorage,"tm.save"]);
-   lookups.push(["Respaldo del juego oficial (solo lectura)",window.localStorage,"tm.save.bak"]);
+   lookups.push(["Juego oficial · solo lectura",window.localStorage,"tm.save",false]);
+   lookups.push(["Respaldo oficial · solo lectura",window.localStorage,"tm.save.bak",false]);
  }
- for(var lookup of lookups){
+ for(const [label,source,key,removable] of lookups){
    try{
-     var raw=lookup[1].getItem(lookup[2]);if(!raw||seen.has(raw))continue;
-     var parsed=decode(raw);seen.add(raw);
-     result.push(Object.assign({},parsed,{sourceLabel:lookup[0]}));
-   }catch(e){}
+     const raw=source.getItem(key);
+     if(!raw||seen.has(raw))continue;
+     const value=decode(raw);seen.add(raw);
+     result.push(Object.assign({},value,{sourceLabel:label,sourceKey:key,removable}));
+   }catch(_){}
  }
  return result;
 }
 function showLocal(){
- var list=$("tm-entry-local-list");list.replaceChildren();
+ const list=$("tm-entry-local-list");list.replaceChildren();
  localRecords=availableLocal();
- if(!localRecords.length){
-   list.appendChild(node("p","tm-entry-help","No se encontraron partidas en este navegador. Prueba en el celular donde jugaste antes."));
-   return;
+ const cloudIds=new Set(rows.filter(r=>r.source==="linked"&&r.ready).map(r=>r.id));
+ const groups=new Map();
+ for(const item of localRecords){
+   if(!groups.has(item.id))groups.set(item.id,[]);
+   groups.get(item.id).push(item);
  }
- for(var item of localRecords){
-   var card=node("div","tm-entry-local-card");
-   card.appendChild(node("strong","",item.name+" · "+item.xp+" XP · "+item.pets+" mascotas"));
-   card.appendChild(node("small","",item.sourceLabel));
-   card.appendChild(cardButton("Jugar con "+item.name,function(){return openLocal(item)},true));
-   if(user)card.appendChild(cardButton("Vincular "+item.name+" a este correo",
-     function(){return attachLocal(item)},true));
+ let hidden=0;
+ for(const versions of groups.values()){
+   const latest=versions.find(x=>x.ready)||versions[0],matching=cloudIds.has(latest.id);
+   const card=node("div","tm-entry-local-card");
+   card.appendChild(node("strong","",latest.name+" · "+
+     latest.xp.toLocaleString("es-CL")+" XP · "+latest.pets+" mascotas"));
+   card.appendChild(node("small","",matching?
+     "También existe en tu cuenta · "+versions.length+" copia(s) en este celular":
+     (latest.ready?"Partida local no vinculada":"Borrador sin aspecto terminado")));
+   if(!matching){
+     card.appendChild(cardButton(latest.ready?"Jugar con "+latest.name:"Completar creación",
+       function(){return openLocal(latest)},true));
+     if(user&&latest.ready)card.appendChild(cardButton("Vincular a mi cuenta",
+       function(){return attachLocal(latest)},true));
+   }
+   if(versions.length>1||versions.some(x=>x.removable)){
+     const details=node("details","tm-entry-history");
+     details.appendChild(node("summary","","Administrar "+versions.length+" copia(s) locales"));
+     versions.forEach(function(copy){
+       const row=node("div","tm-entry-copy-row");
+       row.appendChild(node("small","",copy.sourceLabel+" · "+
+         copy.xp.toLocaleString("es-CL")+" XP"));
+       if(copy.ready)row.appendChild(cardButton("Recuperar",
+         function(){return openLocal(copy)},true));
+       if(copy.removable)row.appendChild(cardButton("Eliminar copia",
+         function(){return deleteLocalCopy(copy)},true));
+       details.appendChild(row);
+     });
+     card.appendChild(details);
+   }
    list.appendChild(card);
  }
+ if(!groups.size)list.appendChild(node("p","tm-entry-help",
+   "No hay partidas en este navegador. Comprueba el teléfono donde jugaste originalmente."));
+}
+async function deleteLocalCopy(copy){
+ if(!user||!copy.removable||!copy.sourceKey||
+    !copy.sourceKey.startsWith("tm.entry.archive."+user.id+"."))
+   throw Error("Solo puedes eliminar archivos locales creados por esta beta.");
+ const index=safeIndex(user.id),found=index.find(x=>x.key===copy.sourceKey);
+ if(!found)throw Error("Esa copia ya no figura en el archivo.");
+ if(copy.sourceKey==="tm.save"||copy.sourceKey==="tm.save.bak")
+   throw Error("No se puede eliminar la partida activa.");
+ if(!window.confirm("¿Eliminar esta COPIA LOCAL de "+copy.name+" ("+copy.xp+
+   " XP)? No se borrará el personaje ni su guardado en Supabase."))return;
+ // Primero actualiza el índice; si falla, la copia original sigue intacta.
+ storeVerified(localIndexKey(user.id),JSON.stringify(index.filter(x=>x.key!==copy.sourceKey)));
+ storage.removeItem(copy.sourceKey);
+ showLocal();
+ notice("Copia local eliminada. El personaje y la nube siguen intactos.");
+}
+async function deleteLegacyCopy(record){
+ await confirmUser();
+ if(!record||record.source!=="automatic"||record.owner!==user.id)
+   throw Error("Esta ranura no corresponde a tu cuenta.");
+ var other=rows.some(r=>r.id===record.id&&r.source!=="automatic");
+ if(!other)throw Error("Esta es la única copia de este personaje. Vincula primero el personaje o crea un respaldo histórico.");
+ var remote=await cloud.from("tm_cloud_saves")
+   .select("profile_id,revision,payload").eq("user_id",user.id).maybeSingle();
+ if(remote.error)throw remote.error;
+ if(!remote.data||Number(remote.data.revision)!==Number(record.revision))
+   throw Error("Esta ranura cambió. Pulsa Actualizar antes de intentar eliminarla.");
+ var snap=decode(remote.data.payload&&remote.data.payload.raw);
+ if(snap.id!==record.id||snap.raw!==record.raw)
+   throw Error("La ranura contiene una versión diferente. Ninguna copia fue borrada.");
+ if(!window.confirm("¿Eliminar la ranura experimental ANTIGUA de "+record.name+
+   "?\n\nTu personaje vinculado y sus respaldos históricos no se borrarán."))return;
+ var deleted=await cloud.from("tm_cloud_saves").delete()
+   .eq("user_id",user.id).eq("revision",record.revision)
+   .select("user_id").maybeSingle();
+ if(deleted.error)throw deleted.error;
+ if(!deleted.data)throw Error("Supabase no confirmó el borrado. Actualiza la pantalla.");
+ await loadCharacters();
+ notice("Ranura experimental antigua eliminada. Los personajes y otros respaldos están intactos.");
+}
+async function deleteCloudCopy(record){
+ await confirmUser();
+ if(!record||record.source!=="historical"||record.owner!==user.id)
+   throw Error("Solo puedes eliminar un respaldo histórico de tu cuenta.");
+ const siblings=rows.filter(r=>r.id===record.id&&r.sourceId!==record.sourceId);
+ if(!siblings.length)throw Error("Esta es la última copia recuperable del personaje. Vincúlalo a tu cuenta o crea otro respaldo antes de eliminarla.");
+ if(!window.confirm("¿Eliminar permanentemente el respaldo del "+
+   prettyTime(record.stamp)+" de "+record.name+"?\n\n"+
+   "Solo desaparecerá ESTA COPIA histórica. No se eliminará el personaje ni sus otros guardados."))return;
+ const fresh=await cloud.from("tm_legacy_backups")
+   .select("id,payload").eq("user_id",user.id).eq("id",record.sourceId).maybeSingle();
+ if(fresh.error)throw fresh.error;
+ if(!fresh.data)throw Error("El respaldo ya no existe. Pulsa Actualizar.");
+ const content=decode(fresh.data.payload&&fresh.data.payload.raw);
+ if(content.id!==record.id||content.raw!==record.raw)
+   throw Error("La copia cambió antes de eliminarla. Actualiza la lista.");
+ const response=await cloud.from("tm_legacy_backups").delete()
+   .eq("user_id",user.id).eq("id",record.sourceId)
+   .select("id").maybeSingle();
+ if(response.error)throw response.error;
+ if(!response.data)throw Error("Supabase no confirmó el borrado. Comprueba tu conexión.");
+ await loadCharacters();
+ notice("Respaldo histórico eliminado de la nube. Tu personaje y las otras copias permanecen intactos.");
 }
 async function ensureEngine(){
  var boot=$("boot");
@@ -481,22 +609,31 @@ async function useSnapshot(snapshot,source){
  await rememberChoice(source,snapshot);
  if(typeof window.__TM_SYNC_REFRESH__==="function")setTimeout(window.__TM_SYNC_REFRESH__,0);
    if(typeof window.__TM_CONFLICT_RESET__==="function")window.__TM_CONFLICT_RESET__();
- // El motor abre su creador durante el arranque si este navegador aún
- // no tiene aspecto. Cuando importamos un personaje válido, cerramos ese
- // panel anterior antes de iniciar la sesión; no tocamos su contenido.
- var creator=$("creator");
- if(snapshot.data.profile.character&&creator&&!creator.hidden)creator.hidden=true;
- wrap.hidden=true;
- // Si el personaje de la copia aún no tiene aspecto, respeta el creador.
- if(!snapshot.data.profile.character){
+ // Un borrador no debe disfrazarse de personaje listo para jugar.
+ // El creador solo se abre si el usuario decide terminar expresamente
+ // esa creación; jamás durante la restauración de un personaje terminado.
+ const creator=$("creator");
+ if(!snapshot.ready){
+   wrap.hidden=true;
    if(!creator||creator.hidden)$("btn-character").click();
    return;
  }
+ // Fundamental: cerrar usando el botón real del motor, que limpia también
+ // sus animaciones y estado interno. Cambiar hidden a mano no era suficiente.
+ if(creator&&!creator.hidden){
+   const cancel=$("cr-cancel");
+   if(cancel)cancel.click();
+   if(!creator.hidden)throw Error("El creador antiguo no se pudo cerrar. La partida sigue intacta.");
+ }
+ wrap.hidden=true;
  $("btn-solo").click();
+
 }
 async function openRemote(record){
  if(!user||user.id!==record.owner)throw Error("Esta partida no corresponde a la cuenta conectada.");
  var snapshot=await newest(record),old=rawLocal();
+ if(!snapshot.ready&&record.source==="linked")
+   throw Error("Este perfil guardado es un borrador. No debe abrirse como personaje terminado.");
  var text="Cargar "+snapshot.name+" ("+snapshot.xp+" XP, "+snapshot.pets+" mascotas)"+
    "\nCuenta: "+(user.email||"")+
    "\nOrigen: "+(record.source==="linked"?"Personaje vinculado":"Copia recuperable")+
