@@ -388,6 +388,8 @@ function renderBackups(){
        function(){return attachCloud(rec)},true));
      if(rec.source==="historical")row.appendChild(cardButton("Eliminar respaldo",
        function(){return deleteCloudCopy(rec)},true));
+     if(rec.source==="automatic")row.appendChild(cardButton("Eliminar ranura antigua",
+       function(){return deleteLegacyCopy(rec)},true));
      details.appendChild(row);
    }
    card.appendChild(details);
@@ -482,6 +484,30 @@ async function deleteLocalCopy(copy){
  storage.removeItem(copy.sourceKey);
  showLocal();
  notice("Copia local eliminada. El personaje y la nube siguen intactos.");
+}
+async function deleteLegacyCopy(record){
+ await confirmUser();
+ if(!record||record.source!=="automatic"||record.owner!==user.id)
+   throw Error("Esta ranura no corresponde a tu cuenta.");
+ var other=rows.some(r=>r.id===record.id&&r.source!=="automatic");
+ if(!other)throw Error("Esta es la única copia de este personaje. Vincula primero el personaje o crea un respaldo histórico.");
+ var remote=await cloud.from("tm_cloud_saves")
+   .select("profile_id,revision,payload").eq("user_id",user.id).maybeSingle();
+ if(remote.error)throw remote.error;
+ if(!remote.data||Number(remote.data.revision)!==Number(record.revision))
+   throw Error("Esta ranura cambió. Pulsa Actualizar antes de intentar eliminarla.");
+ var snap=decode(remote.data.payload&&remote.data.payload.raw);
+ if(snap.id!==record.id||snap.raw!==record.raw)
+   throw Error("La ranura contiene una versión diferente. Ninguna copia fue borrada.");
+ if(!window.confirm("¿Eliminar la ranura experimental ANTIGUA de "+record.name+
+   "?\n\nTu personaje vinculado y sus respaldos históricos no se borrarán."))return;
+ var deleted=await cloud.from("tm_cloud_saves").delete()
+   .eq("user_id",user.id).eq("revision",record.revision)
+   .select("user_id").maybeSingle();
+ if(deleted.error)throw deleted.error;
+ if(!deleted.data)throw Error("Supabase no confirmó el borrado. Actualiza la pantalla.");
+ await loadCharacters();
+ notice("Ranura experimental antigua eliminada. Los personajes y otros respaldos están intactos.");
 }
 async function deleteCloudCopy(record){
  await confirmUser();
