@@ -219,6 +219,21 @@ body:has(#tm-entry:not([hidden])){touch-action:pan-y!important;}
 #tm-char-conflict-status[data-state=error]{color:#ffc2ae}
 @media(max-width:420px){.tm-char-conflict-grid{grid-template-columns:1fr}}
 </style>
+<style>
+/* Entrada Vangelium simplificada: personajes separados de respaldos */
+.tm-entry-create-btn{width:100%;background:#293c4d;color:#e8eff4;border:1px dashed #648c92!important}
+.tm-entry-local{display:grid;gap:8px}
+.tm-entry-local>summary{font-size:12px;color:#b6e4e1;font-weight:700;padding:11px 3px}
+.tm-entry-backups-count{font-size:10px;color:#abc6d4}
+.tm-entry-local summary span{font-size:10px;color:#a0b6c6;font-weight:400}
+.tm-entry-copy-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:8px 0;
+ border:1px solid #384f63;border-radius:6px;padding:9px;background:#101b2d}
+.tm-entry-copy-row small{grid-column:1/-1;color:#a3c1cd;font-size:11px;line-height:1.4}
+.tm-entry-copy-row button{min-width:0;min-height:37px;font-size:11px;white-space:normal}
+.tm-entry-copy-row button:last-child:not(:first-child){border-color:#975e5a!important;color:#ffd1be}
+.tm-entry-local-card{gap:5px}
+.tm-entry-local-card .tm-entry-history>summary{margin-bottom:6px}
+</style>
 </head>
 <body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1380,17 +1395,20 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
    </div>
    <div id="tm-entry-list" class="tm-entry-list" role="list" aria-live="polite"></div>
    <div id="tm-entry-empty" class="tm-entry-empty" hidden>
-    Esta cuenta aún no tiene personajes en la nube. Puedes buscar una copia del celular y vincularla a tu correo.
+    Todavía no tienes personajes listos para jugar vinculados a esta cuenta. Revisa tus copias de seguridad o crea uno nuevo.
    </div>
-   <details id="tm-entry-local" class="tm-entry-local">
-    <summary>Buscar personajes de este celular</summary>
-    <div id="tm-entry-local-list" class="tm-entry-list"></div>
+   <button id="tm-entry-new-btn" class="tm-entry-minor tm-entry-create-btn" type="button">+ Crear personaje nuevo</button>
+   <details id="tm-entry-backups" class="tm-entry-local">
+     <summary>Gestionar copias de la nube <span id="tm-entry-backups-count"></span></summary>
+     <p class="tm-entry-help">Aquí están las versiones antiguas. Puedes recuperarlas, vincularlas o eliminar una copia concreta sin borrar el personaje.</p>
+     <div id="tm-entry-backups-list" class="tm-entry-list"></div>
    </details>
-   <div class="tm-entry-actions">
-    <button id="tm-entry-scan-btn" class="tm-entry-minor" type="button">Buscar en este celular</button>
-    <button id="tm-entry-new-btn" class="tm-entry-minor" type="button">+ Crear personaje nuevo</button>
-   </div>
-   <p class="tm-entry-help">Puedes crear varios personajes sin sustituir los anteriores. Cada uno tendrá su propia partida vinculada al correo. El sistema conserva primero una copia local.</p>
+   <details id="tm-entry-local" class="tm-entry-local">
+     <summary>Recuperar o gestionar copias de este celular</summary>
+     <button id="tm-entry-scan-btn" class="tm-entry-minor" type="button">Actualizar copias locales</button>
+     <div id="tm-entry-local-list" class="tm-entry-list"></div>
+   </details>
+   <p class="tm-entry-help">Los personajes aparecen arriba. Los respaldos están separados para que no confundas una copia antigua con una partida activa.</p>
   </div>
   <div id="tm-entry-reset" class="tm-entry-stage" hidden>
    <div class="tm-entry-step">Recuperar acceso</div>
