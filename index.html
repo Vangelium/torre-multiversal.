@@ -15,6 +15,226 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}body{margin:0;font:14px system-ui,sans-serif}[hidden]{display:none!important}</style>
+<style>
+/* Extensión aislada de interfaz: respaldos de cuenta en pestaña Guardado. */
+.tm-cloud { display:grid;gap:10px;margin-top:14px;padding-top:16px;border-top:2px solid var(--gold-deep); }
+.tm-cloud h2 {margin:0 0 2px}
+.tm-cloud h2 small {font-size:10px;color:var(--dim);font-weight:400}
+.tm-cloud-panel {display:grid;gap:9px}
+.tm-cloud [hidden] {display:none!important}
+.tm-cloud-actions {display:flex;flex-wrap:wrap;gap:8px}
+.tm-cloud-actions .btn {flex:1 1 145px}
+#tm-cloud input[type=email],#tm-cloud input[type=password],#tm-cloud select {
+  width:100%;min-height:44px;box-sizing:border-box;color:var(--parchment);
+  background:var(--night);border:2px solid var(--edge);padding:8px 10px;
+  box-shadow:inset 0 0 0 2px var(--slate-3);font:inherit;
+}
+#tm-cloud-status[data-state=error] {color:#ff9f9f}
+#tm-cloud-status[data-state=ok] {color:var(--moss)}
+</style>
+
+<style>
+/* Centro de Cuenta v1 · mismo lenguaje de RPG, jerarquía móvil clara. */
+.tm-hub {display:grid;gap:14px;font-family:var(--font-ui);min-width:0;}
+.tm-hub [hidden],.tm-manual-legacy [hidden]{display:none!important;}
+.tm-hub-heading {padding:16px 14px;background:linear-gradient(150deg,#273347 0%,#121925 72%);border:2px solid #0b0e17;box-shadow:inset 0 0 0 2px #936a28;}
+.tm-hub-eyebrow,.tm-hub-session span,.tm-hub-local span {display:block;color:var(--gold);font:9px var(--font-label);letter-spacing:.035em;}
+.tm-hub-heading h2 {margin:8px 0 6px;font:700 22px var(--font-ui);line-height:1.05;color:var(--parchment);}
+.tm-hub-heading p,.tm-hub-savebox p,.tm-hub-hint {font-size:12px;line-height:1.45;color:var(--dim);margin:0;}
+.tm-hub-section {display:grid;gap:8px;padding:14px;border:1px solid #46546b;background:#151e2d;}
+.tm-hub-section label {font-weight:700;font-size:12px;}
+.tm-hub input[type=email],.tm-hub input[type=password] {
+  min-height:46px;width:100%;border:1px solid #586b80;border-radius:5px;
+  background:#0d1420;color:#fff;padding:10px 12px;font-size:15px;
+}
+.tm-hub input:focus,.tm-hub button:focus-visible {outline:2px solid var(--crystal);outline-offset:2px;}
+.tm-hub-primary {width:100%;min-height:49px;white-space:normal;font:700 12px var(--font-label);letter-spacing:.01em;}
+.tm-hub-links {display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:5px;}
+.tm-hub-links button,.tm-hub-secondary {border:0;background:none;text-decoration:underline;color:#85d7e4;cursor:pointer;font:600 12px var(--font-ui);min-height:36px;padding:3px;}
+.tm-step {display:flex;gap:9px;align-items:center;margin-bottom:6px;}
+.tm-step span {display:grid;place-items:center;background:var(--gold);color:#271804;border-radius:50%;width:26px;height:26px;font:700 11px var(--font-label);flex-shrink:0;}
+.tm-step strong {font:700 14px var(--font-label);color:var(--parchment);}
+.tm-hub-session {display:flex;align-items:center;justify-content:space-between;gap:6px;background:#1a2835;padding:12px;border:1px solid #4a646d;}
+.tm-hub-session strong {display:block;overflow-wrap:anywhere;font-size:13px;margin-top:6px;}
+.tm-hub-local {display:flex;align-items:center;gap:9px;padding:12px;background:#132c2d;border:1px solid #30635e;}
+.tm-hub-local-icon {font-size:28px;color:var(--moss);min-width:35px;text-align:center;}
+.tm-hub-local strong {display:block;font-size:13px;margin-top:5px;overflow-wrap:anywhere;}
+.tm-hub-section-title {display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.tm-hub-section-title small {display:block;color:var(--dim);font-size:11px;margin-left:35px;}
+.tm-character-list {display:grid;gap:12px;}
+.tm-profile {border:1px solid #53617b;background:linear-gradient(180deg,#25334a,#151e2d);padding:13px;display:grid;gap:10px;box-shadow:inset 0 0 0 2px #1e2938;}
+.tm-profile-local {border-color:#528c71;}
+.tm-profile-head {display:flex;align-items:center;gap:12px;}
+.tm-profile-glyph {display:grid;place-items:center;background:linear-gradient(140deg,#d59d3c,#765122);border:2px solid #49320b;width:46px;height:46px;flex-shrink:0;font:700 22px var(--font-label);color:#241408;}
+.tm-profile-name {min-width:0;display:grid;gap:4px;}
+.tm-profile-name strong {font-size:21px;line-height:1.08;overflow-wrap:anywhere;color:#ffe1a1;}
+.tm-profile-name span {font-size:11px;color:#bfcacb;}
+.tm-profile-stats {display:flex;flex-wrap:wrap;gap:8px;}
+.tm-profile-stats span {font-size:12px;color:#dce8ec;background:#15212d;padding:6px 9px;border:1px solid #34425b;}
+.tm-profile-meta {font-size:10px;color:var(--dim);margin:0;}
+.tm-profile-history summary,.tm-hub-advanced summary,.tm-manual-legacy summary {font-size:12px;cursor:pointer;color:#92d7e1;padding:9px 2px;}
+.tm-profile-history {border-top:1px dashed #4e5e71;padding-top:3px;}
+.tm-hub-history-item {margin-top:6px;width:100%;white-space:normal;text-align:left;font:11px var(--font-ui);}
+.tm-hub-empty {padding:15px 12px;border:1px dashed #73828c;background:#1b2630;font-size:12px;line-height:1.5;color:#d0d8dd;}
+.tm-hub-savebox {border:1px solid #806e39;background:#272619;padding:14px;display:grid;gap:10px;}
+.tm-hub-savebox strong {font-size:14px;color:#f6d589;}
+.tm-hub-savebox p {color:#e0d0a8;}
+.tm-hub-savebox .btn {background:#334a53;}
+.tm-hub-advanced {border:1px solid #33465a;background:#121a25;padding:9px 12px;}
+.tm-hub-advanced h3 {font-size:14px;margin:8px 0 4px;}
+.tm-hub-advanced > .tm-cloud-panel {display:grid;gap:8px;margin-bottom:12px;}
+.tm-hub-actions {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
+.tm-hub-actions .btn {white-space:normal;padding:8px 5px;font-size:10px;}
+.tm-hub-status {margin:0;min-height:24px;font-size:12px;line-height:1.45;color:#a9cfe5;}
+.tm-hub-status[data-kind=error] {color:#ffb4a6;}
+.tm-manual-legacy {padding:10px;border:1px solid #394655;background:#151c25;display:grid;gap:9px;}
+.tm-manual-legacy > *:not(summary) {margin-top:8px;}
+.tm-manual-legacy textarea {width:100%;min-height:70px;user-select:text;-webkit-user-select:text;}
+.tm-hub-scan{text-decoration:none;border:1px solid #7894a1;background:#192d35;padding:9px 10px;min-height:42px;color:#c4e8ec;}
+.tm-hub-local-copies{display:grid;gap:8px}
+.tm-hub-local-copy{background:#17232e;padding:11px;border:1px solid #66858d;display:grid;gap:6px}
+.tm-hub-local-copy strong{font-size:13px;color:#f4deb2}
+.tm-hub-local-copy small{font-size:11px;color:var(--dim)}
+.tm-hub-local-copy .btn{font-size:10px;white-space:normal}
+@media(max-width:400px){.tm-hub-heading h2{font-size:20px}.tm-profile-name strong{font-size:18px}.tm-hub-section{padding:10px}.tm-hub-session{flex-wrap:wrap}}
+</style>
+
+<style>
+/* Vangelium: puerta de entrada a la beta. No cambia el motor 3D. */
+.tm-entry {
+ position:fixed;z-index:9998;inset:0;isolation:isolate;
+ display:grid;place-items:center;overflow-y:auto;overscroll-behavior:contain;
+ padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right))
+ max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
+ background:radial-gradient(ellipse at 50% 10%,#243e53 0%,#111c2d 42%,#080d17 100%);
+ color:#eee8d8;touch-action:pan-y;-webkit-user-select:text;user-select:text;
+ font:14px/1.42 system-ui,"Trebuchet MS",sans-serif;
+}
+.tm-entry[hidden],.tm-entry [hidden]{display:none!important;}
+body:has(#tm-entry:not([hidden])){touch-action:pan-y!important;}
+.tm-entry *{box-sizing:border-box;}
+.tm-entry-backdrop{position:fixed;inset:0;pointer-events:none;opacity:.66;overflow:hidden;z-index:-1;}
+.tm-entry-glow{position:absolute;left:50%;top:5%;width:65vmin;height:65vmin;transform:translateX(-50%);
+ background:radial-gradient(circle,#b88e434a 0%,#2e556333 35%,transparent 68%);
+ filter:blur(20px);}
+.tm-entry-tower{position:absolute;left:50%;bottom:0;transform:translateX(-50%);
+ width:min(42vw,230px);height:75vh;opacity:.27;filter:drop-shadow(0 0 16px #5198a9);}
+.tm-entry-tower::before{content:"";position:absolute;bottom:0;left:21%;width:58%;height:75%;
+ background:linear-gradient(90deg,#182432,#35485a 48%,#14202a);clip-path:polygon(0 14%,50% 0,100% 14%,100% 100%,0 100%);}
+.tm-entry-tower::after{content:"";position:absolute;bottom:75%;left:38%;width:24%;height:22%;
+ background:#334c5c;clip-path:polygon(50% 0,100% 35%,100% 100%,0 100%,0 35%);}
+.tm-entry-box{width:min(100%,520px);max-height:calc(100dvh - 26px);min-height:0;overflow-y:auto;
+ border:1px solid #94703c;background:linear-gradient(180deg,rgba(23,35,51,.97),rgba(11,19,32,.98));
+ box-shadow:0 20px 65px #000a,inset 0 0 0 3px #202d41;position:relative;
+ padding:clamp(15px,3.4vw,26px);border-radius:13px;}
+.tm-entry-sign{text-align:center;display:grid;gap:5px;justify-items:center;margin-bottom:16px;}
+.tm-entry-studio{color:#e9bf69;letter-spacing:.24em;font:700 11px/1.2 system-ui,sans-serif;}
+.tm-entry-separator{width:84px;height:1px;background:linear-gradient(90deg,transparent,#a27f48,transparent);margin:3px 0;}
+.tm-entry-sign h1{font:800 clamp(22px,5vw,31px)/1.06 system-ui,sans-serif;margin:0;color:#fff4db;letter-spacing:-.035em;text-shadow:0 0 18px #c09c514f;}
+.tm-entry-sign p{margin:0;color:#a7bacc;font-size:12px;}
+.tm-entry-stage{display:grid;gap:10px;}
+.tm-entry-step{font:700 11px system-ui,sans-serif;color:#f4ce8e;letter-spacing:.035em;text-transform:uppercase;}
+.tm-entry-stage label{font-size:12px;color:#dfe9f0;font-weight:650;}
+.tm-entry-stage input{background:#0b1524;border:1px solid #60768e;color:#fff;border-radius:7px;
+ min-height:46px;padding:10px 12px;font:15px system-ui,sans-serif;width:100%;min-width:0;}
+.tm-entry-stage input:focus,.tm-entry button:focus-visible,.tm-entry a:focus-visible{outline:2px solid #80d5d8;outline-offset:2px;}
+.tm-entry button{cursor:pointer;min-height:43px;border-radius:7px;border:1px solid #60718d;
+ padding:9px 12px;font:650 13px/1.2 system-ui,sans-serif;}
+.tm-entry button:disabled{opacity:.62;cursor:progress;}
+.tm-entry-mainbtn{background:linear-gradient(180deg,#f0cc80,#cb9853);color:#271c0d;border-color:#d8aa5a!important;width:100%;font-weight:750!important;min-height:48px!important;}
+.tm-entry-minor{color:#d8e7f0;background:#263b4f;border-color:#517289!important;}
+.tm-entry-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.tm-entry-actions button{flex:1 1 145px;}
+.tm-entry-help{margin:1px 0;color:#9aafc4;font-size:12px;line-height:1.5;}
+.tm-entry-user{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;
+ background:#102d37;border:1px solid #346b76;border-radius:8px;}
+.tm-entry-user div{min-width:0;}
+.tm-entry-user span{display:block;color:#95c0bd;font-size:10px;font-weight:700;}
+.tm-entry-user strong{display:block;color:#f6f2df;overflow-wrap:anywhere;font-size:13px;margin-top:4px;}
+.tm-entry-user button{background:none;color:#99dbe0;text-decoration:underline;border:0;min-height:35px;padding:3px;}
+.tm-entry-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.tm-entry-heading strong{font-size:15px;color:#f4e4c0;}
+.tm-entry-heading small{display:block;color:#96a9ba;font-size:11px;margin-top:3px;}
+.tm-entry-list{display:grid;gap:9px;}
+.tm-entry-character{border:1px solid #4e7283;border-radius:9px;padding:11px;display:grid;gap:9px;
+ background:linear-gradient(110deg,#273f4d,#1b2b3e);}
+.tm-entry-charhead{display:flex;gap:11px;align-items:center;}
+.tm-entry-avatar{width:45px;height:45px;display:grid;place-items:center;flex-shrink:0;
+ background:#a37843;color:#231a12;border-radius:9px;border:2px solid #dfb76c;font:800 21px system-ui,sans-serif;}
+.tm-entry-charmeta{min-width:0;display:grid;gap:3px;}
+.tm-entry-charmeta strong{font-size:18px;color:#ffdfa2;overflow-wrap:anywhere;}
+.tm-entry-charmeta span{font-size:12px;color:#c2d4dc;}
+.tm-entry-tag{margin:0;font-size:11px;color:#a7bdc7;}
+.tm-entry-history{border-top:1px dashed #536c79;padding-top:3px;}
+.tm-entry-history summary,.tm-entry-local summary{cursor:pointer;color:#9bd7d8;padding:7px 2px;font-size:12px;}
+.tm-entry-history button{width:100%;margin-top:6px;text-align:left;}
+.tm-entry-local{border-top:1px solid #344b62;padding-top:10px;display:grid;gap:8px;}
+.tm-entry-local-card{display:grid;gap:7px;border:1px solid #3f576c;padding:11px;background:#142335;border-radius:7px;}
+.tm-entry-local-card strong{color:#fff0ca;font-size:13px;}
+.tm-entry-local-card small{color:#a5b8c9;font-size:11px;}
+.tm-entry-local-card button{white-space:normal;}
+.tm-entry-alert{padding:10px 12px;color:#b9d6e8;border-left:3px solid #71b5c6;
+ background:rgba(18,53,73,.6);font-size:12px;line-height:1.45;min-height:40px;}
+.tm-entry-alert[data-state="error"]{color:#ffd1bf;border-color:#e88d78;background:#4c252b99;}
+.tm-entry-empty{border:1px dashed #687d91;padding:11px;border-radius:8px;color:#c4d5df;font-size:12px;}
+.tm-entry-footer{display:flex;justify-content:space-between;gap:8px;align-items:center;
+ border-top:1px solid #304356;padding-top:12px;margin-top:13px;}
+.tm-entry-footer span{font-size:10px;color:#829bab;}
+.tm-entry-footer a{font-size:11px;color:#9bd7e5;text-decoration:underline;}
+.tm-entry-links{display:flex;gap:9px;justify-content:space-between;flex-wrap:wrap;}
+.tm-entry-links button{color:#9ddbe3;text-decoration:underline;background:none;border:0;padding:4px;font-size:12px;}
+.tm-entry-loading{display:grid;gap:12px;text-align:center;justify-items:center;padding:20px 8px;}
+.tm-entry-progress{height:4px;width:65%;border-radius:8px;background:#283c53;overflow:hidden;}
+.tm-entry-progress::before{content:"";display:block;width:36%;height:100%;background:#deb16a;animation:tm-entry-load 1.65s ease-in-out infinite;}
+@keyframes tm-entry-load{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
+@media(max-height:450px){.tm-entry{place-items:start center}.tm-entry-box{max-height:calc(100dvh - 18px);padding:12px}.tm-entry-sign{margin-bottom:9px}.tm-entry-sign h1{font-size:24px}}
+@media(prefers-reduced-motion:reduce){.tm-entry-progress::before{animation:none;width:100%;}}
+</style>
+<style>
+.tm-char-sync-panel{border:1px solid #5a7f85;background:linear-gradient(150deg,#162b38,#13212f);padding:13px;display:grid;gap:9px;box-shadow:inset 0 0 0 1px #253f4a}
+.tm-char-sync-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tm-char-sync-head strong{display:block;font-size:14px;color:#f1dba5}
+.tm-char-sync-head small{display:block;font-size:11px;color:#a9c2c7;margin-top:4px}
+.tm-char-sync-tag{font-size:9px;color:#dccb9a;border:1px solid #7d7050;padding:4px 6px}
+#tm-char-sync-status{margin:0;line-height:1.5;font-size:12px;color:#b9dee1;min-height:20px}
+#tm-char-sync-status[data-state=error]{color:#ffc4a4}
+.tm-char-sync-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.tm-char-sync-actions .btn{font-size:11px;white-space:normal;min-height:40px;padding:7px 5px}
+@media(max-width:350px){.tm-char-sync-actions{grid-template-columns:1fr}}
+</style>
+<style>
+.tm-char-conflict{border:1px solid #536d84;border-radius:6px;background:linear-gradient(135deg,#1b2a3c,#151d2b);padding:13px;display:grid;gap:10px}
+.tm-char-conflict [hidden]{display:none!important}
+.tm-char-conflict-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.tm-char-conflict-head strong{font-size:13px;color:#e9d6ae}
+.tm-char-conflict-head span{font:9px var(--font-label);color:#a4c5d3}
+#tm-char-conflict-compare{min-height:40px;background:#35515e;color:#f4f8fa;font-size:11px}
+.tm-char-conflict-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}
+.tm-char-conflict-grid article{border:1px solid #54717a;padding:10px;background:#101a28;min-width:0}
+.tm-char-conflict-grid small{display:block;font-size:9px;color:#95d7d7;font-weight:bold}
+.tm-char-conflict-grid p{white-space:pre-line;overflow-wrap:anywhere;font-size:12px;color:#f2e5ce;line-height:1.5;margin:7px 0 0}
+.tm-char-conflict-actions{display:grid;gap:7px;margin-top:11px}
+.tm-char-conflict-actions button{white-space:normal;min-height:44px;font-size:11px}
+#tm-char-conflict-dismiss{margin-top:5px;border:1px solid #4c637c;width:100%;text-decoration:none}
+#tm-char-conflict-status[data-state=error]{color:#ffc2ae}
+@media(max-width:420px){.tm-char-conflict-grid{grid-template-columns:1fr}}
+</style>
+<style>
+/* Entrada Vangelium simplificada: personajes separados de respaldos */
+.tm-entry-create-btn{width:100%;background:#293c4d;color:#e8eff4;border:1px dashed #648c92!important}
+.tm-entry-local{display:grid;gap:8px}
+.tm-entry-local>summary{font-size:12px;color:#b6e4e1;font-weight:700;padding:11px 3px}
+.tm-entry-backups-count{font-size:10px;color:#abc6d4}
+.tm-entry-local summary span{font-size:10px;color:#a0b6c6;font-weight:400}
+.tm-entry-copy-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:8px 0;
+ border:1px solid #384f63;border-radius:6px;padding:9px;background:#101b2d}
+.tm-entry-copy-row small{grid-column:1/-1;color:#a3c1cd;font-size:11px;line-height:1.4}
+.tm-entry-copy-row button{min-width:0;min-height:37px;font-size:11px;white-space:normal}
+.tm-entry-copy-row button:last-child:not(:first-child){border-color:#975e5a!important;color:#ffd1be}
+.tm-entry-local-card{gap:5px}
+.tm-entry-local-card .tm-entry-history>summary{margin-bottom:6px}
+</style>
+<style>.tm-hub-switcher{display:grid;gap:8px;border:1px solid #436a79;padding:12px;background:#152937}.tm-hub-switcher button{min-height:48px}</style>
 </head>
 <body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -788,6 +1008,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
       <button id="btn-combat-trial" class="btn btn-gold" type="button">Probar combos · Nivel 1</button>
       <p class="note">Dos rivales para practicar. Tu nivel, equipo y posición de la partida se conservan.</p>
       <div class="row-buttons">
+        <button id="tm-entry-open-btn" class="btn" type="button">Cambiar cuenta o personaje</button>
         <button id="btn-solo" class="btn" type="button">Jugar solo</button>
         <button id="btn-create" class="btn btn-gold" type="button">Crear partida</button>
       </div>
@@ -833,7 +1054,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
         <button type="button" role="tab" id="tabbtn-game" aria-selected="true" aria-controls="tab-game">Partida</button>
         <button type="button" role="tab" id="tabbtn-combat" aria-selected="false" aria-controls="tab-combat">Combate</button>
         <button type="button" role="tab" id="tabbtn-settings" aria-selected="false" aria-controls="tab-settings">Ajustes</button>
-        <button type="button" role="tab" id="tabbtn-save" aria-selected="false" aria-controls="tab-save">Guardado</button>
+        <button type="button" role="tab" id="tabbtn-save" aria-selected="false" aria-controls="tab-save">Cuenta</button>
       </div>
       <div id="tab-game" class="tab" role="tabpanel">
         <button id="btn-resume" class="btn btn-gold" type="button">Continuar</button>
@@ -914,14 +1135,116 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
         <label class="check"><input id="chk-fps" type="checkbox"> Mostrar datos técnicos (fps y red)</label>
       </div>
       <div id="tab-save" class="tab" role="tabpanel" hidden>
-        <p class="note">La partida se guarda sola en este navegador. Para llevarla a otro aparato, copia el código y pégalo allí.</p>
-        <button id="btn-export" class="btn" type="button">Crear código de partida</button>
-        <textarea id="export-out" readonly aria-label="Código de partida" hidden></textarea>
-        <button id="btn-copy-export" class="btn" type="button" hidden>Copiar código</button>
-        <label for="import-in">Pegar código de otra partida</label>
-        <textarea id="import-in" placeholder="TM1:…"></textarea>
-        <button id="btn-import" class="btn" type="button">Cargar partida</button>
-        <p id="save-status" class="note" role="status"></p>
+        <div id="tm-hub" class="tm-hub" aria-label="Cuenta y personajes">
+          <div class="tm-hub-heading">
+            <div class="tm-hub-eyebrow">TORRE MULTIVERSAL · CUENTA</div>
+            <h2>Tu cuenta y personajes</h2>
+            <p>Entra con tu correo. Después elige el personaje que quieres continuar. Nada se cambia sin tu autorización.</p>
+          </div>
+          <section id="tm-auth-view" class="tm-hub-section" aria-label="Iniciar sesión">
+            <div class="tm-step"><span>01</span><strong>Entra a tu cuenta</strong></div>
+            <label for="tm-hub-login-email">Correo de tu cuenta</label>
+            <input id="tm-hub-login-email" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="correo@ejemplo.com">
+            <label for="tm-hub-login-password">Contraseña</label>
+            <input id="tm-hub-login-password" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Tu contraseña">
+            <button id="tm-hub-login" class="btn btn-gold tm-hub-primary" type="button">Entrar y ver mis personajes</button>
+            <div class="tm-hub-links">
+              <button id="tm-hub-register" type="button">Crear cuenta nueva</button>
+              <button id="tm-hub-forgot" type="button">Recuperar contraseña</button>
+            </div>
+            <p class="tm-hub-hint">¿Ya creaste una cuenta en el otro móvil? Usa <b>Entrar</b>, no «Crear cuenta».</p>
+          </section>
+          <section id="tm-account-view" hidden aria-label="Personajes de la cuenta">
+            <div class="tm-hub-session">
+              <div><span>CUENTA CONECTADA</span><strong id="tm-hub-email"></strong></div>
+              <button id="tm-hub-logout" class="tm-hub-secondary" type="button" hidden>Cambiar cuenta</button>
+            </div>
+            <div class="tm-hub-local">
+              <div class="tm-hub-local-icon" aria-hidden="true">⌂</div>
+              <div><span>PARTIDA QUE TIENES EN ESTE CELULAR</span><strong id="tm-hub-local">Buscando partida…</strong></div>
+            </div>
+            <section id="tm-char-sync" class="tm-char-sync-panel" aria-label="Sincronización por personaje">
+              <div class="tm-char-sync-head">
+                <div><strong>Sincronización de este personaje</strong>
+                <small id="tm-char-sync-name">Comprobando cuenta y personaje…</small></div>
+                <span class="tm-char-sync-tag">BETA</span>
+              </div>
+              <p class="tm-hub-hint">Opcional. Guarda el progreso de cada personaje por separado cada 2 minutos de juego activo. Se detiene ante conflictos o en cooperativo.</p>
+              <p id="tm-char-sync-status" role="status" aria-live="polite">Desactivado hasta que lo autorices.</p>
+              <div class="tm-char-sync-actions">
+                <button id="tm-char-sync-on" class="btn btn-gold" type="button">Activar autoguardado</button>
+                <button id="tm-char-sync-off" class="btn" type="button" hidden>Pausar autoguardado</button>
+                <button id="tm-char-sync-now" class="btn" type="button" disabled>Guardar ahora</button>
+                <button id="tm-char-sync-check" class="btn" type="button">Comprobar nube</button>
+              </div>
+            </section>
+            <section id="tm-char-conflict" class="tm-char-conflict" aria-label="Comparar versiones de partida">
+                <div class="tm-char-conflict-head"><strong>¿Hay dos versiones de tu partida?</strong><span>RECUPERACIÓN SEGURA</span></div>
+                <p class="tm-hub-hint">Compara el progreso del celular con el guardado de Supabase. No se modifica nada al comparar.</p>
+                <button id="tm-char-conflict-compare" class="btn" type="button">Comparar versiones</button>
+                <div id="tm-char-conflict-results" hidden>
+                  <div class="tm-char-conflict-grid">
+                    <article><small>EN ESTE CELULAR</small><p id="tm-char-conflict-local"></p></article>
+                    <article><small>EN SUPABASE</small><p id="tm-char-conflict-cloud"></p></article>
+                  </div>
+                  <p class="tm-hub-hint">La experiencia o las mascotas no determinan cuál versión es más reciente. Revisa los datos antes de elegir.</p>
+                  <div id="tm-char-conflict-actions" class="tm-char-conflict-actions" hidden>
+                    <button id="tm-char-conflict-use-cloud" class="btn btn-gold" type="button">Recuperar nube en este celular</button>
+                    <button id="tm-char-conflict-use-local" class="btn" type="button">Conservar este celular y actualizar nube</button>
+                  </div>
+                  <button id="tm-char-conflict-dismiss" class="tm-hub-secondary" type="button">Cancelar · No cambiar nada</button>
+                </div>
+                <p id="tm-char-conflict-status" class="tm-hub-hint" role="status" aria-live="polite">Las versiones se compararán antes de ofrecer acciones.</p>
+              </section>
+            <div class="tm-hub-switcher">
+              <button id="tm-hub-switch" class="btn btn-gold tm-hub-primary" type="button">Elegir otro personaje</button>
+              <p class="tm-hub-hint">Volverás al selector Vangelium. Primero se conservará una copia local del personaje actual.</p>
+            </div>
+            <details id="tm-hub-advanced" class="tm-hub-advanced">
+              <summary>Copias, recuperación y herramientas avanzadas</summary>
+            <div class="tm-hub-section-title">
+              <div><div class="tm-step"><span>02</span><strong>Elige tu personaje</strong></div>
+                <small id="tm-hub-count">Buscando personajes…</small></div>
+              <button id="tm-hub-refresh" class="tm-hub-secondary" type="button">Actualizar</button>
+            </div>
+            <div id="tm-hub-characters" class="tm-character-list" role="list" aria-live="polite"></div>
+            <div id="tm-hub-empty" class="tm-hub-empty" hidden>
+              Esta cuenta todavía no tiene personajes guardados.
+            </div>
+            <div class="tm-hub-savebox">
+              <strong>¿No aparece tu personaje?</strong>
+              <p>Si este personaje está en el celular, vincúlalo aquí a la cuenta correcta. Después aparecerá en todos tus dispositivos. No se borrarán los demás personajes.</p>
+              <button id="tm-hub-backup" class="btn tm-hub-primary" type="button">Vincular y guardar este personaje</button>
+              <button id="tm-hub-scan" class="tm-hub-secondary tm-hub-scan" type="button">Buscar partidas anteriores de este celular</button>
+              <div id="tm-hub-local-copies" class="tm-hub-local-copies" role="list" aria-live="polite" hidden></div>
+            </div>
+
+              <p class="tm-hub-hint">La ranura experimental antigua sigue conservada en Supabase y puedes recuperarla desde el selector de Vangelium. Ya no se actualiza automáticamente para evitar mezclar personajes.</p>
+              <button id="tm-hub-history-backup" class="btn" type="button">Crear respaldo histórico del personaje actual</button>
+              <button id="tm-hub-previous" class="btn" type="button" hidden>Volver a la partida local anterior</button>
+              <p class="tm-hub-hint">Los respaldos históricos aparecen agrupados por personaje. Sus otras versiones están dentro de cada tarjeta.</p>
+            </details>
+          </section>
+          <section id="tm-hub-reset-view" class="tm-hub-section" hidden>
+            <div class="tm-step"><span>✓</span><strong>Recuperar acceso</strong></div>
+            <label for="tm-hub-new-password">Nueva contraseña</label>
+            <input id="tm-hub-new-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="Mínimo 8 caracteres">
+            <button id="tm-hub-update-password" class="btn btn-gold tm-hub-primary" type="button">Guardar contraseña nueva</button>
+          </section>
+          <p id="tm-hub-status" class="tm-hub-status" role="status" aria-live="polite">Comprobando la sesión…</p>
+        </div>
+
+        <details class="tm-manual-legacy">
+          <summary>Transferencia manual de partidas (código TM1)</summary>
+          <p class="note">Este método sigue disponible si no puedes acceder a tu correo o necesitas traer una partida de otro dominio.</p>
+          <button id="btn-export" class="btn" type="button">Crear código de partida</button>
+          <textarea id="export-out" readonly aria-label="Código de partida" hidden></textarea>
+          <button id="btn-copy-export" class="btn" type="button" hidden>Copiar código</button>
+          <label for="import-in">Pegar código de otra partida</label>
+          <textarea id="import-in" placeholder="TM1:…"></textarea>
+          <button id="btn-import" class="btn" type="button">Cargar partida</button>
+          <p id="save-status" class="note" role="status"></p>
+        </details>
       </div>
     </div>
   </section>
@@ -1037,8 +1360,83 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
     </div>
   </div>
 </div>
+
+<!-- Pantalla Vangelium de acceso. Solo beta, aislada del motor principal. -->
+<section id="tm-entry" class="tm-entry" aria-label="Acceso a Torre Multiversal">
+ <div class="tm-entry-backdrop" aria-hidden="true"><div class="tm-entry-glow"></div><div class="tm-entry-tower"></div></div>
+ <div class="tm-entry-box">
+  <header class="tm-entry-sign">
+   <div class="tm-entry-studio">VANGELIUM</div>
+   <div class="tm-entry-separator"></div>
+   <h1>Torre Multiversal</h1>
+   <p>Tu universo. Tus personajes. Tu historia.</p>
+  </header>
+  <div id="tm-entry-loading" class="tm-entry-loading" role="status">
+   <strong>Preparando tu aventura…</strong>
+   <div class="tm-entry-progress"></div>
+   <p class="tm-entry-help">Verificando la sesión y los guardados de la cuenta.</p>
+  </div>
+  <div id="tm-entry-login" class="tm-entry-stage" hidden>
+   <div class="tm-entry-step">Paso 1 · Inicia sesión</div>
+   <label for="tm-entry-email">Correo electrónico</label>
+   <input id="tm-entry-email" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="tu@correo.com">
+   <label for="tm-entry-password">Contraseña</label>
+   <input id="tm-entry-password" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Mínimo 8 caracteres">
+   <button id="tm-entry-login-btn" class="tm-entry-mainbtn" type="button">Entrar y ver mis personajes</button>
+   <div class="tm-entry-links">
+    <button id="tm-entry-register-btn" type="button">Crear cuenta</button>
+    <button id="tm-entry-forgot-btn" type="button">Recuperar contraseña</button>
+   </div>
+   <p class="tm-entry-help">Si ya tienes una cuenta en otro celular, elige «Entrar». No hace falta registrarte otra vez.</p>
+  </div>
+  <div id="tm-entry-characters" class="tm-entry-stage" hidden>
+   <div class="tm-entry-user">
+    <div><span>CUENTA CONECTADA</span><strong id="tm-entry-account"></strong></div>
+    <button id="tm-entry-logout-btn" type="button">Cambiar</button>
+   </div>
+   <div class="tm-entry-step">Paso 2 · Elige tu personaje</div>
+   <div class="tm-entry-heading">
+    <div><strong>Selecciona tu partida</strong><small id="tm-entry-count"></small></div>
+    <button id="tm-entry-refresh-btn" class="tm-entry-minor" type="button">Actualizar</button>
+   </div>
+   <div id="tm-entry-list" class="tm-entry-list" role="list" aria-live="polite"></div>
+   <div id="tm-entry-empty" class="tm-entry-empty" hidden>
+    Todavía no tienes personajes listos para jugar vinculados a esta cuenta. Revisa tus copias de seguridad o crea uno nuevo.
+   </div>
+   <button id="tm-entry-new-btn" class="tm-entry-minor tm-entry-create-btn" type="button">+ Crear personaje nuevo</button>
+   <details id="tm-entry-backups" class="tm-entry-local">
+     <summary>Gestionar copias de la nube <span id="tm-entry-backups-count"></span></summary>
+     <p class="tm-entry-help">Aquí están las versiones antiguas. Puedes recuperarlas, vincularlas o eliminar una copia concreta sin borrar el personaje.</p>
+     <div id="tm-entry-backups-list" class="tm-entry-list"></div>
+   </details>
+   <details id="tm-entry-local" class="tm-entry-local">
+     <summary>Recuperar o gestionar copias de este celular</summary>
+     <button id="tm-entry-scan-btn" class="tm-entry-minor" type="button">Actualizar copias locales</button>
+     <div id="tm-entry-local-list" class="tm-entry-list"></div>
+   </details>
+   <p class="tm-entry-help">Los personajes aparecen arriba. Los respaldos están separados para que no confundas una copia antigua con una partida activa.</p>
+  </div>
+  <div id="tm-entry-reset" class="tm-entry-stage" hidden>
+   <div class="tm-entry-step">Recuperar acceso</div>
+   <label for="tm-entry-new-password">Nueva contraseña</label>
+   <input id="tm-entry-new-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="Mínimo 8 caracteres">
+   <button id="tm-entry-reset-btn" class="tm-entry-mainbtn" type="button">Guardar contraseña</button>
+  </div>
+  <p id="tm-entry-status" class="tm-entry-alert" role="status" aria-live="polite">Conectando con Supabase…</p>
+  <div class="tm-entry-footer"><span>BETA · PRUEBAS DE CUENTA</span>
+   <a href="../">Abrir juego oficial</a>
+  </div>
+  <div class="tm-entry-links" style="margin-top:6px">
+    <button id="tm-entry-guest-btn" type="button">Jugar sin cuenta (local)</button>
+  </div>
+ </div>
+</section>
 <script src="three.min.js?v=r128"></script>
-<script src="game.js?v=mw9zx3xb"></script>
+<script src="game.js?v=tm-cloud-20261110"></script>
+<script src="account-center.js?v=tm-ux-video-fixed-20261111-v6"></script>
+<script src="entry-gate.js?v=tm-ux-video-fixed-20261111-v11"></script>
+<script src="character-sync.js?v=tm-per-character-20261111-v2"></script>
+<script src="conflict-center.js?v=tm-conflicts-20261111-v1"></script>
 
 </body>
 </html>
