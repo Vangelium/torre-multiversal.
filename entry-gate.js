@@ -477,11 +477,20 @@ async function deleteLocalCopy(copy){
  if(!found)throw Error("Esa copia ya no figura en el archivo.");
  if(copy.sourceKey==="tm.save"||copy.sourceKey==="tm.save.bak")
    throw Error("No se puede eliminar la partida activa.");
+ const otherLocal=availableLocal().some(x=>x.id===copy.id&&x.sourceKey!==copy.sourceKey);
+ const otherCloud=rows.some(x=>x.id===copy.id);
+ if(!otherLocal&&!otherCloud)
+   throw Error("No puedo eliminar la última copia de "+copy.name+". Vincula ese personaje a la nube o crea otro respaldo primero.");
  if(!window.confirm("¿Eliminar esta COPIA LOCAL de "+copy.name+" ("+copy.xp+
    " XP)? No se borrará el personaje ni su guardado en Supabase."))return;
  // Primero actualiza el índice; si falla, la copia original sigue intacta.
  storeVerified(localIndexKey(user.id),JSON.stringify(index.filter(x=>x.key!==copy.sourceKey)));
  storage.removeItem(copy.sourceKey);
+ if(storage.getItem(copy.sourceKey)!==null){
+   // Recuperar el índice si el navegador rechazó el borrado.
+   storeVerified(localIndexKey(user.id),JSON.stringify(index));
+   throw Error("El navegador no confirmó el borrado local. Se conservó el índice anterior.");
+ }
  showLocal();
  notice("Copia local eliminada. El personaje y la nube siguen intactos.");
 }
