@@ -568,6 +568,28 @@ $("tm-hub-logout").addEventListener("click",logout);
 $("tm-hub-refresh").addEventListener("click",refresh);
 $("tm-hub-backup").addEventListener("click",function(){run(backupCurrent)});
 $("tm-hub-history-backup").addEventListener("click",function(){run(backupHistorical)});
+$("tm-hub-switch").addEventListener("click",function(){
+  run(async function(){
+    if(!account)throw Error("Inicia sesión antes de cambiar de personaje.");
+    var pause=$("pause"),leave=$("btn-leave"),go=$("tm-entry-open-btn");
+    if(!go)throw Error("El selector Vangelium no está disponible.");
+    if(inCoop()&&!window.confirm("¿Salir del cooperativo para cambiar de personaje?"))return;
+    var before;
+    try{before=exportNow()}catch(_){before=local()}
+    if(before){
+      var key="tm.hub.previous."+account.id;
+      storage.setItem(key,before.raw);
+      if(storage.getItem(key)!==before.raw)
+        throw Error("No pude conservar el personaje actual. No se cambió la partida.");
+    }
+    if(pause&&!pause.hidden){
+      if(!leave)throw Error("No pude cerrar la partida actual.");
+      leave.click(); // El motor guarda la posición y cierra la sesión previa.
+      if(!pause.hidden)throw Error("No se confirmó la salida. No se cambió de personaje.");
+    }
+    go.click();
+  });
+});
 $("tm-hub-scan").addEventListener("click",function(){run(scanLocal)});
 $("tm-hub-previous").addEventListener("click",function(){run(restorePrevious)});
 client.auth.onAuthStateChange(function(event){
