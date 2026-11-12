@@ -113,9 +113,20 @@ function resetRevision(uid,pid){
   if(typeof window.__TM_CONFLICT_RESET__==="function")window.__TM_CONFLICT_RESET__();
 }
 function enterWorld(saved){
-  var resume=$("btn-resume"),pause=$("pause"),creator=$("creator");
-  if(resume&&pause&&!pause.hidden&&(!creator||creator.hidden)&&saved.data.profile.character)
-    resume.click();
+  var creator=$("creator"),pause=$("pause"),menu=$("menu");
+  if(!saved.data.profile.character){
+    status("Este respaldo es un borrador sin aspecto terminado. Debes terminar su creación antes de jugar.",true);
+    return;
+  }
+  if(creator&&!creator.hidden){
+    var cancel=$("cr-cancel");
+    if(cancel)cancel.click();
+    if(!creator.hidden)throw Error("El creador anterior no pudo cerrarse. La partida continúa protegida.");
+  }
+  // Tras salir de una sesión, hay que crear una sesión NUEVA con el perfil
+  // recuperado. Reanudar la anterior mantenía atributos del jugador antiguo.
+  if(menu&&!menu.hidden){$("btn-solo").click();return;}
+  if(pause&&!pause.hidden)$("btn-resume").click();
 }
 
 async function fetchData(){
@@ -494,6 +505,10 @@ async function restore(item){
   if(!account)throw Error("Inicia sesión primero.");
   if(inCoop())throw Error("Sal de la sala multijugador antes de cambiar de personaje.");
   var saved=await getFresh(item),current=local();
+  if(item.kind==="character"&&!saved.data.profile.character)
+    throw Error("Este perfil es un borrador incompleto, no un personaje listo para jugar.");
+  // Exportar siempre el último estado ANTES de salir o sustituir un personaje.
+  try{current=exportNow()}catch(_){/* Conservar el último respaldo local si falló el exportador. */}
   if(current&&current.raw===saved.raw){
     if(item.kind==="character")await rememberLinked(account.id,saved,item.revision);
     else resetRevision(account.id,saved.id);
@@ -513,6 +528,12 @@ async function restore(item){
     storage.setItem(key,current.raw);
     if(storage.getItem(key)!==current.raw)
       throw Error("No se pudo proteger el guardado anterior. No se realizó el cambio.");
+  }
+  var pause=$("pause"),leave=$("btn-leave");
+  if(pause&&!pause.hidden){
+    if(!leave)throw Error("No se pudo cerrar correctamente la sesión actual.");
+    leave.click();
+    if(!pause.hidden)throw Error("El juego no confirmó la salida; restauración cancelada.");
   }
   importLocal(saved);
   if(item.kind==="character")await rememberLinked(account.id,saved,item.revision);
@@ -547,6 +568,28 @@ $("tm-hub-logout").addEventListener("click",logout);
 $("tm-hub-refresh").addEventListener("click",refresh);
 $("tm-hub-backup").addEventListener("click",function(){run(backupCurrent)});
 $("tm-hub-history-backup").addEventListener("click",function(){run(backupHistorical)});
+$("tm-hub-switch").addEventListener("click",function(){
+  run(async function(){
+    if(!account)throw Error("Inicia sesión antes de cambiar de personaje.");
+    var pause=$("pause"),leave=$("btn-leave"),go=$("tm-entry-open-btn");
+    if(!go)throw Error("El selector Vangelium no está disponible.");
+    if(inCoop()&&!window.confirm("¿Salir del cooperativo para cambiar de personaje?"))return;
+    var before;
+    try{before=exportNow()}catch(_){before=local()}
+    if(before){
+      var key="tm.hub.previous."+account.id;
+      storage.setItem(key,before.raw);
+      if(storage.getItem(key)!==before.raw)
+        throw Error("No pude conservar el personaje actual. No se cambió la partida.");
+    }
+    if(pause&&!pause.hidden){
+      if(!leave)throw Error("No pude cerrar la partida actual.");
+      leave.click(); // El motor guarda la posición y cierra la sesión previa.
+      if(!pause.hidden)throw Error("No se confirmó la salida. No se cambió de personaje.");
+    }
+    go.click();
+  });
+});
 $("tm-hub-scan").addEventListener("click",function(){run(scanLocal)});
 $("tm-hub-previous").addEventListener("click",function(){run(restorePrevious)});
 client.auth.onAuthStateChange(function(event){
