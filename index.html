@@ -234,6 +234,7 @@ body:has(#tm-entry:not([hidden])){touch-action:pan-y!important;}
 .tm-entry-local-card{gap:5px}
 .tm-entry-local-card .tm-entry-history>summary{margin-bottom:6px}
 </style>
+<style>.tm-hub-switcher{display:grid;gap:8px;border:1px solid #436a79;padding:12px;background:#152937}.tm-hub-switcher button{min-height:48px}</style>
 </head>
 <body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1195,6 +1196,12 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
                 </div>
                 <p id="tm-char-conflict-status" class="tm-hub-hint" role="status" aria-live="polite">Las versiones se compararán antes de ofrecer acciones.</p>
               </section>
+            <div class="tm-hub-switcher">
+              <button id="tm-hub-switch" class="btn btn-gold tm-hub-primary" type="button">Elegir otro personaje</button>
+              <p class="tm-hub-hint">Volverás al selector Vangelium. Primero se conservará una copia local del personaje actual.</p>
+            </div>
+            <details id="tm-hub-advanced" class="tm-hub-advanced">
+              <summary>Copias, recuperación y herramientas avanzadas</summary>
             <div class="tm-hub-section-title">
               <div><div class="tm-step"><span>02</span><strong>Elige tu personaje</strong></div>
                 <small id="tm-hub-count">Buscando personajes…</small></div>
@@ -1211,8 +1218,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
               <button id="tm-hub-scan" class="tm-hub-secondary tm-hub-scan" type="button">Buscar partidas anteriores de este celular</button>
               <div id="tm-hub-local-copies" class="tm-hub-local-copies" role="list" aria-live="polite" hidden></div>
             </div>
-            <details id="tm-hub-advanced" class="tm-hub-advanced">
-              <summary>Opciones avanzadas y autoguardado</summary>
+
               <p class="tm-hub-hint">La ranura experimental antigua sigue conservada en Supabase y puedes recuperarla desde el selector de Vangelium. Ya no se actualiza automáticamente para evitar mezclar personajes.</p>
               <button id="tm-hub-history-backup" class="btn" type="button">Crear respaldo histórico del personaje actual</button>
               <button id="tm-hub-previous" class="btn" type="button" hidden>Volver a la partida local anterior</button>
