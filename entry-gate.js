@@ -328,64 +328,71 @@ function cardButton(label,callback,secondary){
  return b;
 }
 function render(){
- var container=$("tm-entry-list");container.replaceChildren();
+ var container=$("tm-entry-list");
+ container.replaceChildren();
  $("tm-entry-account").textContent=user&&user.email||"";
- var groups=new Map();
- for(const item of rows){
-  if(!groups.has(item.id))groups.set(item.id,[]);
-  groups.get(item.id).push(item);
- }
- $("tm-entry-count").textContent=groups.size===1?"1 personaje":groups.size+" personajes";
- for(const versions of groups.values()){
-   const ready=versions.filter(x=>x.ready);
-   // Preferir un personaje real y vinculado, nunca un borrador sobre un
-   // perfil que ya tiene su aspecto creado en la nube.
-   const choice=ready[0]||versions[0],card=node("article","tm-entry-character");
+ // El selector principal no debe mezclar personajes con copias de seguridad.
+ const linked=rows.filter(r=>r.source==="linked"&&r.ready);
+ $("tm-entry-count").textContent=linked.length===1?"1 personaje vinculado":
+  linked.length+" personajes vinculados";
+ for(const choice of linked){
+   const card=node("article","tm-entry-character");
    const top=node("div","tm-entry-charhead");
    const portrait=node("div","tm-entry-avatar",choice.name.slice(0,1).toUpperCase());
    portrait.setAttribute("aria-hidden","true");top.appendChild(portrait);
    const meta=node("div","tm-entry-charmeta");
    meta.appendChild(node("strong","",choice.name));
-   meta.appendChild(node("span","",choice.xp.toLocaleString("es-CL")+" XP · "+choice.pets+" mascotas"));
+   meta.appendChild(node("span","",choice.xp.toLocaleString("es-CL")+
+     " XP · "+choice.pets+" mascotas"));
    top.appendChild(meta);card.appendChild(top);
-   const label=!choice.ready?"Creación pendiente":
-     choice.source==="linked"?"Personaje vinculado a tu cuenta":
-     choice.source==="automatic"?"Recuperable desde la nube":"Copia de seguridad";
-   card.appendChild(node("p","tm-entry-tag",label));
-   if(choice.ready){
-     card.appendChild(cardButton("Jugar con "+choice.name,function(){return openRemote(choice)}));
-   }else{
-     card.appendChild(cardButton("Completar creación de "+choice.name,
-       function(){return openRemote(choice)},true));
-   }
-   if(choice.source!=="linked"&&choice.ready)
-     card.appendChild(cardButton("Vincular a mi cuenta",function(){return attachCloud(choice)},true));
-   if(versions.length>1){
-     const details=node("details","tm-entry-history");
-     details.appendChild(node("summary","",versions.length-1+" copias anteriores"));
-     versions.filter(v=>v!==choice).forEach(function(older){
-       const row=node("div","tm-entry-copy-row");
-       row.appendChild(node("small","",prettyTime(older.stamp)+" · "+
-         older.xp.toLocaleString("es-CL")+" XP · "+older.pets+" mascotas"+
-         (older.ready?"":" · borrador")));
-       row.appendChild(cardButton(older.ready?"Recuperar copia":"Completar borrador",
-         function(){return openRemote(older)},true));
-       if(older.source==="historical")
-         row.appendChild(cardButton("Eliminar copia",function(){return deleteCloudCopy(older)},true));
-       details.appendChild(row);
-     });
-     card.appendChild(details);
-   }
-   if(choice.source==="historical"){
-     const details=node("details","tm-entry-history");
-     details.appendChild(node("summary","","Administrar copia histórica"));
-     details.appendChild(cardButton("Eliminar este respaldo",function(){return deleteCloudCopy(choice)},true));
-     card.appendChild(details);
-   }
+   card.appendChild(node("p","tm-entry-tag","Personaje de tu cuenta"));
+   card.appendChild(cardButton("Jugar con "+choice.name,function(){return openRemote(choice)}));
    container.appendChild(card);
  }
- $("tm-entry-empty").hidden=groups.size!==0;
+ $("tm-entry-empty").hidden=linked.length!==0;
+ renderBackups();
  showLocal();
+}
+function renderBackups(){
+ const list=$("tm-entry-backups-list");if(!list)return;
+ list.replaceChildren();
+ const copies=rows.filter(r=>r.source!=="linked");
+ const cloudOld=copies.filter(r=>r.source==="historical").length;
+ $("tm-entry-backups-count").textContent=copies.length+
+   (copies.length===1?" copia disponible":" copias disponibles");
+ if(!copies.length){
+   list.appendChild(node("p","tm-entry-help",
+     "No tienes copias históricas en la nube. Tus personajes vinculados siguen disponibles."));
+   return;
+ }
+ const groups=new Map();
+ for(const rec of copies){
+   if(!groups.has(rec.id))groups.set(rec.id,[]);
+   groups.get(rec.id).push(rec);
+ }
+ for(const arr of groups.values()){
+   const first=arr[0],card=node("article","tm-entry-local-card");
+   card.appendChild(node("strong","",first.name+" · "+arr.length+
+     (arr.length===1?" copia":" copias")));
+   const details=node("details","tm-entry-history");
+   details.appendChild(node("summary","","Ver copias y gestionar"));
+   for(const rec of arr){
+     const row=node("div","tm-entry-copy-row");
+     row.appendChild(node("small","",rec.source==="historical"?"Respaldo del historial":"Autoguardado antiguo"));
+     row.appendChild(node("small","",prettyTime(rec.stamp)+" · "+
+       rec.xp.toLocaleString("es-CL")+" XP · "+rec.pets+" mascotas"+
+       (rec.ready?"":" · sin aspecto terminado")));
+     row.appendChild(cardButton(rec.ready?"Recuperar copia":"Completar borrador",
+       function(){return openRemote(rec)},true));
+     if(rec.ready)row.appendChild(cardButton("Vincular a mi cuenta",
+       function(){return attachCloud(rec)},true));
+     if(rec.source==="historical")row.appendChild(cardButton("Eliminar respaldo",
+       function(){return deleteCloudCopy(rec)},true));
+     details.appendChild(row);
+   }
+   card.appendChild(details);
+   list.appendChild(card);
+ }
 }
 function availableLocal(){
  const result=[],seen=new Set(),lookups=[
@@ -481,7 +488,7 @@ async function deleteCloudCopy(record){
  if(!record||record.source!=="historical"||record.owner!==user.id)
    throw Error("Solo puedes eliminar un respaldo histórico de tu cuenta.");
  const siblings=rows.filter(r=>r.id===record.id&&r.sourceId!==record.sourceId);
- if(!siblings.length)throw Error("No se puede eliminar la única copia recuperable de este personaje. Vincúlalo primero o crea otro respaldo.");
+ if(!siblings.length)throw Error("Esta es la última copia recuperable del personaje. Vincúlalo a tu cuenta o crea otro respaldo antes de eliminarla.");
  if(!window.confirm("¿Eliminar permanentemente el respaldo del "+
    prettyTime(record.stamp)+" de "+record.name+"?\n\n"+
    "Solo desaparecerá ESTA COPIA histórica. No se eliminará el personaje ni sus otros guardados."))return;
