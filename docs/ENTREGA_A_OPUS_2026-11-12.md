@@ -251,3 +251,35 @@ Se completó una nueva puerta de entrada visual para la beta, cumpliendo parte d
 - Cambio de revisión entre comparación y selección ⇒ abortar sin escritura.
 - Estructura DOM, sintaxis JS y caché versionada de los cuatro scripts.
 **Prueba real Android/iOS pendiente**. No fusionar PR #1 hasta verificaciones físicas y evaluación del esquema de economía autoritativa. No se eliminó ningún respaldo histórico.
+
+---
+
+## 11/11/2026 (20:56–20:58 Chile): auditoría del vídeo real 1000013708.mp4 (82,29 s) y corrección del onboarding
+
+**Hallazgos observados, no supuestos:**
+- 00–10 s: el selector mezcla tarjetas del mismo personaje con varias versiones locales de Nnn y Viajero, con un botón de "Jugar" por copia; falta distinguir una partida activa de un respaldo.
+- 12–18 s: la cuenta muestra tarjetas en nube de Viajero y Raro y respaldos de Yonnah, mientras el menú "Buscar en este celular" repite entidades. En el selector original se ofrecían backups/slots como personajes listos.
+- 20–28 s: al elegir "Jugar con Viajero" desde la copia local (sin confirmar su apariencia), aparece otra vez el creador. El motor tiene arranque automático del creador si profile.character está vacío y el wrapper anterior lo ocultaba manualmente vía creator.hidden, sin cerrar el estado del propio motor.
+- 28–56 s: el usuario atraviesa pantalla de creador y el menú legacy "Cambiar cuenta o personaje / Jugar solo / Crear partida", aunque ya eligió un personaje en la puerta de Vangelium.
+- 56–82 s: el motor finalmente entra al mundo, lo que demuestra que el fallo principal ocurre en el onboarding/cambio de sesión, no en la renderización 3D.
+
+**Cambios en la beta (no producción):**
+1. `beta/entry-gate.js`: selector principal muestra **exclusivamente personajes vinculados completos** (`profile.character` verdadero). Las copias históricas, la ranura vieja y las partidas locales van a **Gestionar copias de la nube** / **Copias de este celular**, agrupadas por ID de personaje. Se eliminan repeticiones de la página principal.
+2. El `decode(TM1)` detecta explícitamente `ready`: una copia sin aspecto es un **borrador**, no se anuncia como personaje listo para jugar. Solo si el jugador elige completar el borrador se entra al creador.
+3. Antes de iniciar juego con perfil terminado, si el motor arrancó su creador provisional se llama al **botón real `cr-cancel`** para ejecutar `creator.close()` y limpiar el estado interno y animación; nunca se usa simplemente `creator.hidden=true` para forzar cierre. Después se usa el importador de la partida y `btn-solo` para entrar sin menú adicional.
+4. Las partidas locales se agrupan por identificador; copias archivadas idénticas se reutilizan en vez de acumularse. Los ítems iguales al personaje vinculado se ofrecen solo bajo la sección de copias, no como nuevos personajes.
+5. Eliminación **individual con confirmación** de `tm_legacy_backups` via RLS SELECT/DELETE del propio usuario, solo cuando existe otro backup de ese personaje. Eliminar una copia no elimina la fila principal de `tm_character_saves`.
+6. Borrado de ranura experimental antigua `tm_cloud_saves`, también limitado al dueño y condicionado en UI a que exista otra copia o personaje vinculado. Migración REAL aplicada y versionada `20261112001434_tm_cloud_saves_allow_owner_delete_legacy_slot.sql` concede DELETE a authenticated con policy auth.uid() = user_id; anon no obtiene DELETE.
+7. Eliminación de archivos archivados `tm.entry.archive.<uid>.*` con confirmación: solo si otra copia local o nube existe para ese personaje; se verifica eliminación, NO permite eliminar guardado activo `tm.save` ni `tm.save.bak` del motor. No modifica archivos originales fuera de beta.
+8. `beta/account-center.js`: en Pausa→Cuenta se destacan las funciones del personaje activo y la sincronización; las otras tarjetas y los respaldos se movieron a Opciones avanzadas. Nuevo botón **Elegir otro personaje**: archiva progresos, ejecuta `btn-leave` para cerrar la sesión del motor antes de invocar selector. Al restaurar desde Pausa sale de la sesión previa ANTES de importar y crea sesión solo nueva; no reanuda sesión vieja con otro perfil.
+9. `beta/index.html`: estilos sobrios, entrada limpia, "Gestionar copias" colapsado, `tm-hub-switch`, y etiquetas de credenciales y backup separadas. Se subió versión de recursos con cache-busting.
+
+**Pruebas simuladas completas y resultados:**
+- Perfil listo vinculado + borrador local con mismo nombre: aparece UNA tarjeta principal, importación del perfil vinculado, `cr-cancel` invocado una vez, `btn-solo` una vez, creador cerrado. PASS.
+- Cuenta con respaldos de Yonnah (2) y Raro (slot experimental): se agrupan en gestor distinto (2 grupos). PASS.
+- Borrado de una copia histórica entre varias: DELETE solo esa fila, perfil vinculado intacto y otras copias intactas. PASS.
+- Copia archivada local ÚNICA de Nnn: se rechaza borrarla. Después de agregar backup remoto, se permite borrar ese archivo y no se toca `tm.save`. PASS.
+- SQL policy/grants verificados, no se eliminó ninguna fila de usuario durante la implementación.
+- Pendiente: prueba en los dos navegadores Android reales, confirmación de importador + creador en navegador, recuperación real de Nnn desde copias locales y reanudación del cooperativo. No fusionar PR.
+
+**Seguridad operativa:** no ejecutar borrado masivo ni convertir TM1 en inventario o monedas oficiales. El código root de producción main permanece inalterado. El usuario debe probar exclusivamente beta hasta validar.
