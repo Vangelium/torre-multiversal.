@@ -418,7 +418,9 @@ function availableLocal(){
  for(const [label,source,key,removable] of lookups){
    try{
      const raw=source.getItem(key);
-     if(!raw||seen.has(raw))continue;
+     // Las copias archivadas idénticas deben aparecer en el gestor para
+     // permitir su eliminación. El guardado activo siempre queda protegido.
+     if(!raw||(seen.has(raw)&&!removable))continue;
      const value=decode(raw);seen.add(raw);
      result.push(Object.assign({},value,{sourceLabel:label,sourceKey:key,removable}));
    }catch(_){}
