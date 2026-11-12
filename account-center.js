@@ -113,9 +113,20 @@ function resetRevision(uid,pid){
   if(typeof window.__TM_CONFLICT_RESET__==="function")window.__TM_CONFLICT_RESET__();
 }
 function enterWorld(saved){
-  var resume=$("btn-resume"),pause=$("pause"),creator=$("creator");
-  if(resume&&pause&&!pause.hidden&&(!creator||creator.hidden)&&saved.data.profile.character)
-    resume.click();
+  var creator=$("creator"),pause=$("pause"),menu=$("menu");
+  if(!saved.data.profile.character){
+    status("Este respaldo es un borrador sin aspecto terminado. Debes terminar su creación antes de jugar.",true);
+    return;
+  }
+  if(creator&&!creator.hidden){
+    var cancel=$("cr-cancel");
+    if(cancel)cancel.click();
+    if(!creator.hidden)throw Error("El creador anterior no pudo cerrarse. La partida continúa protegida.");
+  }
+  // Tras salir de una sesión, hay que crear una sesión NUEVA con el perfil
+  // recuperado. Reanudar la anterior mantenía atributos del jugador antiguo.
+  if(menu&&!menu.hidden){$("btn-solo").click();return;}
+  if(pause&&!pause.hidden)$("btn-resume").click();
 }
 
 async function fetchData(){
@@ -494,6 +505,10 @@ async function restore(item){
   if(!account)throw Error("Inicia sesión primero.");
   if(inCoop())throw Error("Sal de la sala multijugador antes de cambiar de personaje.");
   var saved=await getFresh(item),current=local();
+  if(item.kind==="character"&&!saved.data.profile.character)
+    throw Error("Este perfil es un borrador incompleto, no un personaje listo para jugar.");
+  // Exportar siempre el último estado ANTES de salir o sustituir un personaje.
+  try{current=exportNow()}catch(_){/* Conservar el último respaldo local si falló el exportador. */}
   if(current&&current.raw===saved.raw){
     if(item.kind==="character")await rememberLinked(account.id,saved,item.revision);
     else resetRevision(account.id,saved.id);
@@ -513,6 +528,12 @@ async function restore(item){
     storage.setItem(key,current.raw);
     if(storage.getItem(key)!==current.raw)
       throw Error("No se pudo proteger el guardado anterior. No se realizó el cambio.");
+  }
+  var pause=$("pause"),leave=$("btn-leave");
+  if(pause&&!pause.hidden){
+    if(!leave)throw Error("No se pudo cerrar correctamente la sesión actual.");
+    leave.click();
+    if(!pause.hidden)throw Error("El juego no confirmó la salida; restauración cancelada.");
   }
   importLocal(saved);
   if(item.kind==="character")await rememberLinked(account.id,saved,item.revision);
