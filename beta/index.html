@@ -1165,16 +1165,16 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
             </div>
             <section id="tm-char-sync" class="tm-char-sync-panel" aria-label="Sincronización por personaje">
               <div class="tm-char-sync-head">
-                <div><strong>Sincronización de este personaje</strong>
+                <div><strong>Guardado en la nube</strong>
                 <small id="tm-char-sync-name">Comprobando cuenta y personaje…</small></div>
                 <span class="tm-char-sync-tag">BETA</span>
               </div>
-              <p class="tm-hub-hint">Opcional. Guarda el progreso de cada personaje por separado cada 2 minutos de juego activo. Se detiene ante conflictos o en cooperativo.</p>
-              <p id="tm-char-sync-status" role="status" aria-live="polite">Desactivado hasta que lo autorices.</p>
+              <p class="tm-hub-hint">Tu personaje se guarda solo en tu cuenta: cada minuto de juego, al pausar, al salir y al cerrar el navegador. Si otro celular tiene una versión distinta, no se sobrescribe nada y te avisamos. En salas cooperativas se pausa.</p>
+              <p id="tm-char-sync-status" role="status" aria-live="polite">Comprobando tu personaje…</p>
               <div class="tm-char-sync-actions">
-                <button id="tm-char-sync-on" class="btn btn-gold" type="button">Activar autoguardado</button>
-                <button id="tm-char-sync-off" class="btn" type="button" hidden>Pausar autoguardado</button>
-                <button id="tm-char-sync-now" class="btn" type="button" disabled>Guardar ahora</button>
+                <button id="tm-char-sync-on" class="btn btn-gold" type="button" hidden>Reanudar guardado automático</button>
+                <button id="tm-char-sync-off" class="btn" type="button" hidden>Pausar guardado automático</button>
+                <button id="tm-char-sync-now" class="btn" type="button" disabled>Guardar ahora en la nube</button>
                 <button id="tm-char-sync-check" class="btn" type="button">Comprobar nube</button>
               </div>
             </section>
@@ -1432,10 +1432,10 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 </section>
 <script src="three.min.js?v=r128"></script>
 <script src="game.js?v=beta-isolated-20261110"></script>
-<script src="account-center.js?v=tm-ux-video-fixed-20261111-v6"></script>
+<script src="account-center.js?v=tm-autosave-20261112-v7"></script>
 <script src="entry-gate.js?v=tm-ux-video-fixed-20261111-v11"></script>
-<script src="character-sync.js?v=tm-per-character-20261111-v2"></script>
-<script src="conflict-center.js?v=tm-conflicts-20261111-v1"></script>
+<script src="character-sync.js?v=tm-autosave-20261112-v3"></script>
+<script src="conflict-center.js?v=tm-conflicts-20261112-v2"></script>
 
 </body>
 </html>

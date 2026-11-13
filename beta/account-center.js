@@ -529,6 +529,7 @@ async function restore(item){
     if(storage.getItem(key)!==current.raw)
       throw Error("No se pudo proteger el guardado anterior. No se realizó el cambio.");
   }
+  if(typeof window.__TM_SYNC_NOW__==="function")await window.__TM_SYNC_NOW__("switch");
   var pause=$("pause"),leave=$("btn-leave");
   if(pause&&!pause.hidden){
     if(!leave)throw Error("No se pudo cerrar correctamente la sesión actual.");
@@ -581,6 +582,11 @@ $("tm-hub-switch").addEventListener("click",function(){
       storage.setItem(key,before.raw);
       if(storage.getItem(key)!==before.raw)
         throw Error("No pude conservar el personaje actual. No se cambió la partida.");
+    }
+    // Subir a la nube el último progreso ANTES de salir (no bloquea si no hay red).
+    if(typeof window.__TM_SYNC_NOW__==="function"){
+      status("Guardando tu progreso en la nube antes de cambiar…");
+      await window.__TM_SYNC_NOW__("switch");
     }
     if(pause&&!pause.hidden){
       if(!leave)throw Error("No pude cerrar la partida actual.");

@@ -112,9 +112,8 @@ function render(s){
  $("tm-char-conflict-results").hidden=false;
  $("tm-char-conflict-actions").hidden=!choice;
  if(choice){
-   // Una decisión debe ser manual, sin autoguardado durante el conflicto.
-   verified("tm.char.sync.enabled."+s.uid+"."+encodeURIComponent(s.pid),"0");
-   if(typeof window.__TM_SYNC_REFRESH__==="function")window.__TM_SYNC_REFRESH__();
+   // Mientras se compara, character-sync no sube nada (ve los resultados abiertos)
+   // y nunca sobrescribe una revisión que este celular no haya visto.
  }
  say(choice?"Hay dos versiones distintas. Ambas se respaldarán antes de cambiar cualquiera. No se mezclan objetos, XP ni mascotas.":
   "Las versiones contienen los mismos datos. No hace falta sustituir nada.",false);
@@ -163,7 +162,6 @@ async function recheck(s){
  return fresh;
 }
 function settle(s,rev,hash){
- verified("tm.char.sync.enabled."+s.uid+"."+encodeURIComponent(s.pid),"0");
  verified("tm.char.sync.base."+s.uid+"."+encodeURIComponent(s.pid),
    JSON.stringify({revision:Number(rev),fingerprint:hash}));
  store.setItem("tm.hub.character.revision."+s.uid+"."+encodeURIComponent(s.pid),String(rev));
@@ -176,6 +174,15 @@ async function useCloud(){
    summary(s.remote,"Supabase")+"\n\nSe reemplazará la partida activa del celular. Primero guardaremos AMBAS copias en el historial. ¿Continuar?"))return;
  await backupBoth(s);
  await recheck(s);
+ // Cerrar la sesión de juego ANTES de cargar. Si se carga con la sesión abierta,
+ // el personaje sigue en su posición antigua y el siguiente guardado la vuelve
+ // a escribir encima de la versión recuperada (error detectado en pruebas).
+ var pause=$("pause"),leave=$("btn-leave"),menu=$("menu");
+ if(pause&&!pause.hidden){
+   if(!leave)throw Error("No se pudo cerrar la partida en curso. No se cambió nada.");
+   leave.click();
+   if(!pause.hidden)throw Error("El juego no confirmó la salida. No se cambió nada; ambas versiones están respaldadas.");
+ }
  var input=$("import-in"),notice=$("save-status"),button=$("btn-import");
  input.value=toCode(s.remote.raw);
  notice.textContent="";
@@ -183,8 +190,10 @@ async function useCloud(){
  if(String(notice.textContent||"").trim()!=="Partida cargada.")
    throw Error("El motor no confirmó la restauración. El progreso anterior está respaldado.");
  settle(s,s.revision,s.remoteHash);
+ // Volver a entrar con una sesión NUEVA creada desde la partida recuperada.
+ if(menu&&!menu.hidden&&$("btn-solo"))$("btn-solo").click();
  if($("tm-hub-local"))$("tm-hub-local").textContent=summary(s.remote,"Partida recuperada");
- say("Recuperaste la versión de la nube. Se conservaron ambas en el historial. Autoguardado desactivado hasta que lo actives.",false);
+ say("Recuperaste la versión de la nube. Ambas versiones quedaron en el historial y el guardado automático sigue activo.",false);
 }
 async function useLocal(){
  var s=await unchanged();
@@ -211,7 +220,7 @@ async function useLocal(){
  }
  settle(s,saved.data.revision,s.localHash);
  say("Esta versión del celular quedó activa en Supabase, revisión "+saved.data.revision+
-   ". Ambas versiones permanecen respaldadas. Autoguardado desactivado hasta que lo actives.",false);
+   ". Ambas versiones quedaron respaldadas y el guardado automático sigue activo.",false);
 }
 async function run(task){
  if(busy)return;
