@@ -1468,8 +1468,34 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
   .toast { animation:none; }
 }
 </style>
+
+<style id="tm-rey-css">
+.tm-rey-chip {font-size:11px;padding:5px 9px;border:1px solid #bd9552;color:#ffe3a5;background:rgba(39,28,22,.84);pointer-events:auto;white-space:nowrap}
+.tm-rey-panel[hidden], .tm-rey-chip[hidden] {display:none!important}
+.tm-rey-panel {position:fixed;inset:0;z-index:12050;display:grid;place-items:center;background:rgba(4,9,19,.8);padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));overscroll-behavior:contain;touch-action:pan-y;pointer-events:auto}
+.tm-rey-window {width:min(96vw,460px);max-height:90dvh;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;background:linear-gradient(160deg,#192c37,#0d1523 68%);border:2px solid #bc9350;border-radius:13px;box-shadow:0 14px 55px #000a,inset 0 0 0 3px #273b48;color:#f4e9d7;padding:13px;font:13px/1.45 system-ui,sans-serif;user-select:text}
+.tm-rey-window header {display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:17px;letter-spacing:.08em;color:#ffe2a0}
+.tm-rey-window header button {min-width:44px;min-height:42px;border:1px solid #637684;background:#243545;color:#fff;border-radius:6px}
+.tm-rey-muted{color:#bed0d6;font-size:12px;margin:10px 0}
+.tm-rey-ring{position:relative;isolation:isolate;width:min(65vw,260px);height:210px;margin:8px auto 12px;background:radial-gradient(ellipse at center,#b28a4c33 0%,#28445c38 45%,transparent 70%)}
+.tm-rey-ring::before{content:"";position:absolute;inset:24px 23px;border:2px dotted #927a59;border-radius:50%;pointer-events:none}
+.tm-rey-ring::after{content:"♛";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:43px;color:#dfb968;text-shadow:0 2px 22px #ffd5687d;pointer-events:none}
+.tm-rey-slot{position:absolute;width:40px;height:40px;display:grid;place-items:center;transform:translate(-50%,-50%);border:2px solid var(--slime-color,#536375);background:rgba(14,24,32,.9);border-radius:50%;font-size:19px;color:var(--slime-color,#c6d1d6);font-weight:700;box-shadow:0 0 12px color-mix(in srgb,var(--slime-color,#536375) 42%,transparent);padding:0;pointer-events:auto}
+.tm-rey-slot:not(:disabled){cursor:pointer}
+.tm-rey-slot:nth-child(1){left:50%;top:7%}.tm-rey-slot:nth-child(2){left:74%;top:16%}.tm-rey-slot:nth-child(3){left:90%;top:37%}.tm-rey-slot:nth-child(4){left:90%;top:63%}.tm-rey-slot:nth-child(5){left:74%;top:84%}.tm-rey-slot:nth-child(6){left:50%;top:93%}.tm-rey-slot:nth-child(7){left:26%;top:84%}.tm-rey-slot:nth-child(8){left:10%;top:63%}.tm-rey-slot:nth-child(9){left:10%;top:37%}.tm-rey-slot:nth-child(10){left:26%;top:16%}
+.tm-rey-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;max-height:160px;overflow-y:auto;touch-action:pan-y}
+.tm-rey-pet{border:1px solid var(--slime-color,#799da1);color:#f2e8d6;background:#1b2b36;border-radius:5px;min-height:42px;white-space:normal;text-align:left;padding:8px;line-height:1.3;font-size:11px}
+.tm-rey-pet:disabled{opacity:.42}
+.tm-rey-actions{display:grid;gap:8px;margin-top:12px}
+.tm-rey-actions button{min-height:44px;border-radius:5px;border:1px solid #a18c5c;background:#72542a;color:#fff0c4;font-weight:700}
+.tm-rey-actions button:disabled{opacity:.44}
+.tm-rey-foot{font-size:10px;margin:8px 0 0}
+@media(orientation:portrait) and (max-width:480px){.tm-rey-window{padding:10px}.tm-rey-window header{font-size:14px}.tm-rey-ring{height:188px}.tm-rey-slot{height:38px;width:38px}.tm-rey-list{grid-template-columns:1fr;max-height:135px}.tm-rey-chip{font-size:10px;padding:4px 7px}}
+@media(prefers-reduced-motion:reduce){.tm-rey-slot{animation:none!important}}
+</style>
 <script src="three.min.js?v=r128"></script>
-<script src="game.js?v=beta-isolated-20261110"></script>
+<script src="rey-slime.js?v=king-20261113-v1"></script>
+<script src="game.js?v=beta-king-20261113-v1"></script>
 <script src="account-center.js?v=tm-autosave-20261112-v7"></script>
 <script src="entry-gate.js?v=tm-ux-video-fixed-20261111-v11"></script>
 <script src="character-sync.js?v=tm-autosave-20261112-v3"></script>
