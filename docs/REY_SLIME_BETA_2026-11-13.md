@@ -24,3 +24,7 @@
 - QA manual: domar diez slimes, comprobar colores, colocar y retirar sin duplicar, iniciar ritual y observar la fusión, atacar rey, cerrar/abrir durante combate, vencer, elegir perdón y comprobar ataque de aliado, realizar otro ritual y elegir arma. Exportar TM1, reimportar en otro dispositivo, comprobar exactamente una copia de cada recompensa.
 - Ejecutar las 28 pruebas existentes de autoguardado y validar no regresión en navegación móvil y en partida cooperativa. **No se consideran aprobadas automáticamente sin ejecutarlas.**
 - Branch de implementación separada; no tocar `main` ni producción hasta aceptación.
+
+## Activación de seguridad
+
+El Rey Slime se habilita **solo** desde `https://vangelium.github.io/torre-multiversal./beta/?rey=1`. La beta habitual `/beta/` conserva el flujo anterior; el nuevo módulo está cargado pero no se instala sin `rey=1`. No se modifican los archivos raíz del juego público.
