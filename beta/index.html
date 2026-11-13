@@ -1430,12 +1430,51 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
   </div>
  </div>
 </section>
+<style id="tm-hud-calm">
+/* ── Pantalla tranquila en vertical (13-11-2026) ──
+   Objetivo: que el HUD de arriba ocupe ~1/5 de la pantalla en vez de ~1/3
+   y que nada tape al personaje. Solo se pliega información, no se quita. */
+@media (orientation: portrait) and (max-width: 600px) {
+  .hud-left-stack { gap:4px; width:min(220px,52vw); }
+  /* Vida y nivel: más bajos y algo transparentes */
+  .hud .vital { padding:3px 6px; background:rgba(14,17,24,.7); }
+  /* Meta: una sola línea «Conoce el valle · 0/3» */
+  .hud .goal-tracker { display:flex; align-items:center; gap:6px; min-height:28px; padding:3px 7px;
+    background:rgba(14,17,24,.68); box-shadow:none; line-height:1.2; }
+  .hud .goal-tracker .goal-eyebrow { order:2; margin-left:auto; font-size:0; letter-spacing:0; }
+  .hud .goal-tracker .goal-eyebrow b { font-size:10px; }
+  .hud .goal-tracker strong { order:1; font-size:11px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hud .goal-tracker strong::before { content:"◆ "; color:var(--gold); }
+  .hud .goal-tracker #goal-progress, .hud .goal-tracker #goal-next { display:none; }
+  /* Al cambiar la meta se despliega 6 s y vuelve a una línea */
+  .hud .goal-tracker.tm-hud-open { display:grid; gap:2px; min-height:0; padding:5px 8px; background:rgba(14,17,24,.88); }
+  .hud .goal-tracker.tm-hud-open .goal-eyebrow { order:0; margin:0; font-size:9px; }
+  .hud .goal-tracker.tm-hud-open #goal-progress { display:block; order:2; font-size:10px; }
+  /* Expedición: una línea con puntos suspensivos */
+  .hud .expedition-hud { min-height:26px; padding:3px 7px; font-size:10px; line-height:1.3;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:rgba(14,17,24,.68); box-shadow:none; }
+  .hud .expedition-hud.tm-hud-open { white-space:normal; background:rgba(14,17,24,.88); }
+  /* Objetivo fijado: a la misma altura que la vida, a la derecha, más compacto */
+  .hud .target-frame { top:calc(env(safe-area-inset-top,0px) + 60px); width:min(176px,calc(48vw - 20px));
+    padding:3px 6px 4px; background:rgba(14,17,24,.72); box-shadow:none; }
+  .hud .target-frame .combo-strip b { display:none; }
+  .floor-tag { top:calc(env(safe-area-inset-top,0px) + 112px); }
+  /* Avisos: más pequeños, bajo los paneles y como máximo dos a la vez */
+  .toasts { top:calc(env(safe-area-inset-top,0px) + 214px); width:min(86vw,360px); gap:4px; }
+  .toast { padding:4px 9px; font-size:11px; line-height:1.3; background:rgba(14,17,24,.86); box-shadow:none; }
+  .toast:not(:nth-last-child(-n+2)) { display:none; }
+}
+@media (orientation: portrait) and (max-width: 600px) and (prefers-reduced-motion: reduce) {
+  .toast { animation:none; }
+}
+</style>
 <script src="three.min.js?v=r128"></script>
 <script src="game.js?v=beta-isolated-20261110"></script>
 <script src="account-center.js?v=tm-autosave-20261112-v7"></script>
 <script src="entry-gate.js?v=tm-ux-video-fixed-20261111-v11"></script>
 <script src="character-sync.js?v=tm-autosave-20261112-v3"></script>
 <script src="conflict-center.js?v=tm-conflicts-20261112-v2"></script>
+<script src="hud-calm.js?v=tm-hud-calm-20261113-v1"></script>
 
 </body>
 </html>

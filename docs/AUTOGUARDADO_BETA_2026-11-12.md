@@ -33,3 +33,21 @@ pausa en cooperativo. Sin cambios en Supabase (tablas, RLS ni triggers).
 ## Pruebas
 `tests/beta-sync/test_dos_celulares.py`: 28/28 en Chromium con nube simulada.
 Pendiente: prueba con dos celulares reales contra el Supabase real.
+
+---
+
+# Pantalla tranquila en vertical · beta · 13-11-2026
+
+Pedido de Yonnah: en vertical hay demasiado texto y a veces tapa al personaje.
+
+- `beta/hud-calm.js` (nuevo) + bloque de estilos `#tm-hud-calm` en `beta/index.html`.
+  Solo actúa en celular vertical (ancho ≤ 600 px); en horizontal no cambia nada.
+- La meta y la expedición ocupan una línea cada una. Al cambiar (o al entrar
+  al mundo) se despliegan 6–7 s y vuelven a una línea. Tocarlas abre la
+  ventana completa, igual que antes.
+- El objetivo fijado sube a la altura de la vida, más compacto; el texto del
+  combo se oculta en vertical (los indicadores 1·2·3 se mantienen).
+- Avisos más pequeños, debajo de los paneles, máximo dos a la vez.
+- Paneles algo transparentes para ver el mundo detrás.
+- Resultado: la zona ocupada arriba baja de ~240 px a ~160 px (pantalla de 860 px).
+- Nada se elimina: toda la información sigue a un toque.
