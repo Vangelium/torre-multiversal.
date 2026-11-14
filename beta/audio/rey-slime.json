@@ -1,0 +1,7 @@
+{
+  "title": "Guardian's Awakening",
+  "track": null,
+  "volume": 0.9,
+  "loopStart": 0,
+  "_instrucciones": "Para usar la pista final: sube el archivo a beta/audio/ (por ejemplo guardians-awakening.mp3) y escribe su nombre en \"track\". Con \"track\": null suena la pista temporal sintetizada. loopStart = segundo donde vuelve a empezar el bucle."
+}

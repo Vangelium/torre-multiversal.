@@ -1,0 +1,126 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+body{margin:0;background:#121620;color:#f3ead6;font:14px/1.4 ui-monospace,Menlo,monospace}
+.sheet{width:min(1150px,100%);padding:22px 24px 26px;box-sizing:border-box}
+h1{margin:0;font-size:26px;letter-spacing:.06em;color:#ffe17a}
+h1 small{display:block;font-size:12px;letter-spacing:.3em;color:#e8b04a;margin-bottom:4px}
+.intro{color:#cfc6b2;margin:6px 0 14px;font-size:13px}
+.row{display:flex;gap:12px;align-items:flex-end;margin:0 0 14px;flex-wrap:wrap}
+.lab{font-size:11px;letter-spacing:.18em;color:#e8b04a;margin:14px 0 6px;border-bottom:1px solid #2a3346;padding-bottom:3px}
+figure{margin:0;background:#1c2535;border:2px solid #050608;box-shadow:inset 0 0 0 2px #35465e;position:relative;min-width:0;max-width:100%}
+figure.dark{background:#1b2131;box-shadow:inset 0 0 0 2px #2a3346}
+figcaption{position:absolute;left:4px;bottom:3px;font-size:10px;color:#fff;text-shadow:0 1px 0 #000,1px 0 0 #000,-1px 0 0 #000}
+canvas{display:block;image-rendering:pixelated;max-width:100%;height:auto}
+.sw{display:flex;gap:3px;align-items:center}.sw i{width:26px;height:26px;display:block;border:1px solid #050608}
+.sw span{font-size:11px;color:#cfc6b2;margin-right:10px}
+.notes{columns:2;gap:24px;font-size:12px;color:#cfc6b2}.notes p{margin:0 0 6px;break-inside:avoid}
+.notes b{color:#ffe9b0}
+</style></head><body>
+<script src="rey-art.js"></script><script src="rey-formas.js"></script>
+<div id="root"></div>
+<script>
+const A=TMReyArt,F=TMReyFormas,root=document.getElementById('root');
+const mode=new URLSearchParams(location.search).get('m')||'II';
+const azul={hue:'azul',mix:[0,10,0]};
+function el(t,c,h){const e=document.createElement(t);if(c)e.className=c;if(h!==undefined)e.innerHTML=h;return e}
+function fig(w,h,scale,draw,cap,dark){const px=new A.Px(w,h);draw(px);for(let i=3;i<px.d.length;i+=4)if(px.d[i])px.d[i]=255;const c=px.canvas(),k=document.createElement('canvas');k.width=w*scale;k.height=h*scale;const g=k.getContext('2d');g.imageSmoothingEnabled=false;g.drawImage(c,0,0,k.width,k.height);const f=el('figure',dark?'dark':'');f.append(k);if(cap)f.append(el('figcaption','',cap));return f}
+function silhouette(px,w,h){for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(px.alpha(x,y))px.set(x,y,'#0e1118')}
+function swatch(row,name,cols){const d=el('div','sw');d.append(el('span','',name));cols.forEach(c=>{const i=el('i');i.style.background=c;d.append(i)});row.append(d)}
+function line(px,x0,y0,x1,y1,c,a=255){const n=Math.max(Math.abs(x1-x0),Math.abs(y1-y0))||1;for(let i=0;i<=n;i++)px.set(Math.round(x0+(x1-x0)*i/n),Math.round(y0+(y1-y0)*i/n),c,a)}
+function drops(px,x,y,n,hue,spread,dir){const p=A.PAL[hue];for(let i=0;i<n;i++){const xx=Math.round(x+dir*(i*4+((i*7)%3))),yy=Math.round(y+Math.sin(i*1.7)*spread);px.set(xx,yy,p[4]);px.set(xx+1,yy,p[3]);px.set(xx,yy+1,p[2]);px.set(xx+1,yy+1,p[2]);if(i%2)px.set(xx-dir,yy,p[5])}}
+const B=F.BEAST,T=F.TITAN;
+function sheetII(){
+ const s=el('div','sheet');root.append(s);
+ s.append(el('h1','','<small>REY SLIME · CORAZÓN DEL ALBA · BORRADOR PARA APROBAR</small>FORMA II — BESTIA GELATINOSA'));
+ s.append(el('p','intro','Cuadrúpedo de gelatina translúcida: pecho alto, cresta de púas del cuello a la cadera, cola que sube y termina en una maza de púas, patas con dedos, fauces abiertas con colmillos y ojo incandescente. La corona va ladeada. Dentro flotan burbujas del color de cada limo fusionado y esencia violeta del ritual. Deja un charco de gel al pisar. Hasta 10 clones.'));
+ s.append(el('div','lab','SILUETA · PALETA'));
+ let r=el('div','row');s.append(r);
+ r.append(fig(B.W,B.H,2,p=>{F.drawBeast(p,0,0,azul,{});silhouette(p,B.W,B.H)},'silueta',true));
+ const pal=el('div');pal.style.cssText='display:grid;gap:8px;align-self:center';r.append(pal);
+ swatch(pal,'gel (según los limos)',F.GEL.azul);swatch(pal,'burbujas',[...F.BUBBLE.violeta.slice(1,4),...F.BUBBLE.verde.slice(1,4),...F.BUBBLE.rosa.slice(1,4)]);swatch(pal,'fauces',F.MOUTH);swatch(pal,'corona',A.PAL.gold.slice(1));
+ s.append(el('div','lab','REPOSO (respira, mueve la cola)'));
+ r=el('div','row');s.append(r);
+ [[0,0],[0.5,.12],[1,.24],[0.5,.12]].forEach(([b,c],i)=>r.append(fig(B.W,B.H,2,p=>F.drawBeast(p,0,0,azul,{breath:b,tailCurl:c,t:i*.25}),'idle '+(i+1))));
+ s.append(el('div','lab','ATAQUES'));
+ r=el('div','row');s.append(r);
+ r.append(fig(B.W,B.H,2,p=>F.drawBeast(p,0,0,azul,{crouch:1,spines:.2}),'megasalto · carga'));
+ r.append(fig(B.W,B.H,2,p=>{F.drawBeast(p,0,0,azul,{stretch:1,lift:12,jaw:.8});drops(p,10,80,6,'azul',1,1)},'megasalto · vuelo'));
+ r.append(fig(B.W,B.H,2,p=>F.drawBeast(p,0,0,azul,{jaw:1,stretch:.35,headX:4,headY:4}),'mordisco / embestida'));
+ r.append(fig(B.W,B.H,2,p=>F.drawBeast(p,0,0,azul,{spines:1,crouch:.6}),'espinas'));
+ r=el('div','row');s.append(r);
+ r.append(fig(B.W,B.H,2,p=>{const o={inflate:1,jaw:1,headY:-2};F.drawBeast(p,0,0,azul,o);const h=F.beastParts(o).head,mx=h.x+20,my=h.y+10;
+   for(let k=0;k<6;k++){const a=-0.9+k*0.36;for(let i=0;i<4;i++){const d=8+i*7+k%2*3,x=Math.round(mx+Math.cos(a)*d),y=Math.round(my+Math.sin(a)*d*0.9);const c=A.PAL[['azul','verde','rosa'][k%3]];p.set(x,y,c[4]);if(i<2)p.set(x+1,y,c[5]);if(i===3){p.set(x,y+1,c[3]);p.set(x+1,y+1,c[3])}}}},'absorción (traga masa y limos)'));
+ r.append(fig(B.W,B.H,2,p=>{const o={jaw:1,inflate:.3,headY:2,headX:-2};F.drawBeast(p,0,0,azul,o);const h=F.beastParts(o).head,mx=Math.round(h.x+22),my=Math.round(h.y+10),c=F.GEL.azul.slice(1);
+   for(let y=-6;y<=6;y++)for(let x=-6;x<=6;x++){const d=Math.hypot(x,y);if(d<=6)p.set(mx+14+x,my+y,d<2.5?c[5]:d<4.5?c[4]:c[3])}
+   for(let i=0;i<10;i++){p.set(mx+i,my+((i%3)-1),c[4]);p.set(mx+i,my+((i%3)-1)+1,c[2])}
+   p.outline(0,0,B.W,B.H,()=> '#1d1712')},'expulsión (escupe una bola de gel)'));
+ s.append(el('div','lab','TRANSFORMACIÓN I → II (la masa se estira, brotan patas, cola y cresta)'));
+ r=el('div','row');s.append(r);
+ [0,.35,.7,1].forEach(k=>r.append(fig(B.W,B.H,2,p=>F.drawMorphI_II(p,0,0,azul,k),k===0?'Forma I':k===1?'Forma II':Math.round(k*100)+' %')));
+ s.append(el('div','lab','RESPONDE A LOS DIEZ LIMOS'));
+ r=el('div','row');s.append(r);
+ [[{hue:'verde',mix:[10,0,0]},'10 verdes'],[{hue:'rosa',mix:[3,0,7]},'7 rosas + 3 verdes'],[{hue:'azul',mix:[0,5,5]},'5 azules + 5 rosas (híbrido)'],[{hue:'verde',mix:[4,3,3]},'4 · 3 · 3 (vetas)']].forEach(([sp,c])=>r.append(fig(B.W,B.H,2,p=>F.drawBeast(p,0,0,sp,{}),c)));
+}
+function sheetIII(){
+ const s=el('div','sheet');root.append(s);
+ s.append(el('h1','','<small>REY SLIME · CORAZÓN DEL ALBA · BORRADOR PARA APROBAR</small>FORMA III — REY HUMANOIDE'));
+ s.append(el('p','intro','Coloso de gelatina translúcida: torso en V, pectorales y abdominales marcados, cintura estrecha, antebrazos anchos y puños gigantes con nudillos. Hombreras de armiño con colitas negras, broches de oro con rubí unidos por una cadena, capa púrpura con ribete dorado. Ojos incandescentes furiosos y dientes apretados. Hasta 20 clones. Ataque firma: Puñetazo del Rey.'));
+ s.append(el('div','lab','SILUETA · PALETA'));
+ let r=el('div','row');s.append(r);
+ r.append(fig(T.W,T.H,2,p=>{F.drawTitan(p,0,0,azul,{});silhouette(p,T.W,T.H)},'silueta',true));
+ const pal=el('div');pal.style.cssText='display:grid;gap:8px;align-self:center';r.append(pal);
+ swatch(pal,'gel (según los limos)',F.GEL.azul);swatch(pal,'capa',F.CAPE);swatch(pal,'armiño',F.ERMINE);swatch(pal,'corona · ribete',A.PAL.gold.slice(1));
+ s.append(el('div','lab','REPOSO (respira, la capa se mece)'));
+ r=el('div','row');s.append(r);
+ [[0,0],[1,.6],[0,1]].forEach(([b,w],i)=>r.append(fig(T.W,T.H,2,p=>F.drawTitan(p,0,0,azul,{breath:b,sway:w,t:i*.3}),'idle '+(i+1))));
+ s.append(el('div','lab','PUÑETAZO DEL REY — 3 TIEMPOS (se lee y se puede esquivar)'));
+ r=el('div','row');s.append(r);
+ r.append(fig(T.W,T.H,2,p=>F.drawTitan(p,0,0,azul,{right:'charge',glow:1,crouch:.4,t:.2}),'1 · carga (puño brilla)'));
+ r.append(fig(T.W,T.H,2,p=>{const gy=T.G-12,x0=T.CX+48;
+   for(let i=0;i<4;i++){const x=x0+i*13;for(let k=0;k<6;k++){p.set(x+k,gy-6+k,'#ff9a62');p.set(x+k,gy+6-k,'#ff9a62');p.set(x+k+1,gy-6+k,'#e0585c');p.set(x+k+1,gy+6-k,'#e0585c')}}
+   F.drawTitan(p,0,0,azul,{right:'charge',glow:1.5,crouch:.6,t:.5})},'2 · dirección (flecha en el suelo)'));
+ r=el('div','row');s.append(r);
+ r.append(fig(330,T.H,2,p=>{const r=F.titanParts({right:'punch'}),ax=Math.round(r.fistR.x+4),gy=T.G-14;
+   const tree=(x,broken)=>{const L=A.PAL.leaf||['#0c241a','#19472a','#337838','#6fb14b','#a3d064'];const bark=['#2f1f15','#5d422b','#93704b'];
+     for(let y=0;y<14;y++)for(let k=-2;k<=2;k++)p.set(x+k,gy-y,bark[k<0?2:k>0?0:1]);
+     if(!broken){for(let y=-14;y<=14;y++)for(let k=-14;k<=14;k++){const d=Math.hypot(k,y*1.1);if(d<13)p.set(x+k,gy-30+y,['#19472a','#235e31','#337838','#4b9440','#6fb14b'][Math.max(0,Math.min(4,Math.floor(3-(k+y)/9+((k*7+y*3)%3)*.3)))])}}
+     else{for(let i=0;i<4;i++){p.set(x-3+i,gy-14-(i%2),'#ad8a5f')}for(let y=-9;y<=9;y++)for(let k=-12;k<=12;k++){const d=Math.hypot(k,y*1.3);if(d<11)p.set(x+20+k,gy-6+y,['#19472a','#235e31','#337838','#4b9440'][Math.max(0,Math.min(3,Math.floor(2-(k+y)/9)))])}for(let k=0;k<12;k++){p.set(x+4+k,gy-8+(k>>2),'#5d422b')}}};
+   const spread=26/(330-ax);for(let y=gy-44;y<=gy+16;y++)for(let x=ax;x<330;x++){const d=x-ax,half=d*spread;const dy=Math.abs(y-(gy-14));if(dy>half)continue;const edge=dy>half-1.2;if(edge)p.set(x,y,'#e0585c');else if(((x+y)&1)===0&&((x>>1)+(y>>1))%2===0)p.set(x,y,'#ff9a62')}
+   tree(220,true);tree(300,true);tree(250,false);
+   F.drawTitan(p,0,0,azul,{right:'punch',t:.8});
+   const fx=Math.round(r.fistR.x+12),fy=Math.round(r.fistR.y);for(let a=-3;a<=3;a++)for(const rr of [18,24,30]){const x=Math.round(fx+Math.cos(a*0.22)*rr),y=Math.round(fy+Math.sin(a*0.22)*rr);if(!p.alpha(x,y))p.set(x,y,'#fff4c4',192)}},'3 · impacto en cono: los árboles dentro del cono se rompen; los de fuera, no'));
+ s.append(el('div','lab','OTROS GOLPES'));
+ r=el('div','row');s.append(r);
+ r.append(fig(T.W,T.H,2,p=>F.drawTitan(p,0,0,azul,{left:'up',right:'up',crouch:.2}),'martillo doble'));
+ r.append(fig(T.W,T.H,2,p=>F.drawTitan(p,0,0,azul,{left:'punch',crouch:.3}),'gancho izquierdo'));
+ s.append(el('div','lab','TRANSFORMACIÓN II → III (la masa se alza, nacen brazos, puños y capa)'));
+ r=el('div','row');s.append(r);
+ [.15,.45,.75,1].forEach(k=>r.append(fig(T.W,T.H,2,p=>F.drawTitan(p,0,0,azul,{morph:k,crouch:(1-k)*.8}),k===1?'Forma III':Math.round(k*100)+' %')));
+ s.append(el('div','lab','RESPONDE A LOS DIEZ LIMOS'));
+ r=el('div','row');s.append(r);
+ [[{hue:'verde',mix:[10,0,0]},'10 verdes'],[{hue:'rosa',mix:[3,0,7]},'7 rosas + 3 verdes'],[{hue:'azul',mix:[0,5,5]},'híbrido azul/rosa'],[{hue:'azul',mix:[2,6,2]},'azul con vetas']].forEach(([sp,c])=>r.append(fig(T.W,T.H,2,p=>F.drawTitan(p,0,0,sp,{}),c)));
+}
+function sheetScale(){
+ const s=el('div','sheet');s.style.width='min(1340px,100%)';root.append(s);
+ s.append(el('h1','','<small>REY SLIME · CORAZÓN DEL ALBA · BORRADOR PARA APROBAR</small>ESCALA DE LAS TRES FORMAS'));
+ s.append(el('p','intro','Tamaño REAL en el juego (16 px = 1 unidad), con las proporciones de tu hoja de escala: la Forma II mide ≈ 2× al jugador de alto y ≈ 3× de largo; la Forma III ≈ 3,8×. Las hojas de detalle se muestran ampliadas para revisar el dibujo; en el juego cada pose se redibuja a este tamaño (no se encoge la imagen).'));
+ const W=560,H=128,G=122;
+ const f=fig(W,H,2,p=>{
+   // jugador (silueta)
+   const pl=['..###..','.#####.','.#####.','..###..','.#####.','#######','#######','#.###.#','#.###.#','..###..','..#.#..','..#.#..','..#.#..','.##.##.'];
+   pl.forEach((row,j)=>[...row].forEach((c,i)=>{if(c==='#'){p.set(14+i*2,G-28+j*2,'#8b95a1');p.set(15+i*2,G-28+j*2,'#8b95a1');p.set(14+i*2,G-27+j*2,'#8b95a1');p.set(15+i*2,G-27+j*2,'#8b95a1')}}));
+   const sheet=A.kingSheet(azul,64),g=sheet.canvas.getContext('2d'),img=g.getImageData(0,0,64,64);
+   for(let y=0;y<64;y++)for(let x=0;x<64;x++){const j=(y*64+x)*4;if(img.data[j+3])p.set(40+x,G-61+y,[img.data[j],img.data[j+1],img.data[j+2]],img.data[j+3])}
+   F.drawBeast(p,60,G-B.G,azul,{scale:F.SCALE.beast});
+   F.drawTitan(p,200,G-T.G,azul,{scale:F.SCALE.titan});
+   F.drawTitan(p,340,G-T.G,azul,{scale:F.SCALE.titan,right:'punch'});
+   // Rejilla de 1 unidad SOLO en el fondo (después de las figuras).
+   for(let y=0;y<H;y+=16)for(let x=0;x<W;x+=2)if(!p.alpha(x,G-y))p.set(x,G-y,'#2b6e30');
+   for(let x=0;x<W;x++){p.set(x,G+1,'#16391f');p.set(x,G+2,'#16391f')}
+ },'',false);
+ s.append(f);
+ const n=el('div','notes','<p><b>Jugador</b> = referencia (≈ 28 px).</p><p><b>Forma I · Rey clásico</b> ≈ 1,7× el jugador. Redondo, elástico (ya está en la beta).</p><p><b>Forma II · Bestia</b> ≈ 2× de alto y ≈ 3× de largo. Sus saltos cruzan la arena.</p><p><b>Forma III · Rey humanoide</b> ≈ 3,8× de alto. Con el puñetazo extendido el cono del golpe nace ≈ 2,5 u a su lado.</p><p>Los números de daño, enfriamientos y vida para transformarse (propuesta 66 % y 33 %) se ajustan en pruebas.</p><p>Ninguna de estas formas está programada todavía: es el arte para aprobar.</p>');
+ n.style.marginTop='14px';s.append(n);
+}
+({II:sheetII,III:sheetIII,escala:sheetScale})[mode]();
+</script></body></html>
