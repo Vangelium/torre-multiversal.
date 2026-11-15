@@ -288,7 +288,10 @@ body.tm-gl-snap canvas { animation: tmGlSnap .28s steps(4) 1; }
       if (v && v.maxHp) v.hp = v.maxHp;
       this.grieta = null; this.onGrieta = 0;
       this.sfx('open');
-      this.toast(`Fragmento de Realidad (${n + 1}). «${API.loreLine(n)}»`, 'gold', 7000);
+      // Los fragmentos también recuerdan dónde duerme la Corona (si el Rey está en la beta).
+      let hint = '';
+      try { const rey = root.__TM_REY_CONTROLLER__; if (rey && rey.ritual) hint = rey.ritual.hint(s.avatar); } catch (_) { /* opcional */ }
+      this.toast(`Fragmento de Realidad (${n + 1}). «${API.loreLine(n)}»${hint ? ' ' + hint : ''}`, 'gold', 8000);
       this.reset(true);
     }
     toast(t, kind = 'gold', ms = 4200) { if (this.app.ui && this.app.ui.toast) this.app.ui.toast(t, kind, ms); }

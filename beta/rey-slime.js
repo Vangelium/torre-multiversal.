@@ -94,7 +94,7 @@
       const q = validPiece(p);
       if (q && !seen.has(q.uid)) { pieces.push(q); seen.add(q.uid); }
     }
-    const r = { v: 1, pieces, cycle: Math.floor(clamp(o.cycle, 0, 100000)), stage: 'collect', king: null, ally: null, history: [] };
+    const r = { v: 1, pieces, cycle: Math.floor(clamp(o.cycle, 0, 100000)), stage: 'collect', king: null, ally: null, history: [], rite: normalizeRite(o.rite) };
     const k = o.king;
     if (k && typeof k === 'object' && HUES.includes(k.hue) && Array.isArray(k.mix) && k.mix.length === 3) {
       const mix = k.mix.map(x => Math.floor(clamp(x, 0, LIMIT)));
@@ -119,6 +119,41 @@
       if (h && ['aliado', ...WEAPONS].includes(h.reward) && Number.isInteger(h.seed)) r.history.push({ seed: Math.floor(clamp(h.seed, 1, 2147483647)), reward: h.reward });
     }
     return r;
+  }
+  // ── Ritual de mundo (fase E): Charca del Primer Reflejo, Cuenco y Trono ──
+  const RECIPE = Object.freeze({ stone: 6, gel: 4, lunar: 2 });
+  const MAT_CAP = 30;
+  const CLUES = Object.freeze({ prints: 1, stone1: 2, stone2: 4, stone3: 8, all: 15 });
+  function normalizeRite(raw) {
+    const w = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+    const crown = w.crown && typeof w.crown === 'object' && /^corona-[a-z0-9-]{1,40}$/.test(w.crown.id || '') ? { id: w.crown.id, at: Math.floor(clamp(w.crown.at, 0, 9e15)) } : null;
+    return {
+      clues: Math.floor(clamp(w.clues, 0, CLUES.all)), crown, crownPlaced: w.crownPlaced === true && !!crown, bowl: w.bowl === true,
+      stone: Math.floor(clamp(w.stone, 0, MAT_CAP)), gel: Math.floor(clamp(w.gel, 0, MAT_CAP))
+    };
+  }
+  /** Fabrica el Cuenco en una sola operación: o se consume todo y nace el cuenco, o no cambia nada. */
+  function craftBowl(rite, food) {
+    const r = normalizeRite(rite), lunar = Math.max(0, (food && food.lunar) | 0);
+    if (r.bowl) return { ok: false, why: 'ya-instalado', rite: r, lunar };
+    const miss = [];
+    if (r.stone < RECIPE.stone) miss.push('piedras lisas'); if (r.gel < RECIPE.gel) miss.push('gel de slime'); if (lunar < RECIPE.lunar) miss.push('hongos lunares');
+    if (miss.length) return { ok: false, why: 'faltan', miss, rite: r, lunar };
+    return { ok: true, rite: { ...r, stone: r.stone - RECIPE.stone, gel: r.gel - RECIPE.gel, bowl: true }, lunar: lunar - RECIPE.lunar };
+  }
+  /** El Trono necesita la Corona en el centro y el Cuenco instalado (más los diez slimes). */
+  function throneReady(rite) {
+    const r = normalizeRite(rite);
+    if (!r.crown) return { ok: false, why: 'sin-corona' };
+    if (!r.crownPlaced) return { ok: false, why: 'corona-sin-colocar' };
+    if (!r.bowl) return { ok: false, why: 'sin-cuenco' };
+    return { ok: true };
+  }
+  /** La charca responde al amanecer, o de noche si llevas una antorcha equipada. */
+  function reflectionLit(time, torch) {
+    if (!time) return false;
+    const f = +time.f, dawn = time.phase === 'amanecer' || (f >= 0.2 && f <= 0.32);
+    return dawn || (!!time.night && !!torch);
   }
   function levelOf(p) { return Math.max(1, Math.min(20, (p.lv || 1) + Math.floor((p.bond || 0) / 12) + (p.el ? 2 : 0))); }
   function compose(pieces, seed = 1) {
@@ -265,7 +300,7 @@
     return (vx * dx + vy * dy) / (d * n) >= Math.cos(half);
   }
 
-  const API = { LIMIT, HUES, WEAPONS, WEAPON_INFO, FORMS, FORM_AT, LINEAGES, fragmentOf, lineageOf, normalize, validPiece, petRecord, compose, colorsOf, partialMix, chooseWeapon, takePiece, giveBack, pickAttack, pickAttackII, pickAttackIII, formOf, formFloor, formCeil, gateHp, directClones, inCone, pedestalPos, variantName };
+  const API = { RECIPE, MAT_CAP, CLUES, normalizeRite, craftBowl, throneReady, reflectionLit, LIMIT, HUES, WEAPONS, WEAPON_INFO, FORMS, FORM_AT, LINEAGES, fragmentOf, lineageOf, normalize, validPiece, petRecord, compose, colorsOf, partialMix, chooseWeapon, takePiece, giveBack, pickAttack, pickAttackII, pickAttackIII, formOf, formFloor, formCeil, gateHp, directClones, inCone, pedestalPos, variantName };
   if (typeof module !== 'undefined' && module.exports) { module.exports = API; return; }
   if (!root.document) return;
 
@@ -584,6 +619,7 @@
             <h3 class="tm-rey-h">Tus limos domados</h3>
             <div class="tm-rey-list" id="tm-rey-list"></div>
             <div class="tm-rey-actions">
+              <div class="tm-rey-rite" id="tm-rey-rite"></div>
               <label class="tm-rey-confirm" id="tm-rey-confirm" hidden><input type="checkbox" id="tm-rey-confirm-box"><span></span></label>
               <button type="button" class="tm-rey-go" id="tm-rey-summon"><span>Mantén pulsado para invocar</span></button>
             </div>
@@ -690,6 +726,8 @@
       this.free = []; // Fragmentos Rebeldes que sobrevivieron al Rey (sesión)
       // Formas II y III (transformaciones, IA y clones): módulo aparte.
       this.forms = root.TMReyCombate ? new root.TMReyCombate(this) : null;
+      // Ritual de mundo (fase E): Charca, Corona, Cuenco y Trono.
+      this.ritual = root.TMReyRitual ? new root.TMReyRitual(this) : null;
       this.initUI(); this.hook();
     }
     // ── Estado guardado ──
@@ -805,9 +843,12 @@
       const origOverlay = a._overlayOpen;
       a._overlayOpen = function () { return origOverlay.call(a) || self.blocking(); };
       const origNear = a._nearArmory;
-      a._nearArmory = function () { return origNear.call(a) || self.nearSanctuary(); };
+      a._nearArmory = function () { return origNear.call(a) || self.nearSanctuary() || !!(self.ritual && self.ritual.near()); };
       const origInteract = a.interact;
       a.interact = function () {
+        if (a.mode === 'game' && a.session && !a._overlayOpen() && !a.session.nearPortal() && !origNear.call(a) && self.ritual && self.ritual.near()) {
+          self.ritual.interact(); return;
+        }
         if (a.mode === 'game' && a.session && !a._overlayOpen() && !a.session.nearPortal() && !origNear.call(a) && self.nearSanctuary()) {
           self.interact(); return;
         }
@@ -863,6 +904,7 @@
           const r = apply.apply(this, arguments);
           if (target && target.royal && self.forms) { try { self.forms.gate(target, before, r, this, n); } catch (err) { self.fail(err); } }
           if (target && target.reyMinion && r && r.killed && this.kills.length > n) this.kills.splice(n);
+          if (target && r && r.killed && self.ritual) { try { self.ritual.onKill(target); } catch (err) { self.fail(err); } }
           return r;
         };
       }
@@ -893,6 +935,7 @@
       this.hookWorld(sess.world); this.hookSession(sess);
       if (!this.findCenter()) return;
       this.ensureObstacles(true);
+      if (this.ritual) this.ritual.tick(dt);
       // Descubrimiento del santuario.
       const d = this.distToCenter();
       if (d < SANCTUARY.near && !this.found) {
@@ -1304,6 +1347,7 @@
       if (!this.solo()) return;
       const s = this.state();
       if (!s || s.stage !== 'collect' || s.pieces.length !== LIMIT) { this.notice('Coloca diez limos diferentes antes de invocar.'); return; }
+      if (this.ritual && !throneReady(s.rite).ok) { this.notice('El Trono necesita la Corona en el centro y el Cuenco de Convergencia.', 'bad'); return; }
       const c = this.findCenter();
       const seed = 1 + (Math.floor(Date.now() / 1000) + s.cycle * 8191) % 2147483645;
       const boss = compose(s.pieces, seed);
@@ -1445,6 +1489,7 @@
         this.cine.slow = 1;
       }
       this.drawSanctuary(dt, s, zAt);
+      if (this.ritual) this.ritual.draw(dt, zAt);
       this.drawKing(dt, s, zAt);
       if (this.forms && !this.cine) this.forms.camera(dt);
       this.drawAlly(dt, s, zAt);
@@ -2037,7 +2082,10 @@
         conf.querySelector('span').textContent = `Entiendo que perderé para siempre a ${names} (${dear.some(p => p.pet && p.pet.royalFragment) ? 'fragmentos reales o ' : ''}compañeros de vínculo alto).`;
       }
       if (!box.__tm) { box.__tm = true; box.addEventListener('change', () => this.refresh(true)); }
-      $('tm-rey-summon').disabled = s.pieces.length !== LIMIT || !this.solo() || (dear.length > 0 && !box.checked);
+      if (this.ritual) this.ritual.renderPanel($('tm-rey-rite'));
+      const throne = throneReady(s.rite);
+      if (s.pieces.length === LIMIT && !throne.ok) $('tm-rey-notice').textContent = throne.why === 'sin-corona' ? 'Los diez esperan, pero el Trono no tiene Corona.' : throne.why === 'corona-sin-colocar' ? 'Coloca la Corona del Rey en el centro del Trono.' : 'Falta el Cuenco de Convergencia en el Trono.';
+      $('tm-rey-summon').disabled = s.pieces.length !== LIMIT || !this.solo() || (dear.length > 0 && !box.checked) || (!!this.ritual && !throne.ok);
     }
   }
 

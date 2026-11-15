@@ -1,8 +1,8 @@
 # Rey Slime · beta experimental (`/beta/?rey=1`)
 
-> **Estado (15-11-2026, v4): en beta, NO versión aceptada.** Tres formas (B, C)
-> y linajes con Fragmentos Rebeldes (D) listos en beta. Faltan el ritual de
-> mundo completo (E) y el cooperativo (F).
+> **Estado (15-11-2026, v5): en beta, NO versión aceptada.** Tres formas (B, C),
+> linajes y Fragmentos Rebeldes (D) y ritual de mundo (E) listos en beta.
+> Falta el cooperativo (F).
 > Orden aprobado: A arte → B máquina de tres formas → C combate y clones →
 > D linajes y Rebeldes → E ritual de mundo → F cooperativo.
 
@@ -127,13 +127,14 @@ trono, se recompone y la corona regresa torcida. Luego aparece la elección
 - `beta/rey-slime.js` — reglas, santuario, IA, cinemáticas e interfaz.
 - `beta/rey-formas.js` — arte de las Formas II y III (ahora se carga en la beta).
 - `beta/rey-combate.js` — transformaciones, IA de las Formas II y III, clones y cámara.
+- `beta/rey-ritual.js` — Charca del Primer Reflejo, materiales, Cuenco y Trono.
 - `beta/index.html` — estilos `#tm-rey-css` y carga de los scripts.
 - `beta/game.js` — un solo cambio: la instalación recibe el material de sprites
   iluminados del motor (`{ds}`) para que el Rey reciba la luz del día y la noche.
 
 ## Pruebas
 
-- `node --test tests/rey-slime/*.cjs` → 55/55 (18 originales + 10 de la fase 1 + 10 de regresión v2.1 + 10 de las formas + 7 de linaje).
+- `node --test tests/rey-slime/*.cjs` → 64/64 (18 originales + 10 fase 1 + 10 regresión v2.1 + 10 formas + 7 linaje + 6 ritual + 3 guardado del motor).
 - Recorrido de las tres formas en navegador (vertical 412×860 y horizontal 860×412):
   golpe enorme → se detiene en 66 % → transformación → ataques de la Bestia →
   clones y absorción → Forma III → puñetazo, martillo, 20 clones con 3
@@ -150,6 +151,45 @@ trono, se recompone y la corona regresa torcida. Luego aparece la elección
 - Las pruebas usan Chromium de escritorio; falta probar en celulares reales
   (rendimiento, sonido, tacto) antes de llevarlo al juego público.
 - La economía sigue `verified=false`; el arma es equipo del cliente.
+
+## Ritual de mundo · fase E (en beta, 15-11-2026)
+
+Archivo `beta/rey-ritual.js`. Según el diseño §2–§4.
+
+**La Charca del Primer Reflejo.** Una charca pequeña junto al agua del Valle
+del Alba, tras un grupo de raíces. El lugar sale de la huella del mapa (siempre
+el mismo en cada mundo), a más de 14 pasos de la salida, 10 de los portales y
+16 del santuario, en suelo alcanzable. Sin marcador ni tutorial.
+- Pistas (se reconocen solo con acercarse, sin mensajes): un rastro de huellas
+  de gelatina y tres piedras marcadas con runas; en el agua se reflejan al
+  revés y en lugares que no corresponden.
+- Con las pistas reconocidas, los slimes salvajes cercanos se giran a mirar la
+  charca unos segundos.
+- Examinar (USAR): sin pistas → «Solo ves tu reflejo». Con pistas pero sin
+  luz → «Algo dorado se mueve al revés… pero no hay luz suficiente». **Al
+  amanecer, o de noche con antorcha equipada**, aparece el brillo dorado
+  invertido y **emerge la Corona del Rey**, que vuela hacia el jugador.
+- La corona se guarda antes de la animación: es una reliquia única por
+  partida; volver a examinar → «El agua ya no guarda nada».
+
+**Materiales.** Piedras lisas en 10 orillas del valle (se recogen al pasar,
+reaparecen a los 8 min). Gel de slime: la mitad de los limos salvajes vencidos
+lo sueltan (nunca clones, súbditos, el Rey ni compañeros). Tope de 30 de cada
+uno. Hongos lunares: el recurso nocturno que ya existe (`progress.food.lunar`).
+
+**Cuenco de Convergencia.** 6 piedras lisas + 4 gel + 2 hongos lunares. Se
+fabrica en el panel del santuario en una sola operación (si falta algo, no se
+consume nada) y queda instalado en el Trono para siempre.
+
+**Trono de los Diez Ecos.** La corona se coloca en el suelo del centro y se
+ve ahí junto al cuenco. Invocar exige corona colocada + cuenco + diez slimes.
+La corona y el cuenco se reutilizan; los diez slimes no.
+
+**Conexión con el glitch.** Abrir una Grieta (Fragmento de Realidad) añade una
+pista: dirección y distancia aproximada de la charca, si aún no tienes la corona.
+
+**Guardado.** `progress.reySlime.rite = { clues, crown, crownPlaced, bowl,
+stone, gel }`, validado en `rey-slime.js` y en `beta/game.js`.
 
 ## Linajes y Fragmentos Rebeldes · fase D (en beta, 15-11-2026)
 
