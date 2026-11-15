@@ -1,8 +1,8 @@
 # Rey Slime · beta experimental (`/beta/?rey=1`)
 
-> **Estado (14-11-2026, v3): en beta, NO versión aceptada.** Las tres formas del
-> diseño «Corazón del Alba» ya se pelean (fases B y C). Faltan linajes y
-> Fragmentos Rebeldes (D), ritual de mundo completo (E) y cooperativo (F).
+> **Estado (15-11-2026, v4): en beta, NO versión aceptada.** Tres formas (B, C)
+> y linajes con Fragmentos Rebeldes (D) listos en beta. Faltan el ritual de
+> mundo completo (E) y el cooperativo (F).
 > Orden aprobado: A arte → B máquina de tres formas → C combate y clones →
 > D linajes y Rebeldes → E ritual de mundo → F cooperativo.
 
@@ -133,7 +133,7 @@ trono, se recompone y la corona regresa torcida. Luego aparece la elección
 
 ## Pruebas
 
-- `node --test tests/rey-slime/*.cjs` → 48/48 (18 originales + 10 de la fase 1 + 10 de regresión v2.1 + 10 de las formas).
+- `node --test tests/rey-slime/*.cjs` → 55/55 (18 originales + 10 de la fase 1 + 10 de regresión v2.1 + 10 de las formas + 7 de linaje).
 - Recorrido de las tres formas en navegador (vertical 412×860 y horizontal 860×412):
   golpe enorme → se detiene en 66 % → transformación → ataques de la Bestia →
   clones y absorción → Forma III → puñetazo, martillo, 20 clones con 3
@@ -150,6 +150,35 @@ trono, se recompone y la corona regresa torcida. Luego aparece la elección
 - Las pruebas usan Chromium de escritorio; falta probar en celulares reales
   (rendimiento, sonido, tacto) antes de llevarlo al juego público.
 - La economía sigue `verified=false`; el arma es equipo del cliente.
+
+## Linajes y Fragmentos Rebeldes · fase D (en beta, 15-11-2026)
+
+Según `docs/REY_SLIME_DISENO_CORAZON_DEL_ALBA.md` §5. Color y linaje son
+independientes.
+
+| Diez componentes | Linaje | Efecto |
+|---|---|---|
+| Diez slimes comunes | Silvestre | Normal |
+| Diez fragmentos reales de la misma fase N | Renacido N | Vida ×1,2 / 1,4 / 1,6 · fuerza ×1,1 / 1,2 / 1,3 · recarga más rápida · luz de borde dorada / violeta / celeste · II y III: un clon más por oleada · **III: el Puñetazo del Rey deja un eco que golpea otra vez en el mismo cono** |
+| Fragmentos de distintas fases o mezclados con comunes | Herencia mixta | +3 % vida y +1,5 % fuerza por fragmento |
+
+Un solo fragmento III **no** crea un Renacido III. Todos empiezan en la Forma I
+y pasan por las tres. El linaje aparece en el presagio, el título y la barra.
+
+**Fragmentos Rebeldes.** Cada clon nace con la fase de la forma que lo creó.
+Una minoría (12 %, máximo 4 por pelea) se vuelve independiente: no ataca, se
+aleja del Rey, brilla de vez en cuando y el Rey no puede reabsorberla. Al caer
+el Rey, los obedientes se disuelven y los rebeldes **se quedan en el claro**:
+se doman con el proceso normal de vínculo, y la ficha nueva guarda
+`royalFragment { fragmentPhase, originKingId, identityId }`. No se entregan
+solos ni dan experiencia. Viven solo en esa sesión si no se doman.
+
+**Confirmación.** El panel avisa que los diez slimes dejarán de existir como
+criaturas separadas. Si hay compañeros de vínculo alto (25 o más) o fragmentos
+reales, hay que marcar una casilla que los nombra antes de poder invocar.
+
+**Guardado.** `beta/game.js` (normalizador de compañeros y `__tmKingSave`)
+conserva `royalFragment`, `lineage` y `fragments`, validados.
 
 ## Formas II y III · fases B y C (en beta, 14-11-2026)
 

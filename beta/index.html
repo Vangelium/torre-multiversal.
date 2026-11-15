@@ -1530,6 +1530,9 @@ input[type=range] { width: 100%; accent-color: var(--gold); min-height: 32px; }
 .tm-rey-hold { position:absolute; inset:0; z-index:0; transform:scaleX(0); transform-origin:left; background:linear-gradient(#ffffff 0 50%, #ffe17a 50%); opacity:.85; pointer-events:none; }
 .tm-rey-go.is-holding, .tm-rey-choice.is-holding { animation:tmReyShake .12s steps(2) infinite; }
 @keyframes tmReyShake { 50% { translate:1px 0; } }
+.tm-rey-confirm { display:flex; gap:8px; align-items:flex-start; margin:0 0 8px; padding:8px; font-size:12px; line-height:1.35; color:#ffd7c4; background:rgba(120,30,30,.35); border:2px solid #7a2a2a; cursor:pointer; }
+.tm-rey-confirm input { width:20px; height:20px; flex:none; margin:0; accent-color:#e0585c; }
+.tm-rey-confirm[hidden] { display:none !important; }
 .tm-rey-foot { margin:8px 0 0; text-align:center; font-size:10px; color:var(--dim); }
 @media (orientation:landscape) and (max-height:560px) {
   .tm-rey-panel .tm-rey-window { width:min(96vw,780px); padding:10px 12px; }
@@ -1623,12 +1626,13 @@ body.tm-rey-fight .hud .goal-tracker, body.tm-rey-fight .hud .expedition-hud { d
 }
 </style>
 <script src="three.min.js?v=r128"></script>
-<script src="rey-art.js?v=king-20261114-v3"></script>
-<script src="rey-audio.js?v=king-20261114-v3"></script>
-<script src="rey-formas.js?v=king-20261114-v3"></script>
-<script src="rey-combate.js?v=king-20261114-v3"></script>
-<script src="rey-slime.js?v=king-20261114-v3"></script>
-<script src="game.js?v=beta-king-20261113-v2"></script>
+<script src="rey-art.js?v=king-20261115-v4"></script>
+<script src="rey-audio.js?v=king-20261115-v4"></script>
+<script src="rey-formas.js?v=king-20261115-v4"></script>
+<script src="rey-combate.js?v=king-20261115-v4"></script>
+<script src="rey-slime.js?v=king-20261115-v4"></script>
+<script src="glitch.js?v=glitch-20261115-v1"></script>
+<script src="game.js?v=beta-king-20261115-v4"></script>
 <script src="account-center.js?v=tm-autosave-20261112-v7"></script>
 <script src="entry-gate.js?v=tm-ux-video-fixed-20261111-v11"></script>
 <script src="character-sync.js?v=tm-autosave-20261112-v3"></script>

@@ -41,6 +41,34 @@
 
   // Ficha completa de la mascota, con los mismos campos que guarda el motor.
   // Se conserva para devolver EXACTAMENTE la misma criatura si se retira.
+  // ── Linaje (fase D): fragmentos reales y Renacidos ──
+  /** Datos de un Fragmento Rebelde domado: fase en que nació, Rey de origen e identidad propia. */
+  function fragmentOf(f) {
+    if (!f || typeof f !== 'object') return null;
+    const phase = f.fragmentPhase;
+    if (![1, 2, 3].includes(phase) || typeof f.originKingId !== 'string' || !/^[a-z0-9-]{1,24}$/.test(f.originKingId) ||
+      typeof f.identityId !== 'string' || !/^[a-z0-9]{4,16}$/.test(f.identityId)) return null;
+    return { fragmentPhase: phase, originKingId: f.originKingId, identityId: f.identityId };
+  }
+  const LINEAGES = Object.freeze({
+    silvestre: Object.freeze({ id: 'silvestre', name: 'Silvestre', rank: 0, hp: 1, atk: 1, cd: 1, wave: 0, rim: null }),
+    mixta: Object.freeze({ id: 'mixta', name: 'Herencia mixta', rank: 0, hp: 1, atk: 1, cd: 0.96, wave: 0, rim: [0.75, 0.75, 0.6] }),
+    'renacido-1': Object.freeze({ id: 'renacido-1', name: 'Renacido I', rank: 1, hp: 1.2, atk: 1.1, cd: 0.92, wave: 0, rim: [1, 0.82, 0.32] }),
+    'renacido-2': Object.freeze({ id: 'renacido-2', name: 'Renacido II', rank: 2, hp: 1.4, atk: 1.2, cd: 0.85, wave: 1, rim: [0.72, 0.45, 1] }),
+    'renacido-3': Object.freeze({ id: 'renacido-3', name: 'Renacido III', rank: 3, hp: 1.6, atk: 1.3, cd: 0.75, wave: 1, rim: [0.55, 0.95, 1] })
+  });
+  /**
+   * Linaje de los diez componentes (independiente del color):
+   * diez normales → Silvestre · diez fragmentos de la MISMA fase N → Renacido N ·
+   * cualquier otra mezcla con fragmentos → Herencia mixta (vestigios).
+   */
+  function lineageOf(pieces) {
+    const phases = (pieces || []).map(p => { const f = p && p.pet && fragmentOf(p.pet.royalFragment); return f ? f.fragmentPhase : 0; });
+    const fragments = phases.filter(Boolean).length;
+    if (!fragments) return { id: 'silvestre', fragments: 0 };
+    if (phases.length === LIMIT && fragments === LIMIT && phases.every(x => x === phases[0])) return { id: 'renacido-' + phases[0], fragments };
+    return { id: 'mixta', fragments };
+  }
   function petRecord(pet) {
     if (!pet || typeof pet !== 'object' || typeof pet.uid !== 'string' || !/^[a-z0-9]{4,16}$/.test(pet.uid) || pet.species !== 'limo' || !HUES.includes(pet.hue)) return null;
     const r = { uid: pet.uid, species: 'limo', hue: pet.hue };
@@ -49,6 +77,7 @@
     r.at = Number.isFinite(pet.at) ? Math.max(0, pet.at) : 0;
     if (pet.hp !== undefined) r.hp = Number.isFinite(pet.hp) ? Math.max(0, Math.min(100, pet.hp)) : pet.hp;
     if (Number.isInteger(pet.el)) r.el = pet.el;
+    const rf = fragmentOf(pet.royalFragment); if (rf) r.royalFragment = rf;
     return r;
   }
   function validPiece(p) {
@@ -75,7 +104,8 @@
           x: clamp(k.x, 0, 4096), y: clamp(k.y, 0, 4096),
           world: typeof k.world === 'string' && /^(?:valle-alba|sala-pruebas|torre-[1-9][0-9]{0,2})$/.test(k.world) ? k.world : 'valle-alba',
           hp: Math.floor(clamp(k.hp, 0, 2000)), maxHp: Math.floor(clamp(k.maxHp, 1, 2000)),
-          atk: Math.floor(clamp(k.atk, 1, 120)), speed: clamp(k.speed, 0.5, 4), prism: k.prism === true
+          atk: Math.floor(clamp(k.atk, 1, 120)), speed: clamp(k.speed, 0.5, 4), prism: k.prism === true,
+          lineage: Object.prototype.hasOwnProperty.call(LINEAGES, k.lineage) ? k.lineage : 'silvestre', fragments: Math.floor(clamp(k.fragments, 0, LIMIT))
         };
         if (['battle', 'decision'].includes(o.stage)) r.stage = o.stage;
       }
@@ -101,7 +131,10 @@
     const maxHp = Math.min(2000, 360 + level * 28 + mix[1] * 19);
     const atk = Math.min(120, 13 + level * 3 + mix[2] * 2);
     const speed = clamp(1.15 + mix[2] * 0.10, 1, 2.4);
-    return { hue: HUES[primary], mix, level, seed: Math.max(1, seed | 0), maxHp, hp: maxHp, atk, speed, prism: mix.every(n => n > 0) };
+    const lin = lineageOf(ps), L = LINEAGES[lin.id];
+    const hpMul = lin.id === 'mixta' ? 1 + lin.fragments * 0.03 : L.hp, atkMul = lin.id === 'mixta' ? 1 + lin.fragments * 0.015 : L.atk;
+    const hp = Math.min(2000, Math.round(maxHp * hpMul)), at = Math.min(120, Math.round(atk * atkMul));
+    return { hue: HUES[primary], mix, level, seed: Math.max(1, seed | 0), maxHp: hp, hp, atk: at, speed, prism: mix.every(n => n > 0), lineage: lin.id, fragments: lin.fragments };
   }
   // Apariencia según la mezcla: color dominante, híbrido si los dos primeros
   // empatan, y vetas de los colores secundarios. (El linaje es otro sistema.)
@@ -232,7 +265,7 @@
     return (vx * dx + vy * dy) / (d * n) >= Math.cos(half);
   }
 
-  const API = { LIMIT, HUES, WEAPONS, WEAPON_INFO, FORMS, FORM_AT, normalize, validPiece, petRecord, compose, colorsOf, partialMix, chooseWeapon, takePiece, giveBack, pickAttack, pickAttackII, pickAttackIII, formOf, formFloor, formCeil, gateHp, directClones, inCone, pedestalPos, variantName };
+  const API = { LIMIT, HUES, WEAPONS, WEAPON_INFO, FORMS, FORM_AT, LINEAGES, fragmentOf, lineageOf, normalize, validPiece, petRecord, compose, colorsOf, partialMix, chooseWeapon, takePiece, giveBack, pickAttack, pickAttackII, pickAttackIII, formOf, formFloor, formCeil, gateHp, directClones, inCone, pedestalPos, variantName };
   if (typeof module !== 'undefined' && module.exports) { module.exports = API; return; }
   if (!root.document) return;
 
@@ -274,6 +307,7 @@
     return new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, alphaTest: 0.05, opacity, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
   }
 
+  function lineageTag(k) { const L = k && LINEAGES[k.lineage]; return L && L.rank ? ` · ${L.name}` : k && k.lineage === 'mixta' ? ' · herencia mixta' : ''; }
   // Herramientas compartidas con el módulo de las Formas II y III (rey-combate.js).
   root.__TM_REY_KIT__ = Object.freeze({ API, ARENA, SANCTUARY, OB_TAG, ease, lerp, clamp, reduced, now, geoUp, geoFlat, placeUp, placeFlat, canvasTex, setFrame, decalMat });
 
@@ -550,9 +584,10 @@
             <h3 class="tm-rey-h">Tus limos domados</h3>
             <div class="tm-rey-list" id="tm-rey-list"></div>
             <div class="tm-rey-actions">
+              <label class="tm-rey-confirm" id="tm-rey-confirm" hidden><input type="checkbox" id="tm-rey-confirm-box"><span></span></label>
               <button type="button" class="tm-rey-go" id="tm-rey-summon"><span>Mantén pulsado para invocar</span></button>
             </div>
-            <p class="tm-rey-foot">Los diez limos se fusionarán para siempre. Beta · partida individual.</p>
+            <p class="tm-rey-foot">Los diez slimes se fusionarán y dejarán de existir como criaturas separadas. Beta · partida individual.</p>
           </div></div>
         </div>`;
       app.append(this.panel);
@@ -619,7 +654,7 @@
       if (!k) { if (!this.boss.hidden) this.boss.hidden = true; root.document.body.classList.remove('tm-rey-fight'); return; }
       if (this.boss.hidden) {
         this.boss.hidden = false; root.document.body.classList.add('tm-rey-fight');
-        $('tm-rey-boss-sub').textContent = `${variantName(k)} · Nv. ${k.level}`;
+        $('tm-rey-boss-sub').textContent = `${variantName(k)}${lineageTag(k)} · Nv. ${k.level}`;
         const ico = this.boss.querySelector('canvas'), g = ico.getContext('2d');
         g.imageSmoothingEnabled = false; g.clearRect(0, 0, 32, 32);
         try { g.drawImage(ART().portrait(k), 0, 0, 64, 64, 0, 0, 32, 32); } catch (_) { /* opcional */ }
@@ -652,6 +687,7 @@
       this.slotAnim = new Array(LIMIT).fill(null); this.prevPieces = null;
       this.allyPos = null; this.compassT = 0; this.messages = new Map();
       this.post = null; // animaciones tras la derrota / decisión
+      this.free = []; // Fragmentos Rebeldes que sobrevivieron al Rey (sesión)
       // Formas II y III (transformaciones, IA y clones): módulo aparte.
       this.forms = root.TMReyCombate ? new root.TMReyCombate(this) : null;
       this.initUI(); this.hook();
@@ -757,6 +793,13 @@
         if (self.actor && s && s.combat && s.combat.targetId === self.actor.id && a.ui) a.ui.setTargetFrame(null);
         return out;
       };
+      const origTamed = a._onTamed;
+      if (typeof origTamed === 'function') a._onTamed = function (ev) {
+        const prog = a.data && a.data.progress, before = new Set(((prog && prog.companions) || []).map(c => c.uid));
+        const r = origTamed.apply(a, arguments);
+        try { self.onTamed(ev, before); } catch (e) { self.fail(e); }
+        return r;
+      };
       const origLeave = a.leaveGame;
       a.leaveGame = function () { self.saveHp(); self.endEverything(); return origLeave.apply(a, arguments); };
       const origOverlay = a._overlayOpen;
@@ -798,9 +841,17 @@
           return ctl.apply(this, arguments);
         };
         const onHit = w.tame.onHit;
-        w.tame.onHit = function (e) { if (e && (e.royal || e.reyMinion)) return; return onHit.apply(this, arguments); };
+        w.tame.onHit = function (e) { if (e && (e.royal || (e.reyMinion && !e.rebel))) return; return onHit.apply(this, arguments); };
         const onPlayerHit = w.tame.onPlayerHit;
-        if (onPlayerHit) w.tame.onPlayerHit = function (e) { if (e && (e.royal || e.reyMinion)) return; return onPlayerHit.apply(this, arguments); };
+        if (onPlayerHit) w.tame.onPlayerHit = function (e) { if (e && (e.royal || (e.reyMinion && !e.rebel))) return; return onPlayerHit.apply(this, arguments); };
+      }
+      // Un Fragmento Rebelde domado: se recuerda para completar su ficha en la app.
+      if (w.releaseTamed) {
+        const rel = w.releaseTamed;
+        w.releaseTamed = function (e) {
+          if (e && e.rebel && !e.rebel.tamed) self.pendingFragment = { rebel: e.rebel, hue: e.hue, at: self.elapsed };
+          return rel.apply(this, arguments);
+        };
       }
       // Los súbditos y clones del Rey NO dan experiencia ni cuentan para el
       // bestiario ni las expediciones: su muerte se borra del registro.
@@ -1110,9 +1161,9 @@
 
     summonMinions(e) {
       const sess = this.app.session, w = sess && sess.world; if (!w) return;
-      const k = this.state().king, alive = this.minions.filter(m => !m.dead && w.entities.includes(m)).length;
-      const F = FORMS[this.forms ? this.forms.form() : 1];
-      const n = Math.max(0, Math.min(F.wave, F.cap - alive)); if (!n) return;
+      const k = this.state().king, alive = this.minions.filter(m => !m.dead && !m.rebel && w.entities.includes(m)).length;
+      const F = FORMS[this.forms ? this.forms.form() : 1], L = LINEAGES[k.lineage] || LINEAGES.silvestre;
+      const n = Math.max(0, Math.min(F.wave + L.wave, F.cap - alive)); if (!n) return;
       if (this.audio) this.audio.summon();
       const tpl = w.entities.find(x => x.species === 'limo' && !x.ally && !x.royal && !x.reyMinion && x.foe);
       const baseFoe = tpl ? tpl.foe : { name: 'Limo', hp: 60, chase: 1.7, attack: { kind: 'salto', range: 1.15, windup: 0.6, lunge: 1, lungeTime: 0.2, hitR: 0.6, dmg: 8, cd: 1.5 } };
@@ -1139,6 +1190,7 @@
         this.fxThrow(e, x, y, hue, () => {
           if (!this.actor || this.actorWorld !== w) return;
           w.entities.push(m); this.minions.push(m);
+          if (this.forms) this.forms.onClone(m);
           if (sess._fx) sess._fx({ k: 'poof', x, y, z: m.z });
         });
       }
@@ -1151,15 +1203,18 @@
         // Se retiran al morir (antes de que el mundo los haga renacer).
         if (m.dead) { w.entities = w.entities.filter(x => x !== m); this.minions.splice(i, 1); continue; }
         // Si el Rey no está, se disuelven.
-        if (!this.actor) { m.dead = true; m.hp = 0; m.deadT = 0.6; }
+        if (!this.actor && !m.rebel) { m.dead = true; m.hp = 0; m.deadT = 0.6; }
       }
     }
     clearMinions(silent) {
       const sess = this.app.session, w = sess && sess.world;
       for (const m of this.minions) {
+        // Los Fragmentos Rebeldes no obedecen al Rey: sobreviven a su caída y se pueden domar.
+        if (!silent && m.rebel && w && w.entities.includes(m) && !m.dead) { this.free.push(m); continue; }
         if (w && w.entities.includes(m)) { w.entities = w.entities.filter(x => x !== m); if (!silent && sess._fx) sess._fx({ k: 'poof', x: m.x, y: m.y, z: m.z }); }
       }
       this.minions = [];
+      if (silent) this.free = [];
     }
 
     onBossDefeated() {
@@ -1171,6 +1226,19 @@
       this.persist();
       if (this.audio) { this.audio.stopMusic(0.3); setTimeout(() => this.audio && this.audio.victory(), 350); }
       this.startCine('death', { pos, spec: k });
+    }
+
+    onTamed(ev, before) {
+      if (!ev || ev.self === false) return;
+      // El evento de la app no trae la criatura: se usa la que el mundo acaba de liberar.
+      const m = this.pendingFragment; this.pendingFragment = null;
+      if (!m || m.rebel.tamed || this.elapsed - m.at > 5 || (ev.hue && ev.hue !== m.hue)) return;
+      const list = this.app.data.progress.companions || [], rec = list.find(c => !before.has(c.uid));
+      if (!rec) return;
+      const f = m.rebel; rec.royalFragment = { fragmentPhase: f.fragmentPhase, originKingId: f.originKingId, identityId: f.identityId };
+      m.rebel.tamed = true;
+      this.app.saves.markDirty(); this.app._saveNow();
+      this.notice(`Fragmento real · fase ${m.rebel.fragmentPhase}. Conserva el linaje de su Rey.`, 'gold', 5200);
     }
 
     // ── Ritual ──
@@ -1539,7 +1607,8 @@
       const tele = (ai.st === 'charge' && ai.phase === 'windup') || (ai.st === 'slam' && ai.phase === 'crouch') || (ai.st === 'bounce' && ai.phase === 'crouch');
       if (tele) m.uTint.value.set(1, 0.2, 0.2, Math.floor(time * 10) % 2 ? 0.35 : 0.12);
       else m.uTint.value.set(0, 0, 0, 0);
-      m.uRim.value.set(0, 0, 0, 0);
+      const rim = (LINEAGES[(this.state().king || {}).lineage] || {}).rim;
+      if (rim) m.uRim.value.set(rim[0], rim[1], rim[2], 0.35 + 0.15 * Math.sin(time * 3)); else m.uRim.value.set(0, 0, 0, 0);
       // Sombra (se encoge cuando el Rey está en el aire).
       K.shadow.visible = true;
       const ss = 1 - Math.min(0.65, h / 12);
@@ -1743,7 +1812,7 @@
         at(7.45, 'title', () => {
           if (!this.ui) return;
           const tt = $('tm-rey-title');
-          $('tm-rey-title-sub').textContent = `Rey Slime ${variantName(spec)} · Nivel ${spec.level}`;
+          $('tm-rey-title-sub').textContent = `Rey Slime ${variantName(spec)}${lineageTag(spec)} · Nivel ${spec.level}`;
           tt.hidden = false; tt.classList.remove('is-on'); void tt.offsetWidth; tt.classList.add('is-on');
         });
         at(9.5, 'titleOff', () => { if (this.ui) $('tm-rey-title').hidden = true; });
@@ -1941,7 +2010,7 @@
           const k = compose(s.pieces, 1);
           const img = el('canvas'); img.width = 64; img.height = 64; img.className = 'tm-rey-omen-img';
           try { const g = img.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(ART().portrait(k), 0, 0); } catch (_) { /* opcional */ }
-          const txt = el('div', 'tm-rey-omen-txt', `<small>PRESAGIO</small><b>Rey Slime ${variantName(k)}</b><span>Nivel ${k.level} · Vida ${k.maxHp} · Fuerza ${k.atk}</span>`);
+          const txt = el('div', 'tm-rey-omen-txt', `<small>PRESAGIO</small><b>Rey Slime ${variantName(k)}</b><span>${LINEAGES[k.lineage].name}${k.fragments && k.lineage === 'mixta' ? ` (${k.fragments} fragmentos)` : ''} · Nivel ${k.level} · Vida ${k.maxHp} · Fuerza ${k.atk}</span>`);
           omen.append(img, txt, bars);
         } else {
           omen.append(el('div', 'tm-rey-omen-txt', `<small>PRESAGIO</small><span>El color que más se repita decidirá al Rey. Si juntas los tres colores nacerá un Rey Prismático.</span>`), bars);
@@ -1957,7 +2026,18 @@
         b.append(slimeIcon(this.app.view, p.hue, 32), el('span', '', `<b>${p.name || 'Limo ' + p.hue}</b><small>Vínculo ${p.bond || 0}</small>`));
         list.append(b);
       }
-      $('tm-rey-summon').disabled = s.pieces.length !== LIMIT || !this.solo();
+      // Confirmación adicional si se sacrifican compañeros de vínculo alto o fragmentos reales.
+      const dear = s.pieces.filter(p => (p.bond || 0) >= 25 || (p.pet && p.pet.royalFragment));
+      const conf = $('tm-rey-confirm'), box = $('tm-rey-confirm-box');
+      const key = dear.map(p => p.uid).join(',');
+      if (conf.dataset.key !== key) { conf.dataset.key = key; box.checked = false; }
+      conf.hidden = !dear.length || s.pieces.length !== LIMIT;
+      if (dear.length) {
+        const names = dear.slice(0, 3).map(p => (p.pet && p.pet.name) || ('limo ' + p.hue)).join(', ') + (dear.length > 3 ? ` y ${dear.length - 3} más` : '');
+        conf.querySelector('span').textContent = `Entiendo que perderé para siempre a ${names} (${dear.some(p => p.pet && p.pet.royalFragment) ? 'fragmentos reales o ' : ''}compañeros de vínculo alto).`;
+      }
+      if (!box.__tm) { box.__tm = true; box.addEventListener('change', () => this.refresh(true)); }
+      $('tm-rey-summon').disabled = s.pieces.length !== LIMIT || !this.solo() || (dear.length > 0 && !box.checked);
     }
   }
 

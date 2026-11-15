@@ -122,6 +122,7 @@
       this.ctl = ctl; this.K = root.__TM_REY_KIT__; this.API = this.K && this.K.API;
       this.builders = new Map(); this.sheets = new Map(); this.meshes = new Map();
       this.shots = []; this.active = new Set(); this.dirT = 0; this.shownForm = 0;
+      this.rebels = new Map(); this.rebelCount = 0; // Fragmentos Rebeldes (id → datos), por sesión
       this.coneMesh = null; this.group = null;
     }
     kit() { if (!this.K) { this.K = root.__TM_REY_KIT__; this.API = this.K && this.K.API; } return this.K; }
@@ -138,7 +139,22 @@
       this.queue(f);
       if (f >= 2) this.sheet(f === 2 ? 'beast' : 'titan', true);
     }
-    reset() { this.shots = []; this.active = new Set(); this.hideMine(); }
+    reset() { this.shots = []; this.active = new Set(); this.rebelCount = 0; this.hideMine(); }
+    lineage() { const k = this.spec(); return (this.API && this.API.LINEAGES[k && k.lineage]) || (this.API && this.API.LINEAGES.silvestre); }
+
+    /** Cada clon nace con la fase del Rey; una minoría se vuelve independiente (Fragmento Rebelde). */
+    onClone(m) {
+      if (!this.kit()) return;
+      const e = this.ctl.actor, k = this.spec(); if (!e || !k) return;
+      m.fragPhase = e.ai.form || 1;
+      if (this.rebelCount < 4 && Math.random() < 0.12) {
+        this.rebelCount++;
+        const id = Array.from({ length: 10 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('');
+        m.rebel = { fragmentPhase: m.fragPhase, originKingId: 'rey-' + k.seed, identityId: id };
+        m.atkCd = 99;
+        this.rebels.set(m.id, { rebel: m.rebel, x: m.x, y: m.y });
+      }
+    }
     queue(f) {
       const k = this.spec(); if (!k || !root.TMReyFormas) return;
       for (const kind of f >= 3 ? ['titan'] : ['beast', 'titan']) {
@@ -166,6 +182,15 @@
         break;
       }
       const e = this.ctl.actor, sess = this.ctl.app.session;
+      if (sess && sess.world) {
+        const w0 = sess.world;
+        this.ctl.free = this.ctl.free.filter(m => w0.entities.includes(m) && !m.dead);
+        for (const m of this.ctl.minions.concat(this.ctl.free)) {
+          if (!m.rebel || m.dead) continue;
+          const r = this.rebels.get(m.id); if (r) { r.x = m.x; r.y = m.y; }
+          if (Math.random() < dt * 1.2) this.ctl.stage.spawn({ x: m.x + (Math.random() - 0.5) * 0.4, y: m.y, h: 0.9, vh: 0.8, g: 0, life: 0.6, col: 2, row: 3, scale: 0.7 });
+        }
+      }
       if (!e || !e.ai || !sess || !sess.world) { this.shots.length = 0; return; }
       const w = sess.world, av = sess.avatar, pid = sess.self.pid, down = !av || sess.isDown(pid);
       // Director de clones.
@@ -173,7 +198,7 @@
       if (this.dirT <= 0 && av) {
         this.dirT = 0.4;
         const n = e.ai.st === 'morph' || e.ai.st === 'absorb' ? 0 : this.API.FORMS[this.form()].active;
-        this.active = this.API.directClones(this.ctl.minions.filter(m => w.entities.includes(m)), this.active, av.x, av.y, n);
+        this.active = this.API.directClones(this.ctl.minions.filter(m => w.entities.includes(m) && !m.rebel), this.active, av.x, av.y, n);
       }
       // Clones absorbidos por el Rey.
       for (const m of this.ctl.minions) {
@@ -206,7 +231,8 @@
         const F = this.API.FORMS[f], k = this.spec();
         const tag = ui.boss.querySelector('.tm-rey-phase'); if (tag) tag.textContent = F.tag;
         const sub = document.getElementById('tm-rey-boss-sub');
-        if (sub && k) sub.textContent = `${f === 1 ? this.API.variantName(k) : F.name} · Nv. ${k.level}`;
+        const L = this.lineage();
+        if (sub && k) sub.textContent = `${f === 1 ? this.API.variantName(k) : F.name}${L.rank ? ' · ' + L.name : ''} · Nv. ${k.level}`;
         if (this.ctl.audio && this.ctl.audio.setIntensity) this.ctl.audio.setIntensity(f);
       }
     }
@@ -248,6 +274,13 @@
         if (d < 1.2) m.__gone = true;
         return true;
       }
+      if (m.rebel) {
+        // Un Fragmento Rebelde no obedece: se aleja del Rey y no ataca. Se doma con calma cuando el Rey cae.
+        const dx = m.x - e.x, dy = m.y - e.y, d = Math.hypot(dx, dy) || 1;
+        m.atk = 0; m.moving = false;
+        if (d < 5.5) { w._move(m, dx / d * 2.2, dy / d * 2.2, dt); m.moving = true; m.facing = dx < 0 ? 6 : 2; }
+        return true;
+      }
       if (this.active.has(m.id)) return false;
       const sess = this.ctl.app.session, av = sess && sess.avatar;
       m.atk = 0; m.moving = false; m.vx = m.vy = 0;
@@ -271,7 +304,8 @@
       if (ai.pending && ai.st !== 'morph') { this.startMorph(e, ai.pending); ai.pending = 0; }
       if (ai.form === 1 && ai.st !== 'morph') return false;
       ai.ox = e.x; ai.oy = e.y; ai.oh = ai.h; ai.t += dt;
-      for (const cd of ['summonCd', 'absorbCd', 'spineCd', 'biteCd', 'jumpCd', 'punchCd', 'hammerCd', 'hookCd']) ai[cd] = (ai[cd] || 0) - dt;
+      const LIN = this.lineage();
+      for (const cd of ['summonCd', 'absorbCd', 'spineCd', 'biteCd', 'jumpCd', 'punchCd', 'hammerCd', 'hookCd']) ai[cd] = (ai[cd] || 0) - dt / LIN.cd;
       e.moving = false; e.vx = 0; e.vy = 0; e.atk = 0;
       const sess = C.app.session, av = sess && sess.avatar, pid = sess && sess.self.pid;
       const down = !av || sess.isDown(pid), c = C.findCenter(), k = C.state().king;
@@ -307,7 +341,7 @@
       };
       const busy = !['idle', 'hop', 'walk', 'return', 'dazed'].includes(ai.st);
       if ((down || dPC > K.ARENA.lose) && !busy && ai.st !== 'return') enter('return');
-      const clones = C.minions.filter(m => !m.dead && w.entities.includes(m) && !m.__pull).length;
+      const clones = C.minions.filter(m => !m.dead && !m.rebel && w.entities.includes(m) && !m.__pull).length;
 
       switch (ai.st) {
         // ── Transformación ──
@@ -453,7 +487,7 @@
         case 'absorb': {
           // Atrae a sus clones; cada uno que entra la cura un poco.
           if (Math.floor(ai.t * 5) !== Math.floor((ai.t - dt) * 5)) {
-            for (const m of C.minions) if (!m.dead && Math.hypot(m.x - e.x, m.y - e.y) < 9) m.__pull = true;
+            for (const m of C.minions) if (!m.dead && !m.rebel && Math.hypot(m.x - e.x, m.y - e.y) < 9) m.__pull = true;
           }
           ai.note = 'La Bestia absorbe a sus clones…';
           if (ai.t >= 1.7) {
@@ -510,8 +544,21 @@
               this.splinterTrees(e, ai.dx, ai.dy);
             }
           } else if (ai.phase === 'strike') {
-            if (ai.t >= 0.35) { ai.phase = 'recover'; ai.t = 0; ai.note = '¡Quedó abierto tras el golpe!'; }
-          } else if (ai.t >= 1.0) enter('idle', { wait: 0.3 });
+            if (ai.t >= 0.35) {
+              ai.phase = 'recover'; ai.t = 0;
+              ai.echo = LIN.rank >= 3 ? 0.55 : 0; // Renacido III: el puño deja un eco que golpea otra vez
+              ai.note = ai.echo ? '¡Eco del puño! Sigue fuera del cono' : '¡Quedó abierto tras el golpe!';
+            }
+          } else {
+            if (ai.echo && ai.t >= ai.echo) {
+              ai.echo = 0; ai.echoes = (ai.echoes || 0) + 1; ai.note = '¡Quedó abierto tras el golpe!';
+              hit('echo', 1.0, 0, () => API.inCone(e.x, e.y, ai.dx, ai.dy, av.x, av.y, CONE.len, CONE.half + 0.05));
+              if (C.audio) C.audio.punch();
+              shake(0.35);
+              for (const s2 of [2, 4.2]) C.stage.shock(e.x + ai.dx * s2, e.z, e.y + ai.dy * s2, 1.4, 0.4);
+            }
+            if (ai.t >= (LIN.rank >= 3 ? 1.4 : 1.0)) enter('idle', { wait: 0.3 });
+          }
           break;
         }
         case 'hammer': {
@@ -547,7 +594,7 @@
       this.sheet(to === 2 ? 'beast' : 'titan', true);
       Object.assign(ai, { st: 'morph', t: 0, phase: '', hit: false, hits: null, to, from: ai.form || 1, boomed: false, note: 'El Rey se transforma…', wait: 0, morphHp: e.hp });
       this.shots.forEach(s => { if (s.p) s.p.t = s.p.life; }); this.shots = [];
-      for (const m of C.minions) if (!m.dead) m.__pull = true; // la masa reabsorbe a sus clones
+      for (const m of C.minions) if (!m.dead && !m.rebel) m.__pull = true; // la masa reabsorbe a sus clones (los rebeldes se resisten)
       if (C.audio) C.audio.transform(to);
       C.app.shakeT = Math.max(C.app.shakeT || 0, 0.25);
       if (to === 3) this.queue(3);
@@ -720,7 +767,8 @@
       if (tint) u.uTint.value.set(1, 0.2, 0.2, blink(10) ? 0.35 * tint : 0.12 * tint);
       else if (ai.st === 'morph') u.uTint.value.set(0.75, 0.6, 1, blink(12) ? 0.3 : 0.1);
       else u.uTint.value.set(0, 0, 0, 0);
-      u.uRim.value.set(0, 0, 0, 0);
+      const rim = this.lineage().rim;
+      if (rim) u.uRim.value.set(rim[0], rim[1], rim[2], 0.35 + 0.15 * Math.sin(time * 3)); else u.uRim.value.set(0, 0, 0, 0);
       // Sombra a la medida de la forma.
       const big = kind === 'beast' ? 2.1 : kind === 'titan' ? 1.8 : 1;
       KS.shadow.visible = true;
@@ -752,6 +800,11 @@
         const d = Math.hypot(ai.dx, ai.dy) || 1, ang = Math.atan2(ai.dx / d, -ai.dy / d);
         st.lane.visible = true; st.lane.material.opacity = K.clamp(ai.t / 0.45, 0, 1) * (0.55 + 0.3 * blink(10));
         st.lane.rotation.set(0, -ang, 0); st.lane.scale.set(1.3, 1, 0.75); K.placeFlat(st.lane, x, z, y, 0.05);
+      }
+      if (cone && ai.st === 'punch' && ai.phase === 'recover' && ai.echo) {
+        const ang = Math.atan2(ai.dx, -ai.dy);
+        cone.visible = true; cone.rotation.set(0, -ang, 0); cone.material.opacity = 0.35 + 0.35 * blink(14);
+        K.placeFlat(cone, x, z, y, 0.06);
       }
       if (cone && ai.st === 'punch' && (ai.phase === 'aim' || ai.phase === 'strike')) {
         const ang = Math.atan2(ai.dx, -ai.dy);
