@@ -27,7 +27,7 @@
   Awakening») se sube el archivo a `beta/audio/` y se escribe su nombre en
   `"track"` (opcional `loopStart` y `volume`).
 
-## Fase A · arte de las Formas II y III (base de la beta experimental) · v2 14-11-2026
+## Fase A · arte de las Formas II y III (para aprobar) · v2 14-11-2026
 
 Rehecho con las referencias del director (hojas «concepto final» y escala):
 gelatina translúcida (rampa de 8 tonos, luz de borde, brillo en cada bulto),
@@ -41,7 +41,7 @@ jugador, III ≈ 3,8×). Las hojas de detalle se ven ampliadas (escala 1).
 
 - `beta/rey-formas.js`: esculpido pixelado de la Bestia gelatinosa y el Rey
   humanoide, con poses de reposo, ataques y transformación, y respuesta a la
-  mezcla de colores. **Se carga únicamente en la beta experimental `?rey=1` durante las fases B y C; no se activa en la versión pública.**
+  mezcla de colores. **No se carga en el juego** hasta que el arte se apruebe.
 - `beta/rey-concepto.html?m=II | III | escala`: hojas de concepto (silueta,
   paleta, reposo, ataques, transformación, variantes y escala).
 
@@ -188,9 +188,10 @@ la II, metales en la III). La pista final, cuando llegue, suena igual en todas.
 Rey, y se levanta para que el Rey humanoide no quede tapado por la barra.
 
 **Límites de esta entrega.**
-- Los árboles dentro del cono crujen y se astillan (partículas y sonido), pero
-  no desaparecen: el motor hornea los árboles en el mapa y quitarlos exige un
-  cambio en `game.js`. Queda propuesto.
+- **El Puñetazo del Rey derriba hasta 4 árboles del cono** (v3.1): se quitan su
+  colisión y su dibujo y el sector del mapa se rehace al momento, con hojas,
+  astillas y grieta. Es solo para esa sesión: al recargar, el bosque vuelve a
+  crecer (no se guarda ni cambia la huella del mapa). Sin tocar `game.js`.
 - Al morir, la cinemática de derrota usa el arte de la Forma I (el Rey se
   encoge y se desinfla).
 - Falta probar en celulares reales.

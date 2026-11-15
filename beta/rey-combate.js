@@ -567,18 +567,42 @@
       return false;
     }
 
-    /** El Puñetazo del Rey sacude y astilla los árboles dentro del cono. */
+    /** El Puñetazo del Rey rompe los árboles dentro del cono (hasta 4 por golpe). */
     splinterTrees(e, dx, dy) {
       const T = this.ctl.app.terrain, K = this.K; if (!T || !T.obstacles) return;
-      let n = 0;
-      for (const o of T.obstacles) {
-        if (o.tag === K.OB_TAG || n >= 6) continue;
-        if (!this.API.inCone(e.x, e.y, dx, dy, o.x, o.y, CONE.len + 0.8, CONE.half)) continue;
-        n++;
+      const props = T.props || [];
+      const hits = T.obstacles.filter(o => o.tag !== K.OB_TAG && this.API.inCone(e.x, e.y, dx, dy, o.x, o.y, CONE.len + 0.8, CONE.half))
+        .sort((a, b) => Math.hypot(a.x - e.x, a.y - e.y) - Math.hypot(b.x - e.x, b.y - e.y)).slice(0, 4);
+      let broke = 0;
+      for (const o of hits) {
+        const prop = props.find(p => p.type === 'tree' && (p.ob === o || (Math.abs(p.x - o.x) < 1e-6 && Math.abs(p.y - o.y) < 1e-6)));
         this.ctl.fxBurst(o.x, o.y, 1.8, 'spark', 4, 0.4);
         this.ctl.fxDust(o.x, o.y, 6, 1.4);
+        if (prop && this.breakTree(T, o, prop)) broke++;
       }
-      if (n && this.ctl.audio) this.ctl.audio.crunch();
+      if (hits.length && this.ctl.audio) this.ctl.audio.crunch();
+      if (broke && this.ctl.ui) this.ctl.ui.showBanner('<small>PUÑETAZO DEL REY</small><b>¡Derribó ' + (broke === 1 ? 'un árbol' : broke + ' árboles') + '!</b><em>Ojo: el bosque ya no te cubre por ese lado</em>', 2200);
+    }
+    /** Quita un árbol del mapa en esta sesión (vuelve a crecer al recargar). */
+    breakTree(T, o, prop) {
+      const view = this.ctl.app.view, ch = view && view.chunks;
+      if (!ch || !ch.props || !ch.live || typeof ch._dispose !== 'function') return false; // motor sin sectores: solo astillas
+      T.obstacles = T.obstacles.filter(x => x !== o); T._obstCells = null;
+      T.props = T.props.filter(x => x !== prop);
+      const cx = Math.floor(prop.x / ch.size), cy = Math.floor(prop.y / ch.size), key = ch.key(cx, cy);
+      const list = ch.props.get(key); if (list) { const i = list.indexOf(prop); if (i >= 0) list.splice(i, 1); }
+      const live = ch.live.get(key);
+      if (live) { ch._dispose(key, live); try { ch._buildNow(cx, cy); } catch (_) { /* se rehace en el próximo cuadro */ } }
+      // Tronco que estalla: hojas, astillas, polvo y grieta en la base.
+      const st = this.ctl.stage;
+      for (let i = 0; i < 10; i++) {
+        const a = Math.random() * TAU, v = 1.5 + Math.random() * 2.5;
+        st.spawn({ x: o.x, y: o.y, h: 1.5 + Math.random() * 2, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.6, vh: 1 + Math.random() * 2.5, g: 5, drag: 1.2, life: 0.9 + Math.random() * 0.4, col: 0, row: 0, scale: 0.9 });
+      }
+      this.ctl.fxBurst(o.x, o.y, 0.8, 'spark', 6, 0.5);
+      this.ctl.fxDust(o.x, o.y, 10, 2);
+      st.crack(o.x, o.z || 0, o.y);
+      return true;
     }
 
     /** Cámara de jefe: encuadra al jugador y al Rey (que en las Formas II y III es enorme). */
