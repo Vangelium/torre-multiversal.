@@ -25,7 +25,8 @@
     spring: 22, damping: 3.6, couple: 400, maxDisp: 1, sleep: 2e-5,
     player: { radius: 1.3, force: 20 }, creature: { force: 16 }, attack: { radius: 1.8, force: 30 },
     wind: { strength: 0.1, gust: 1 }, lod: { near: 8, far: 15 },
-    zone: { radius: 18, max: 380, spacing: 0.62 }
+    zone: { radius: 18, max: 380, spacing: 0.72 },
+    near: { player: 0.7, creature: 0.55, squash: 0.55 }
   });
 
   // ════════════════════════════════════════════════════════════════════
@@ -103,24 +104,24 @@
     at(x, y) { const c = this.cfg.cell, i = Math.floor((x - this.x0) / c), j = Math.floor((y - this.y0) / c); if (i < 0 || j < 0 || i >= this.N || j >= this.N) return [0, 0]; const k = this.idx(i, j); return [this.dx[k], this.dy[k]]; }
   }
 
-  const AMP = { vegCorta: 0.2, vegAlta: 0.44, vegHelecho: 0.32, vegMata: 0.1, vegFlor: 0.16 };
+  const AMP = { vegCorta: 0.3, vegAlta: 0.62, vegHelecho: 0.45, vegMata: 0.16, vegFlor: 0.22 };
   // Paleta = la misma de los arbustos y árboles del juego (contorno, sombras, luz).
   // Nada de verdes nuevos: así las plantas quedan integradas con el terreno.
   const PAL = { O: '#0c241a', D: '#19472a', d: '#235e31', k: '#337838', m: '#4b9440', l: '#6fb14b', h: '#a3d064', s: '#d2ec8c',
     w: '#eeeadb', g: '#b9b3a2', y: '#e9c25e', p: '#ea94bc', q: '#b45f8c' };
   // Pixel art dibujado a mano (una letra = un píxel; '.' = transparente).
   const ART = {
-    vegCorta0: ['.....O......', '..O.OhO..O..', '.OhODlO.OhO.', '.OlDllmODlO.', 'OllDllmDlmO.', 'OmkDmkdDmkdO', '.DmkmkdmkdD.', '.Ddkmdkdkdd.', '..DdDdDdDD..'],
-    vegCorta1: ['....O.....', '.O.OhO.O..', 'OhODlDOhO.', 'OllDllDlmO', '.OmkmkmkdO', '.DdkdkdkdD', '..DdDdDD..'],
-    vegCorta2: ['.O....O....O.', 'OhO..OhO..OhO', 'OlO..OlO.OlmO', '.OlOODlmODlO.', '.OllDllmDlmO.', '..DmkmkdmkdD.', '..DdkdkdkddD.', '...DdDdDdDD..'],
-    vegAlta0: ['......O........', '.....OhO.......', '.O...OlO....O..', 'OhO..OllO..OhO.', 'OlO...OllO.OlO.', '.OlO..OllO.OllO', '.OlO.ODllDOllO.', '..OlODlDlmDllO.', '.O.OlDlDlmDlmO.', 'OhODllDllmDlmO.', 'OlmDDmDlmkmkO..', '.DlmDmkDmkmkD..', '.DmkDmkDmkdkD..', '..DmkmkdmkdkdD.', '..DdkmkdkdkddD.', '...DdkdkdddDD..', '....DDdDdDDD...'],
-    vegAlta1: ['....OOO......', '...OhllO.....', '..OhODlO.....', '..OO.OlO..O..', '.....OllO.OhO', '..O..OllO.OlO', '.OhO.OllDOlO.', '.OlO.OllmDlO.', '..OlODllmDlO.', '..OlDDllmDlO.', '..OlmDDmkDmkO', '...DlmDmkDmkD', '...DmkDmkmkD.', '...DmkmkdkdD.', '...DdkmkdkdD.', '....DdkdkdD..', '....DdkdddD..', '.....DDdDD...'],
-    vegHelecho0: ['.........O.........', '........OhO........', '.......OlhlO.......', '......OllDllO......', '...O..OllmllO..O...', '..OhO.ODlmlDO.OhO..', '.OlhlO.OlmlO.OlhlO.', 'OllDllODlmlDOllDllO', 'DDDmlmkDlkmDkmlmDDD', '..DDmlmkmkmkmlmDD..', '...DkmdkmkdkmdkD...', '....DdkdkdkdkdD....', '.....DDdDdDdDD.....'],
-    vegHelecho1: ['..........O.....', '...O.....OhO....', '..OhO...OlhlO...', '.OlhlO.OllDllO..', 'OllDllODllmlO...', 'OOOlllmDlmlDO.O.', '...OlllmlmlO.OhO', '...ODmlmkmkDOlhO', '....DkmdkmkmlmDD', '.....DdkmkdkmD..', '......DdkdkdD...', '.......DDdDD....'],
-    vegMata0: ['....OOO.OO...', '..OOhllOhlO..', '.OhllmDlllmO.', 'OhllmDhlllmmO', 'OllmDlllmmDkO', 'OlmkDllmmkDmO', '.OkdDmkkdDkdO', '.DdkdDkddDkD.', '..DdddDdDdD..', '...DDDDDDD...'],
-    vegMata1: ['...OO.OO...', '..OhlOhlO..', '.OhllDllmO.', 'OhllmDllmmO', 'OllmkDlmkmO', 'OmkdDkkdDdO', '.DkdddkdddD', '..DdddDddD.', '...DDDDDD..'],
-    vegFlor0: ['..w.....w...', '.wyw...wyw..', '..g..w..g...', '..k.wyw.k...', '..k..g..k...', '.O.k.k.k.O..', 'OhO.kkk..OhO', 'OlmODkO.OlmO', '.DmkDmkDDmkD', '.DmkdmkdmkD.', '..DdkdkdkdD.', '...DDdDdDD..'],
-    vegFlor1: ['...p....p..', '..pyp..pyp.', '...q....q..', '.p.k....k..', 'pyp.k..k...', '.q.Ok.kO.O.', '.OhDkkkDOhO', '.DlmDkDDlmD', 'DmkDmkDDmkD', '.DdkdkdkdD.', '..DDdDdDD..'],
+    vegCorta0: ['.....OhO..O.', '.O..Ohl..OlO', 'OlO..lm..mlO', 'OlmOOlmOOkmO', '.Omkdllmkmdh', '.Omkdmmkdkml', '..OkdmmkkmlO', '..OddkkddkmO', '....dddddd..'],
+    vegCorta1: ['OlO.hO.OlO', 'OlmOhlOmlO', '.OmklmkmO.', '.OmklmkmO.', '..OkmkkkO.', '..OdkkdO..', '...dddd...'],
+    vegCorta2: ['.....OhO....O', 'O...Ohl....Ol', 'lO...lmO.OOml', 'lmOOOllmOhkmO', 'OmkddmmkmlmmO', '.OkddmmkmlkO.', '..OddkkkmdO..', '...ddddddd...'],
+    vegAlta0: ['......OhO......', '......OhO......', '.....OhlO....O.', '.O...Ohhl...OlO', 'OlO...llm...mlO', 'Olm...llm..OmlO', 'OlmO..llm..mlO.', '.Omk..llm.OkmO.', '.OmkOOllmOkmhO.', '.OmkddllmdklhO.', '.OhmkdmmkdkmlO.', '.OhlkdmmkdmlO..', '..OlmdmmkdmlO..', '..OlmdmmkkmmO..', '...OmkkkdkmO...', '...OmkkkdkmO...', '....OkdkddkO...', '.....dddddd....'],
+    vegAlta1: ['..OhllO......', '.Ohl.lmO.....', 'Ohl...lmO....', 'Olm...lmO....', 'Ol....hlO..O.', '.....OhlO.OlO', '.....Ohhl.mlO', '.....OllmOmlO', '.....OllmkmO.', '.OldddllmkmkO', '.Olmdllmdkmdh', '.Omkdllmkmmlh', '..Omkmmkdkdml', '..OmkmmkdkmlO', '..OkdmmkdkkmO', '...OkkkddkmmO', '...OdkkdddkO.', '....ddddddd..'],
+    vegHelecho0: ['...................', '.....O.............', '....OkO............', '....OklO...........', '....OlkhO..........', '....OhklhO.........', '.....OlkhO.........', '.....OlkmhO........', 'OOOOOkhlkmkOOOOOOOO', 'kklhlhlmklmmhhlhlkk', 'hlkkkkmmkmllmkkkklh', '..OlhlkllklkklhlO..', '.....dddd.dddd.....'],
+    vegHelecho1: ['........O.......', '.......OkO......', '.......OkO......', '......OhkO......', '......OlklO.....', '......OlklO.....', 'OO...OhmkhkOOOOO', 'hlOOOkmllmkhllkk', 'kkklhhlmmlmlkklO', 'OllkklllllkkllO.', '.OhhmkmllmlhmO..', '....ddd..ddd....'],
+    vegMata0: ['.OO..OhO..OO.', 'OhlOOhhlOOlhO', 'OhhlllklmlhhO', 'OlllllklmlllO', 'lmllllklmllml', 'mmkmmmkkmmkmm', 'mmmkkmkkkkmmm', 'OkkkdkmkdkkkO', '.OdddkkddddO.', '....ddddd....'],
+    vegMata1: ['....OhO....', '...OhklO...', 'OOOllklmOOO', 'lmkllklmkml', 'mmkllklmkmm', 'mmmkmkkkmmm', 'OkkdmmkdkkO', '.OddkkdddO.', '...ddddd...'],
+    vegFlor0: ['............', '..w......w..', '.wyg....wyg.', '..g...w..g..', '..k..wyg.k..', '..k..Og..k..', '..k.OhlO.k..', '.OlOkhlkOlO.', '.OmklllmkmO.', '.OmmmmmkmmO.', '..OkkkkdkO..', '...dddddd...'],
+    vegFlor1: ['...........', '.....p.....', '..p.pyq.p..', '.pyq.q.pyq.', '..q..k..q..', '..k.OkO.k..', '.OlOhhlOlO.', '.OmkllmkmO.', '.OmmllmmmO.', '..OkmmkkO..', '...ddddd...'],
   };
   // id, ancho, alto, amplitud de flexión (u), tipo
   const NEW_SPRITES = Object.keys(ART).map(id => { const k = id.replace(/\d+$/, ''); return [id, ART[id][0].length, ART[id].length, AMP[k], k.slice(3).toLowerCase()]; });
@@ -142,28 +143,45 @@
   // 3. Inyección en el shader del terreno (la raíz no se mueve)
   // ════════════════════════════════════════════════════════════════════
   const VS_HEAD = `
-      attribute vec3 aVeg;
+      attribute vec4 aVeg;
       uniform vec4 uVegWin; uniform vec4 uVegCam; uniform vec4 uVegWind; uniform vec2 uVegLod;
+      uniform vec4 uVegNear[5];
       #ifdef TM_VEG_TEX
       uniform sampler2D uVegTex;
       #endif`;
+  // aVeg = (peso: 1 punta → 0 raíz, amplitud, fase propia, largo de la planta en z).
+  // Todo se calcula desde la RAÍZ de cada planta: la planta entera reacciona como una
+  // pieza (la punta se mueve más que la base) y la raíz nunca se desplaza.
   const VS_BODY = `
         if (aVeg.x > 0.0 && uVegWin.w > 0.5) {
-          float vw = aVeg.x, amp = aVeg.y, ph = aVeg.z, dist = distance(wp.xz, uVegCam.xy);
+          float vw = aVeg.x, amp = aVeg.y, ph = aVeg.z;
+          float toRoot = pow(vw, 0.6667) * aVeg.w;                 // distancia de este vértice a la raíz
+          vec2 root = vec2(wp.x, wp.z + toRoot);
+          float dist = distance(root, uVegCam.xy);
           float lod = 1.0 - smoothstep(uVegLod.x, uVegLod.y, dist), mid = 1.0 - smoothstep(uVegLod.y, uVegLod.y + 4.0, dist);
           // Viento secundario: solo durante ráfagas (la mayor parte del tiempo, quieto).
           float freq = 2.4 - amp * 3.0;
-          float wind = sin(uVegCam.z * freq + wp.x * 0.5 + wp.z * 0.3 + ph * 6.2831) * uVegWind.z;
+          float wind = sin(uVegCam.z * freq + root.x * 0.5 + root.y * 0.3 + ph * 6.2831) * uVegWind.z;
           vec2 d = vec2(0.0);
           #ifdef TM_VEG_TEX
-          // Cada planta lee la onda en un punto propio (reacción desfasada, no todas iguales).
-          vec2 tuv = (wp.xz + vec2(ph - 0.5, fract(ph * 7.3) - 0.5) * 0.35 - uVegWin.xy) / uVegWin.z;
+          // Cada planta lee la onda en un punto propio cerca de su raíz (reacción desfasada).
+          vec2 tuv = (root + vec2(ph - 0.5, fract(ph * 7.3) - 0.5) * 0.3 - uVegWin.xy) / uVegWin.z;
           if (tuv.x > 0.0 && tuv.y > 0.0 && tuv.x < 1.0 && tuv.y < 1.0) d = (texture2D(uVegTex, tuv).rg * 2.0 - 1.0) * lod * (0.8 + 0.4 * ph);
           #endif
-          // Flexión hacia donde empuja el contacto + la punta baja hacia la raíz (se aplasta),
-          // así el doblez se lee claro aunque la hoja sea pequeña.
+          // Flexión hacia donde empuja el contacto + la punta baja hacia la raíz (se aplasta).
+          float push = min(1.0, length(d));
           wp.x += (d.x * amp + wind * amp * 0.35 * mid) * vw;
-          wp.z += (d.y * amp * 0.4 + min(1.0, length(d)) * amp * 0.45) * vw;
+          wp.z += (d.y * amp * 0.4) * vw + push * 0.5 * min(1.0, amp * 2.0) * toRoot;
+          // Profundidad legible: la hierba justo delante de un personaje se agacha y se abre,
+          // así tapa los pies y parte de las piernas, nunca el cuerpo.
+          for (int q = 0; q < 5; q++) {
+            vec4 n = uVegNear[q];
+            if (n.z <= 0.0 || amp < 0.08) continue;     // los arbustos sólidos no se agachan
+            float ax = abs(root.x - n.x), dz = root.y - n.y;
+            float f = (1.0 - smoothstep(n.z * 0.55, n.z, ax)) * step(-0.15, dz) * (1.0 - smoothstep(n.z * 0.7, n.z * 1.35, dz));
+            wp.z += f * n.w * toRoot;
+            wp.x += sign(root.x - n.x + 0.001) * f * amp * 0.6 * vw;
+          }
         }`;
 
   class Veg {
@@ -204,7 +222,7 @@
         const vx = (av.x - this.prev.x) / Math.max(dt, 1e-3), vy = (av.y - this.prev.y) / Math.max(dt, 1e-3), sp = Math.hypot(vx, vy);
         if (sp > 0.4 && sp < 40) { this.sim.impulse(av.x, av.y + 0.1, C.player.radius, C.player.force * Math.min(1.6, sp / 4) * dt * 30, vx / sp, vy / sp); this.stats.src.jugador++; }
         // Ataque cuerpo a cuerpo: abanico al frente.
-        const atk = av.atk | 0;
+        const atk = (av.ac | 0) * 1000 + (av.atk | 0);   // «ac» cuenta las acciones de ataque del avatar
         if (atk && atk !== this.lastAtk) {
           const fx = sp > 0.2 ? vx / sp : (this.face ? this.face[0] : 1), fy = sp > 0.2 ? vy / sp : (this.face ? this.face[1] : 0);
           this.sim.impulse(av.x + fx * 0.9, av.y + fy * 0.9, C.attack.radius, C.attack.force, fx, fy); this.stats.src.ataque++;
@@ -244,6 +262,15 @@
       const g0 = Math.max(0, Math.sin(t * 0.17) * Math.sin(t * 0.071 + 1.3)), gust = Math.pow(g0, 3) * C.wind.gust;   // casi siempre 0
       U.uVegWind.value.set(1, 0, C.wind.strength * gust, 0);
       U.uVegLod.value.set(C.lod.near, C.lod.far);
+      // Personajes cerca de los que la hierba se agacha (jugador + 4 criaturas más cercanas).
+      const NR = U.uVegNear.value, NC = C.near; NR.forEach(q => q.set(0, 0, 0, 0));
+      NR[0].set(av.x, av.y, NC.player, NC.squash);
+      if (s.world && s.world.entities) {
+        const near = [];
+        for (const e of s.world.entities) { if (e.dead) continue; const dd = Math.abs(e.x - av.x) + Math.abs(e.y - av.y); if (dd < 9) near.push([dd, e]); }
+        near.sort((p, q) => p[0] - q[0]);
+        for (let i = 0; i < Math.min(4, near.length); i++) { const e = near[i][1]; NR[i + 1].set(e.x, e.y, Math.max(NC.creature, (e.r || 0.4) * 1.4), NC.squash); }
+      }
       if (this.tex && (this.dirty || this.sim.awake)) {
         const N = C.cells, d = this.data, S = this.sim;
         for (let k = 0; k < N * N; k++) { d[k * 4] = Math.round((S.dx[k] * 0.5 + 0.5) * 255); d[k * 4 + 1] = Math.round((S.dy[k] * 0.5 + 0.5) * 255); }
@@ -272,7 +299,7 @@
       if (m.vertexShader.indexOf(a1) < 0 || m.vertexShader.indexOf(a2) < 0) return null;
       m.__tmVegOrig = m.vertexShader;
       m.vertexShader = (vtf ? '#define TM_VEG_TEX\n' : '') + m.vertexShader.replace(a1, VS_HEAD + '\n      ' + a1).replace(a2, a2 + VS_BODY);
-      Object.assign(m.uniforms, { uVegWin: { value: new THREE.Vector4() }, uVegCam: { value: new THREE.Vector4() }, uVegWind: { value: new THREE.Vector4() }, uVegLod: { value: new THREE.Vector2(8, 15) } });
+      Object.assign(m.uniforms, { uVegWin: { value: new THREE.Vector4() }, uVegCam: { value: new THREE.Vector4() }, uVegWind: { value: new THREE.Vector4() }, uVegLod: { value: new THREE.Vector2(8, 15) }, uVegNear: { value: [0, 1, 2, 3, 4].map(() => new THREE.Vector4()) } });
       m.needsUpdate = true; m.__tmVeg = true;
       // Si en algún celular no compila, vuelve solo al terreno original.
       const self = this, err = console.error;
@@ -287,15 +314,15 @@
       if (this._regs) return this._regs;
       const at = v.atlas, W = at.w || 512, H = at.h || 512, out = [];
       for (const [k, r] of Object.entries(at.regions)) {
-        const amp = /^tuft/.test(k) ? 0.12 : /^flowers/.test(k) ? 0.07 : /^bush/.test(k) ? 0.04 : 0;
-        if (amp) out.push({ type: amp, u0: r.x / W, v0: r.y / H, u1: (r.x + r.w) / W, v1: (r.y + r.h) / H });
+        const amp = /^tuft/.test(k) ? 0.18 : /^flowers/.test(k) ? 0.1 : /^bush/.test(k) ? 0.05 : 0;
+        if (amp) out.push({ type: amp, len: r.h / 16, u0: r.x / W, v0: r.y / H, u1: (r.x + r.w) / W, v1: (r.y + r.h) / H });
       }
       this._regs = out; return out;
     }
     /** Marca cada vértice de planta: peso 1 arriba, 0 en la raíz (la raíz nunca se mueve). */
     tagGeometry(geo, regs, shift) {
       const uv = geo.attributes.uv, pos = geo.attributes.position; if (!uv || !pos) return 0;
-      const n = uv.count, out = new Float32Array(n * 3); let plants = 0;
+      const n = uv.count, out = new Float32Array(n * 4); let plants = 0;
       for (let i = 0; i < n; i++) {
         let u = uv.getX(i), vv = uv.getY(i);
         for (let pass = 0; pass < 2; pass++) {
@@ -304,12 +331,12 @@
           if (!r) continue;
           const w = 1 - (vv - r.v0) / Math.max(1e-6, r.v1 - r.v0);
           const ph = (Math.sin(pos.getX(i) * 12.9898 + pos.getZ(i) * 78.233) * 43758.5453) % 1;
-          out[i * 3] = Math.max(0, Math.min(1, w)); out[i * 3 + 1] = r.type; out[i * 3 + 2] = Math.abs(ph);
+          out[i * 4] = Math.max(0, Math.min(1, w)); out[i * 4 + 1] = r.type; out[i * 4 + 2] = Math.abs(ph); out[i * 4 + 3] = r.len * Math.cbrt(Math.max(0, Math.min(1, w)));   // en el shader: pow(w, 2/3) · esto = w · largo
           if (w > 0.5) plants++;
           break;
         }
       }
-      geo.setAttribute('aVeg', new THREE.BufferAttribute(out, 3));
+      geo.setAttribute('aVeg', new THREE.BufferAttribute(out, 4));
       return plants;
     }
     tagChunks(v) {
@@ -377,7 +404,7 @@
         for (let row = 0; row <= 3; row++) {
           const tf = row / 3, zz = hh - f + tf * 2 * f, vv = g0 + (g1 - g0) * tf, wgt = Math.pow(1 - tf, 1.5);
           pos.push(c - u, l, zz, c + u, l, zz); uvs.push(p0, vv, p1, vv);
-          cols.push(1, 0, 0, 1, 0, 0); vegs.push(wgt, amp, ph, wgt, amp, ph);
+          cols.push(1, 0, 0, 1, 0, 0); vegs.push(wgt, amp, ph, 2 * f, wgt, amp, ph, 2 * f);
         }
         for (let row = 0; row < 3; row++) { const q = base + row * 2; idx.push(q, q + 2, q + 3, q, q + 3, q + 1); }
         n++;
@@ -389,7 +416,7 @@
       geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
       geo.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(vc).fill(0).flatMap(() => [0, 1, 0]), 3));
       geo.setAttribute('aMask', new THREE.Float32BufferAttribute(new Array(vc * 2).fill(-1), 2));
-      geo.setAttribute('aVeg', new THREE.Float32BufferAttribute(vegs, 3));
+      geo.setAttribute('aVeg', new THREE.Float32BufferAttribute(vegs, 4));
       geo.setIndex(idx);
       const mesh = new THREE.Mesh(geo, v.terrainMat); mesh.frustumCulled = false; mesh.name = 'vegetacion-zona';
       v.scene.add(mesh); this.zone = mesh; this.zonePts = pts; this.tagged.add(geo); this.stats.zonePlants = n;
@@ -397,10 +424,54 @@
   }
 
   root.__TM_VEG_API__ = API;
+  /**
+   * Telemetría en pantalla (?tel=1): FPS y tiempo de cuadro medidos dentro del juego, más el
+   * estado de la vegetación. Funciona con la vegetación activada (?veg=1&tel=1) y desactivada
+   * (?tel=1) para comparar en el mismo celular. No cambia nada del juego.
+   */
+  class Tel {
+    constructor(app) {
+      this.app = app; this.ms = []; this.last = 0; this.prev = null; this.t0 = performance.now();
+      const el = this.el = document.createElement('div'); el.id = 'tm-veg-tel';
+      el.style.cssText = 'position:fixed;left:6px;top:31%;z-index:9999;font:10px/1.35 ui-monospace,monospace;color:#e8ffe0;background:rgba(6,20,12,.78);padding:5px 7px;border-radius:6px;pointer-events:none;white-space:pre';
+      document.body.appendChild(el);
+      const self = this, tick = (now) => { try { self.frame(now); } catch (_) { /* nunca romper el juego */ } requestAnimationFrame(tick); };
+      requestAnimationFrame(tick);
+      root.__TM_VEG_TEL__ = this;
+    }
+    frame(now) {
+      if (this.last) { const d = now - this.last; if (d > 0 && d < 1000) { this.ms.push(d); if (this.ms.length > 240) this.ms.shift(); } }
+      this.last = now;
+      if (now - this.t0 < 500) return;
+      const dt = (now - this.t0) / 1000; this.t0 = now;
+      const v = root.__TM_VEG__, a = this.app, st = v && v.stats;
+      const srt = this.ms.slice().sort((p, q) => p - q), avg = srt.reduce((p, q) => p + q, 0) / Math.max(1, srt.length);
+      const p95 = srt.length ? srt[Math.floor(srt.length * 0.95)] : 0;
+      const cur = st ? { steps: st.steps, up: st.uploads } : null, pv = this.prev; this.prev = cur;
+      const data = this.data = {
+        vegetacion: v ? (v.on ? 'activada' : 'desactivada (error de shader)') : 'desactivada',
+        fps: +(1000 / Math.max(1, avg)).toFixed(1), ms: +avg.toFixed(1), ms_p95: +p95.toFixed(1),
+        sim: v ? (v.sim.awake ? 'activa' : 'dormida') : '—',
+        pasos_s: v && pv ? Math.round((cur.steps - pv.steps) / dt) : 0,
+        subidas_s: v && pv ? Math.round((cur.up - pv.up) / dt) : 0,
+        plantas: v ? (st.zonePlants || 0) + ' + ' + st.plants : 0,
+        texturas_en_vertices: v ? (v.vtf ? 'sí' : 'no') : '—',
+        calidad: a.tier || '—'
+      };
+      this.el.textContent = 'Vegetación: ' + data.vegetacion + '\nFPS ' + data.fps + '  ·  ' + data.ms + ' ms (p95 ' + data.ms_p95 + ')' +
+        (v ? '\nSimulación: ' + data.sim + '  ' + data.pasos_s + ' pasos/s\nSubidas de textura: ' + data.subidas_s + '/s\nPlantas: ' + data.plantas : '') +
+        '\nCalidad: ' + data.calidad;
+    }
+  }
+
   root.__TM_VEG_INSTALL__ = function (app) {
+    const q = new URLSearchParams(root.location ? root.location.search : '');
     try {
-      const cfg = Object.assign({}, DEF, root.__TM_VEG_CONFIG__ || {});
-      new Veg(app, cfg);
+      if (q.get('veg') === '1') {
+        const cfg = Object.assign({}, DEF, root.__TM_VEG_CONFIG__ || {});
+        new Veg(app, cfg);
+      }
     } catch (e) { console.error('Vegetación beta:', e); }
+    try { if (q.get('tel') === '1') new Tel(app); } catch (e) { console.error('Telemetría beta:', e); }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

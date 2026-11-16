@@ -1,6 +1,6 @@
 # Vangelium Dynamic Vegetation v1.0 · beta (`/beta/?veg=1`)
 
-> **Estado (16-11-2026): v1.1 en beta, desactivado por defecto (`?veg=1`). NO publicado en producción. Aspecto pendiente de aprobación.**
+> **Estado (16-11-2026): v1.2 (beta v12.2) en beta, desactivado por defecto (`?veg=1`). NO publicado en producción. Aspecto pendiente de aprobación.**
 
 ## Arquitectura
 1. **Simulación por celdas** (`VegSim`): rejilla de 48 × 48 celdas de 0,5 u
@@ -101,3 +101,50 @@ Triángulos: 3.928 sin vegetación, 5.302 con v1.1. Quieto tras caminar: 0 pasos
 simulación, 0 subidas. **Sin probar en Android.**
 
 Pruebas visuales y mediciones en bruto: `docs/evidencias/vegetacion-v12/` (ver `LEEME.md`).
+
+---
+
+## v1.2 · Siluetas limpias, movimiento visible y profundidad (16-11-2026) — en beta, pendiente de aprobación
+Respuesta a la revisión de la grabación real en Android de la v12.1 (siluetas con
+bordes negros y puntas en zigzag «como alambres»; movimiento demasiado sutil; follaje
+que compite con las piernas del personaje).
+
+**Arte.** Todas las plantas redibujadas con hojas anchas y separadas:
+- El contorno oscuro va **solo en la silueta exterior**; entre hojas se ve el suelo o
+  una sombra verde. Ningún contorno negro queda dentro de una planta (hay una prueba).
+- Volumen por valor: base más oscura que el suelo, cuerpo medio, puntas más claras
+  que el suelo (se leen sin necesidad de líneas negras).
+- Hierba alta con hojas que se abren y una que se arquea; helechos con frondas
+  rayadas en chevrón (foliolos); matas de hoja ancha; flores sobre una mata baja,
+  con tallos finos sin contorno.
+
+**Movimiento a velocidad normal.**
+- Toda la planta se calcula desde su **raíz** (antes cada vértice leía la onda en su
+  propio punto, y la punta reaccionaba antes de que el personaje llegara).
+- Amplitudes mayores (hierba alta 0,62 u en la punta, helecho 0,45, corta 0,30,
+  flor 0,22, mata 0,16) y la planta se aplasta hacia la raíz al ser empujada, en
+  proporción a su flexibilidad (los arbustos sólidos casi no).
+- **Corrección:** los ataques no empujaban la hierba en la v12 (se leía un campo del
+  avatar que no existe); ahora se detecta cada acción de ataque.
+
+**Profundidad.** La hierba que está justo delante del jugador o de las 4 criaturas
+más cercanas se agacha (hasta 55 %) y se abre hacia los lados: tapa pies y parte de
+las piernas, nunca el cuerpo. Los arbustos no se agachan.
+
+**Distribución.** Se conservan las colonias; espaciado 0,62 → 0,72 para que las matas
+no se amontonen en garabatos: **169 plantas** (antes 228; v11 tenía 600).
+
+**Telemetría del juego** (`?tel=1`): recuadro con FPS, ms por cuadro (promedio y
+p95), estado de la simulación, pasos/s, subidas de textura/s, plantas y calidad.
+Funciona con la vegetación activada (`?veg=1&tel=1`) y desactivada (`?tel=1`), para
+medir en el mismo celular. No cambia nada del juego.
+
+**Pruebas (16-11-2026).** 79/79 en `node --test`; 11/11 comprobaciones en el
+navegador (caminos despejados, ataque real con teclado a un slime dentro de la
+hierba, onda del Rey, profundidad, guardado + recarga con `?veg=1`, sin `?veg=1`
+nada se instala y el shader queda original). Grabación de ~10 s caminando con el
+teclado por varias colonias, con y sin vegetación. Rendimiento en software (muy
+variable): sin vegetación ≈ 39–50 ms/cuadro, v12.1 ≈ 45 ms, v12.2 ≈ 41–45 ms; triángulos
+3.928 / 5.302 / 4.947. **Sin probar en Android:** usar `?veg=1&tel=1` frente a `?tel=1`.
+
+Pruebas visuales y mediciones: `docs/evidencias/vegetacion-v12.2/`.

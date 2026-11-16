@@ -1,0 +1,57 @@
+[
+ [
+  "vegetación activa con shader y telemetría",
+  true,
+  "{'on': True, 'vtf': True, 'zone': 169, 'shader': True}"
+ ],
+ [
+  "caminos de tierra y obstáculos despejados",
+  true,
+  "{'dirt': 0, 'obs': 0, 'n': 169}"
+ ],
+ [
+  "el ataque daña al slime dentro de la hierba",
+  true,
+  "({'id': 4, 'hp': 60}, {'hp': 0, 'dead': True})"
+ ],
+ [
+  "el ataque empuja la vegetación",
+  true,
+  "(0, 7)"
+ ],
+ [
+  "las ondas del Rey mueven la vegetación",
+  true,
+  ""
+ ],
+ [
+  "la hierba sabe dónde están el jugador y las criaturas cercanas",
+  true,
+  "[0, 0, 0.7, 0.55, 2]"
+ ],
+ [
+  "el guardado sobrevive a la recarga con la vegetación activa",
+  true,
+  "({'n': 1, 'k': 18}, {'n': 1, 'k': 18, 'marca': True})"
+ ],
+ [
+  "tras recargar, la vegetación vuelve a instalarse",
+  true,
+  ""
+ ],
+ [
+  "sin errores en consola",
+  true,
+  "[]"
+ ],
+ [
+  "sin ?veg=1 la vegetación no se instala",
+  true,
+  ""
+ ],
+ [
+  "sin ?veg=1 el shader del terreno queda original",
+  true,
+  ""
+ ]
+]

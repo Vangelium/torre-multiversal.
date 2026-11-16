@@ -73,10 +73,29 @@ test('el arte nuevo es pixel art limpio con la paleta del juego (sin base de peg
 
 test('las mediciones guardadas son JSON estricto (sin NaN ni Infinity)', () => {
   const fs = require('node:fs'), path = require('node:path');
-  const dir = path.join(__dirname, '../../docs/evidencias/vegetacion-v12');
-  for (const f of ['mediciones_rendimiento.json', 'resultados_visuales.json']) {
-    const txt = fs.readFileSync(path.join(dir, f), 'utf8');
+  const files = [['vegetacion-v12', 'mediciones_rendimiento.json'], ['vegetacion-v12', 'resultados_visuales.json'],
+    ['vegetacion-v12.2', 'mediciones_rendimiento.json'], ['vegetacion-v12.2', 'resultados_visuales.json'], ['vegetacion-v12.2', 'funcional.json']];
+  for (const [d, f] of files) {
+    const txt = fs.readFileSync(path.join(__dirname, '../../docs/evidencias', d, f), 'utf8');
     assert.ok(!/\bNaN\b|\bInfinity\b/.test(txt), f + ' contiene NaN o Infinity');
     JSON.parse(txt);
   }
+});
+
+test('v12.2: sin contornos negros interiores (solo la silueta exterior lleva contorno)', () => {
+  const { ART } = require('../../beta/vegetacion.js');
+  for (const [id, rows] of Object.entries(ART)) {
+    const h = rows.length, w = rows[0].length, f = (x, y) => x >= 0 && y >= 0 && x < w && y < h && rows[y][x] !== '.';
+    let interior = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (rows[y][x] === 'O' && f(x - 1, y) && f(x + 1, y) && f(x, y - 1) && f(x, y + 1)) interior++;
+    assert.equal(interior, 0, id + ': tiene ' + interior + ' píxeles de contorno negro dentro de la planta');
+  }
+});
+
+test('v12.2: el doblez es visible (amplitudes) y la hierba se agacha delante de los personajes', () => {
+  const { DEF: D, NEW_SPRITES } = require('../../beta/vegetacion.js');
+  const amp = Object.fromEntries(NEW_SPRITES.map(q => [q[4], q[3]]));
+  assert.ok(amp.alta >= 0.6 && amp.helecho >= 0.4 && amp.corta >= 0.25, JSON.stringify(amp));
+  assert.ok(amp.mata < amp.alta && amp.flor < amp.alta, 'las matas y flores son más rígidas que la hierba alta');
+  assert.ok(D.near && D.near.player > 0 && D.near.squash > 0 && D.near.squash < 1, 'agacharse sin desaparecer');
 });

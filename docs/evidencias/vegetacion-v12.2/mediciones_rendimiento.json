@@ -1,0 +1,167 @@
+{
+ "sin_vegetacion": {
+  "plantas": null,
+  "quieto": {
+   "ms_prom": 73.81,
+   "ms_p95": 112.9,
+   "fps": 13.5,
+   "llamadas_dibujo": 72,
+   "triangulos": 3928,
+   "sim_ms_prom": 0,
+   "pasos_sim": null,
+   "subidas_textura": 0,
+   "calidad": "low"
+  },
+  "caminando": {
+   "ms_prom": 50.01,
+   "ms_p95": 80.9,
+   "fps": 20,
+   "llamadas_dibujo": 73,
+   "triangulos": 3931,
+   "sim_ms_prom": 0,
+   "pasos_sim": null,
+   "subidas_textura": 0,
+   "calidad": "low"
+  },
+  "quieto_tras_caminar": {
+   "ms_prom": 39.01,
+   "ms_p95": 51.4,
+   "fps": 25.6,
+   "llamadas_dibujo": 70,
+   "triangulos": 3931,
+   "sim_ms_prom": 0,
+   "pasos_sim": null,
+   "subidas_textura": 0,
+   "calidad": "low"
+  },
+  "pixeles_que_cambian_en_2s_quieto": 64,
+  "errores": []
+ },
+ "v11": {
+  "plantas": {
+   "plantas_zona": 600,
+   "plantas_terreno_marcadas": 1672,
+   "vtf": true
+  },
+  "quieto": {
+   "ms_prom": 50.67,
+   "ms_p95": 72.7,
+   "fps": 19.7,
+   "llamadas_dibujo": 73,
+   "triangulos": 5133,
+   "sim_ms_prom": 0.003,
+   "pasos_sim": null,
+   "subidas_textura": 241,
+   "calidad": "low"
+  },
+  "caminando": {
+   "ms_prom": 47.2,
+   "ms_p95": 67.2,
+   "fps": 21.2,
+   "llamadas_dibujo": 75,
+   "triangulos": 5138,
+   "sim_ms_prom": 0.012,
+   "pasos_sim": null,
+   "subidas_textura": 241,
+   "calidad": "low"
+  },
+  "quieto_tras_caminar": {
+   "ms_prom": 45.29,
+   "ms_p95": 65,
+   "fps": 22.1,
+   "llamadas_dibujo": 73,
+   "triangulos": 5141,
+   "sim_ms_prom": 0.006,
+   "pasos_sim": null,
+   "subidas_textura": 181,
+   "calidad": "low"
+  },
+  "pixeles_que_cambian_en_2s_quieto": 21456,
+  "errores": []
+ },
+ "v12_1": {
+  "plantas": {
+   "plantas_zona": 228,
+   "plantas_terreno_marcadas": 1672,
+   "vtf": true
+  },
+  "quieto": {
+   "ms_prom": 45.54,
+   "ms_p95": 66.4,
+   "fps": 22,
+   "llamadas_dibujo": 73,
+   "triangulos": 5302,
+   "sim_ms_prom": 0.003,
+   "pasos_sim": 80,
+   "subidas_textura": 50,
+   "calidad": "low"
+  },
+  "caminando": {
+   "ms_prom": 44.94,
+   "ms_p95": 63.2,
+   "fps": 22.2,
+   "llamadas_dibujo": 75,
+   "triangulos": 5307,
+   "sim_ms_prom": 0.017,
+   "pasos_sim": 324,
+   "subidas_textura": 240,
+   "calidad": "low"
+  },
+  "quieto_tras_caminar": {
+   "ms_prom": 46.58,
+   "ms_p95": 63.6,
+   "fps": 21.5,
+   "llamadas_dibujo": 73,
+   "triangulos": 5310,
+   "sim_ms_prom": 0.012,
+   "pasos_sim": 127,
+   "subidas_textura": 89,
+   "calidad": "low"
+  },
+  "pixeles_que_cambian_en_2s_quieto": 968,
+  "errores": []
+ },
+ "v12_2": {
+  "plantas": {
+   "plantas_zona": 169,
+   "plantas_terreno_marcadas": 1672,
+   "vtf": true
+  },
+  "quieto": {
+   "ms_prom": 45.55,
+   "ms_p95": 64.1,
+   "fps": 22,
+   "llamadas_dibujo": 73,
+   "triangulos": 4947,
+   "sim_ms_prom": 0.005,
+   "pasos_sim": 80,
+   "subidas_textura": 57,
+   "calidad": "low"
+  },
+  "caminando": {
+   "ms_prom": 41.2,
+   "ms_p95": 53.6,
+   "fps": 24.3,
+   "llamadas_dibujo": 75,
+   "triangulos": 4952,
+   "sim_ms_prom": 0.015,
+   "pasos_sim": 297,
+   "subidas_textura": 240,
+   "calidad": "low"
+  },
+  "quieto_tras_caminar": {
+   "ms_prom": 43.13,
+   "ms_p95": 62.6,
+   "fps": 23.2,
+   "llamadas_dibujo": 73,
+   "triangulos": 4954,
+   "sim_ms_prom": 0.006,
+   "pasos_sim": 84,
+   "subidas_textura": 66,
+   "calidad": "low"
+  },
+  "pixeles_que_cambian_en_2s_quieto": 588,
+  "errores": []
+ },
+ "nota": "Chromium con renderizado por SOFTWARE (sin tarjeta gráfica): no representa un celular y varía mucho entre pasadas (p. ej., 'sin_vegetacion · quieto' salió 73 ms por el calentamiento inicial). pasos_sim = null donde la versión no los contaba. Para medir en Android usar la telemetría del juego: ?veg=1&tel=1 frente a ?tel=1."
+}
