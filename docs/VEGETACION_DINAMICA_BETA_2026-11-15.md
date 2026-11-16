@@ -1,6 +1,6 @@
 # Vangelium Dynamic Vegetation v1.0 · beta (`/beta/?veg=1`)
 
-> **Estado (16-11-2026): v1.2 (beta v12.2) en beta, desactivado por defecto (`?veg=1`). NO publicado en producción. Aspecto pendiente de aprobación.**
+> **Estado (16-11-2026): v1.3 (beta v12.3) en beta, desactivado por defecto (`?veg=1`). NO publicado en producción. Aspecto pendiente de aprobación.**
 
 ## Arquitectura
 1. **Simulación por celdas** (`VegSim`): rejilla de 48 × 48 celdas de 0,5 u
@@ -148,3 +148,32 @@ variable): sin vegetación ≈ 39–50 ms/cuadro, v12.1 ≈ 45 ms, v12.2 ≈ 41�
 3.928 / 5.302 / 4.947. **Sin probar en Android:** usar `?veg=1&tel=1` frente a `?tel=1`.
 
 Pruebas visuales y mediciones: `docs/evidencias/vegetacion-v12.2/`.
+
+---
+
+## v1.3 · Pulido de movimiento y helechos (16-11-2026) — en beta
+Tras la prueba real en Android de la v12.2 (≈ 60 FPS, 16,6 ms por cuadro, calidad
+alta con la vegetación activa; se conserva como base). Pendiente según esa revisión:
+hojas algo rígidas y helechos angulosos.
+
+- **Hojas menos rígidas.** La textura del campo ahora lleva también la **velocidad**
+  (canales b y a). En el shader la punta se **atrasa** respecto del tallo (inercia,
+  como un látigo, con atraso propio por planta) y **aletea** un instante mientras la
+  empujan: la hoja se curva en vez de inclinarse entera. Las plantas nuevas tienen
+  **5 tramos** (antes 3), así que el doblez se ve curvo. Ambos efectos valen 0 en
+  reposo (prueba nueva: los cuatro canales vuelven exactos a 128).
+- **Helechos redibujados:** frondas más cortas que se arquean y caen dentro del
+  sprite (antes chocaban con el borde y quedaban rectas y angulosas).
+- **Telemetría compacta:** dos líneas pequeñas y semitransparentes (FPS, ms, p95,
+  calidad; estado de la hierba). Los datos completos siguen en
+  `window.__TM_VEG_TEL__.data`.
+- **Corrección importante:** si la onda llegaba al borde de la ventana de simulación
+  (24 × 24 u alrededor del jugador), ese valor quedaba congelado: algunas plantas
+  podían quedar levemente dobladas y la simulación **no volvía a dormirse nunca**
+  (gasto continuo, aunque pequeño). Pasaba desde que la onda llega más lejos (v12.1).
+  Ahora el borde se mantiene en 0; hay una prueba que lo reproduce.
+- Sin cambios en distribución (169 plantas), profundidad ni guardado.
+
+Pruebas: 81/81 en `node --test`; 11/11 en el navegador. Evidencias en
+`docs/evidencias/vegetacion-v12.3/`. **Falta medir en Android sin vegetación
+(`?tel=1`)** para comparar con los 60 FPS observados con ella.

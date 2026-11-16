@@ -74,7 +74,7 @@ test('el arte nuevo es pixel art limpio con la paleta del juego (sin base de peg
 test('las mediciones guardadas son JSON estricto (sin NaN ni Infinity)', () => {
   const fs = require('node:fs'), path = require('node:path');
   const files = [['vegetacion-v12', 'mediciones_rendimiento.json'], ['vegetacion-v12', 'resultados_visuales.json'],
-    ['vegetacion-v12.2', 'mediciones_rendimiento.json'], ['vegetacion-v12.2', 'resultados_visuales.json'], ['vegetacion-v12.2', 'funcional.json']];
+    ['vegetacion-v12.2', 'mediciones_rendimiento.json'], ['vegetacion-v12.2', 'resultados_visuales.json'], ['vegetacion-v12.2', 'funcional.json'], ['vegetacion-v12.3', 'resultados_visuales.json'], ['vegetacion-v12.3', 'funcional.json']];
   for (const [d, f] of files) {
     const txt = fs.readFileSync(path.join(__dirname, '../../docs/evidencias', d, f), 'utf8');
     assert.ok(!/\bNaN\b|\bInfinity\b/.test(txt), f + ' contiene NaN o Infinity');
@@ -98,4 +98,34 @@ test('v12.2: el doblez es visible (amplitudes) y la hierba se agacha delante de 
   assert.ok(amp.alta >= 0.6 && amp.helecho >= 0.4 && amp.corta >= 0.25, JSON.stringify(amp));
   assert.ok(amp.mata < amp.alta && amp.flor < amp.alta, 'las matas y flores son más rígidas que la hierba alta');
   assert.ok(D.near && D.near.player > 0 && D.near.squash > 0 && D.near.squash < 1, 'agacharse sin desaparecer');
+});
+
+test('v12.3: la textura lleva desplazamiento y velocidad; en reposo todo vale 128 (nada se mueve)', () => {
+  const { DEF: D, VegSim: VS, encodeField, VMAX } = require('../../beta/vegetacion.js');
+  const s = new VS(D); s.center(0, 0);
+  const data = new Uint8Array(D.cells * D.cells * 4);
+  encodeField(s, data);
+  assert.ok(data.every(v => v === 128), 'reposo exacto en los cuatro canales');
+  s.impulse(0, 0, D.player.radius, D.player.force, 1, 0); s.step(1 / D.hz);
+  encodeField(s, data);
+  let vx = 0, dx = 0;
+  for (let k = 0; k < data.length; k += 4) { vx = Math.max(vx, Math.abs(data[k + 2] - 128)); dx = Math.max(dx, Math.abs(data[k] - 128)); }
+  assert.ok(vx > 20 && dx > 2, 'al empujar aparecen velocidad (para el atraso de la punta) y desplazamiento: ' + vx + ' / ' + dx);
+  assert.ok(VMAX > 0 && data.every(v => v >= 0 && v <= 255));
+  for (let i = 0; i < D.hz * 12; i++) s.step(1 / D.hz);
+  encodeField(s, data);
+  assert.ok(data.every(v => v === 128), 'tras el rebote vuelve exacto al reposo');
+});
+
+test('v12.3: una onda que llega al borde de la ventana no deja la hierba doblada para siempre', () => {
+  const { DEF: D, VegSim: VS } = require('../../beta/vegetacion.js');
+  const s = new VS(D); s.center(0, 0);
+  const half = D.cells * D.cell / 2;
+  // Empujes fuertes cerca de los cuatro bordes y luego se desplaza la ventana.
+  for (const [x, y] of [[half - 1.2, 0], [-half + 1.2, 0], [0, half - 1.2], [0, -half + 1.2]]) s.impulse(x, y, 1.5, 40, 1, 1);
+  for (let i = 0; i < 10; i++) s.step(1 / D.hz);
+  s.center(1.5, -1.5);
+  for (let i = 0; i < D.hz * 15 && s.awake; i++) s.step(1 / D.hz);
+  assert.equal(s.awake, false, 'la simulación se duerme (energía ' + s.energy + ')');
+  assert.ok(s.dx.every(v => v === 0) && s.dy.every(v => v === 0), 'todo vuelve exacto a 0');
 });
