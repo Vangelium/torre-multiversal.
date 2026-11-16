@@ -70,3 +70,13 @@ test('el arte nuevo es pixel art limpio con la paleta del juego (sin base de peg
     assert.ok(rows.length <= 18 && w <= 19, id + ': demasiado grande, taparía a los personajes');
   }
 });
+
+test('las mediciones guardadas son JSON estricto (sin NaN ni Infinity)', () => {
+  const fs = require('node:fs'), path = require('node:path');
+  const dir = path.join(__dirname, '../../docs/evidencias/vegetacion-v12');
+  for (const f of ['mediciones_rendimiento.json', 'resultados_visuales.json']) {
+    const txt = fs.readFileSync(path.join(dir, f), 'utf8');
+    assert.ok(!/\bNaN\b|\bInfinity\b/.test(txt), f + ' contiene NaN o Infinity');
+    JSON.parse(txt);
+  }
+});

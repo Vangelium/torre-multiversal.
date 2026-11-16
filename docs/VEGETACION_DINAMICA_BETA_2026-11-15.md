@@ -99,3 +99,5 @@ Mediciones en Chromium con renderizado por software (no representativo de un
 celular): sin vegetación ≈ 36–42 ms/cuadro; v1.0 ≈ 43–46 ms; v1.1 ≈ 36–40 ms.
 Triángulos: 3.928 sin vegetación, 5.302 con v1.1. Quieto tras caminar: 0 pasos de
 simulación, 0 subidas. **Sin probar en Android.**
+
+Pruebas visuales y mediciones en bruto: `docs/evidencias/vegetacion-v12/` (ver `LEEME.md`).

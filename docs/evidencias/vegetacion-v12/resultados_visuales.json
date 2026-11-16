@@ -1,0 +1,38 @@
+{
+ "pixeles_de_hojas_movidas_al_detenerse": 4924,
+ "caminar": {
+  "cuadros": 67,
+  "desplazamiento_max": 1,
+  "segundos_hasta_reposo": 19.31
+ },
+ "natural_6s": {
+  "jugador": 0,
+  "ataque": 0,
+  "criaturas": 129,
+  "ondas": 0
+ },
+ "segundos_hasta_dormir": 0.09,
+ "reposo": {
+  "sim_despierta": false,
+  "energia": 0,
+  "desplazamiento_max": 0,
+  "subidas_textura_en_2s": 0,
+  "pasos_simulados_en_2s": 0,
+  "pixeles_distintos_en_2s": 348,
+  "de_ellos_en_el_jugador": 0
+ },
+ "slime": {
+  "cuadros": 50,
+  "entidad": {
+   "id": 2,
+   "sp": "limo",
+   "d": 4.976403800327016
+  }
+ },
+ "onda_rey": {
+  "awake": true,
+  "energy": 1.3570620534588802,
+  "maxd": 0.1217963919043541,
+  "uploads": 1574
+ }
+}
