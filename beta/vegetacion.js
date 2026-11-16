@@ -96,6 +96,9 @@
         if (e > 1e-9) { if (i < ni0) ni0 = i; if (j < nj0) nj0 = j; if (i > ni1) ni1 = i; if (j > nj1) nj1 = j; }
       }
       this.energy = energy;
+      // Borde de la ventana fijo en 0: nunca se calcula, así que un valor que llegara ahí
+      // (por la onda o al desplazar la ventana) quedaría congelado y no dejaría dormir.
+      for (let i = 0; i < N; i++) for (const k of [i, (N - 1) * N + i, i * N, i * N + N - 1]) { dx[k] = 0; dy[k] = 0; vx[k] = 0; vy[k] = 0; }
       // Bajo el umbral se duerme: todo vuelve exacto al reposo (sin vibraciones residuales).
       if (ni1 < 0 || energy < this.cfg.sleep) { this.dx.fill(0); this.dy.fill(0); this.vx.fill(0); this.vy.fill(0); this.awake = false; this.box = null; this.energy = 0; return 0; }
       this.box = [ni0, nj0, ni1, nj1];
@@ -116,8 +119,8 @@
     vegCorta2: ['.....OhO....O', 'O...Ohl....Ol', 'lO...lmO.OOml', 'lmOOOllmOhkmO', 'OmkddmmkmlmmO', '.OkddmmkmlkO.', '..OddkkkmdO..', '...ddddddd...'],
     vegAlta0: ['......OhO......', '......OhO......', '.....OhlO....O.', '.O...Ohhl...OlO', 'OlO...llm...mlO', 'Olm...llm..OmlO', 'OlmO..llm..mlO.', '.Omk..llm.OkmO.', '.OmkOOllmOkmhO.', '.OmkddllmdklhO.', '.OhmkdmmkdkmlO.', '.OhlkdmmkdmlO..', '..OlmdmmkdmlO..', '..OlmdmmkkmmO..', '...OmkkkdkmO...', '...OmkkkdkmO...', '....OkdkddkO...', '.....dddddd....'],
     vegAlta1: ['..OhllO......', '.Ohl.lmO.....', 'Ohl...lmO....', 'Olm...lmO....', 'Ol....hlO..O.', '.....OhlO.OlO', '.....Ohhl.mlO', '.....OllmOmlO', '.....OllmkmO.', '.OldddllmkmkO', '.Olmdllmdkmdh', '.Omkdllmkmmlh', '..Omkmmkdkdml', '..OmkmmkdkmlO', '..OkdmmkdkkmO', '...OkkkddkmmO', '...OdkkdddkO.', '....ddddddd..'],
-    vegHelecho0: ['...................', '.....O.............', '....OkO............', '....OklO...........', '....OlkhO..........', '....OhklhO.........', '.....OlkhO.........', '.....OlkmhO........', 'OOOOOkhlkmkOOOOOOOO', 'kklhlhlmklmmhhlhlkk', 'hlkkkkmmkmllmkkkklh', '..OlhlkllklkklhlO..', '.....dddd.dddd.....'],
-    vegHelecho1: ['........O.......', '.......OkO......', '.......OkO......', '......OhkO......', '......OlklO.....', '......OlklO.....', 'OO...OhmkhkOOOOO', 'hlOOOkmllmkhllkk', 'kkklhhlmmlmlkklO', 'OllkklllllkkllO.', '.OhhmkmllmlhmO..', '....ddd..ddd....'],
+    vegHelecho0: ['...................', '...................', '...................', '...................', '.....O.............', '....OkOO....OO.....', '....OkkhO.OOlkO....', '..OOkklkhOhlklkO...', '.OlhlhlklhlkllhlOO.', '.OkhlkkmklkmkkkkkkO', '....OhmmlmklmhO....', '......OlmkllhO.....', '...................'],
+    vegHelecho1: ['................', '................', '..........O.....', '.........OkO....', '........OhkO....', '.......OhklO....', '.......OlkO.....', '.OOOOOOmkhkOOOO.', 'OkkkkmhlkmmlkkhO', 'OhllhklmkmklllkO', '....OlmlklhO....', '......d..d......'],
     vegMata0: ['.OO..OhO..OO.', 'OhlOOhhlOOlhO', 'OhhlllklmlhhO', 'OlllllklmlllO', 'lmllllklmllml', 'mmkmmmkkmmkmm', 'mmmkkmkkkkmmm', 'OkkkdkmkdkkkO', '.OdddkkddddO.', '....ddddd....'],
     vegMata1: ['....OhO....', '...OhklO...', 'OOOllklmOOO', 'lmkllklmkml', 'mmkllklmkmm', 'mmmkmkkkmmm', 'OkkdmmkdkkO', '.OddkkdddO.', '...ddddd...'],
     vegFlor0: ['............', '..w......w..', '.wyg....wyg.', '..g...w..g..', '..k..wyg.k..', '..k..Og..k..', '..k.OhlO.k..', '.OlOkhlkOlO.', '.OmklllmkmO.', '.OmmmmmkmmO.', '..OkkkkdkO..', '...dddddd...'],
@@ -125,7 +128,17 @@
   };
   // id, ancho, alto, amplitud de flexión (u), tipo
   const NEW_SPRITES = Object.keys(ART).map(id => { const k = id.replace(/\d+$/, ''); return [id, ART[id][0].length, ART[id].length, AMP[k], k.slice(3).toLowerCase()]; });
-  const API = { DEF, VegSim, ART, PAL, NEW_SPRITES };
+  /** Campo → textura RGBA8: rg = desplazamiento (−1..1), ba = velocidad (÷ VMAX, −1..1). 128 = reposo. */
+  const VMAX = 12;
+  function encodeField(S, d) {
+    const q = v => Math.max(0, Math.min(255, Math.round((v * 0.5 + 0.5) * 255)));
+    for (let k = 0; k < S.dx.length; k++) {
+      d[k * 4] = q(S.dx[k]); d[k * 4 + 1] = q(S.dy[k]);
+      d[k * 4 + 2] = q(Math.max(-1, Math.min(1, S.vx[k] / VMAX))); d[k * 4 + 3] = q(Math.max(-1, Math.min(1, S.vy[k] / VMAX)));
+    }
+    return d;
+  }
+  const API = { DEF, VegSim, ART, PAL, NEW_SPRITES, encodeField, VMAX };
   if (typeof module !== 'undefined' && module.exports) { module.exports = API; return; }
   if (!root.document) return;
 
@@ -162,16 +175,24 @@
           // Viento secundario: solo durante ráfagas (la mayor parte del tiempo, quieto).
           float freq = 2.4 - amp * 3.0;
           float wind = sin(uVegCam.z * freq + root.x * 0.5 + root.y * 0.3 + ph * 6.2831) * uVegWind.z;
-          vec2 d = vec2(0.0);
+          vec2 d = vec2(0.0), vel = vec2(0.0);
           #ifdef TM_VEG_TEX
           // Cada planta lee la onda en un punto propio cerca de su raíz (reacción desfasada).
           vec2 tuv = (root + vec2(ph - 0.5, fract(ph * 7.3) - 0.5) * 0.3 - uVegWin.xy) / uVegWin.z;
-          if (tuv.x > 0.0 && tuv.y > 0.0 && tuv.x < 1.0 && tuv.y < 1.0) d = (texture2D(uVegTex, tuv).rg * 2.0 - 1.0) * lod * (0.8 + 0.4 * ph);
+          if (tuv.x > 0.0 && tuv.y > 0.0 && tuv.x < 1.0 && tuv.y < 1.0) {
+            vec4 tx = texture2D(uVegTex, tuv);
+            d = (tx.rg * 2.0 - 1.0) * lod * (0.8 + 0.4 * ph);
+            vel = (tx.ba * 2.0 - 1.0) * lod;
+          }
           #endif
           // Flexión hacia donde empuja el contacto + la punta baja hacia la raíz (se aplasta).
-          float push = min(1.0, length(d));
-          wp.x += (d.x * amp + wind * amp * 0.35 * mid) * vw;
-          wp.z += (d.y * amp * 0.4) * vw + push * 0.5 * min(1.0, amp * 2.0) * toRoot;
+          float push = min(1.0, length(d)), vw2 = vw * vw;
+          // La punta se atrasa respecto del tallo (inercia, como un látigo) y aletea un instante:
+          // la hoja se curva en vez de inclinarse rígida. Ambos son 0 en reposo.
+          vec2 lag = clamp(-vel * (0.75 + 0.5 * ph), -0.8, 0.8);
+          float flutter = sin(uVegCam.z * (11.0 + 5.0 * ph) + ph * 31.0) * push * 0.18;
+          wp.x += (d.x * amp + wind * amp * 0.35 * mid) * vw + (lag.x * 0.9 + flutter) * amp * vw2;
+          wp.z += (d.y * amp * 0.4) * vw + lag.y * amp * 0.35 * vw2 + push * 0.5 * min(1.0, amp * 2.0) * toRoot;
           // Profundidad legible: la hierba justo delante de un personaje se agacha y se abre,
           // así tapa los pies y parte de las piernas, nunca el cuerpo.
           for (int q = 0; q < 5; q++) {
@@ -273,7 +294,7 @@
       }
       if (this.tex && (this.dirty || this.sim.awake)) {
         const N = C.cells, d = this.data, S = this.sim;
-        for (let k = 0; k < N * N; k++) { d[k * 4] = Math.round((S.dx[k] * 0.5 + 0.5) * 255); d[k * 4 + 1] = Math.round((S.dy[k] * 0.5 + 0.5) * 255); }
+        encodeField(S, d);
         this.tex.needsUpdate = true; this.dirty = false; this.stats.uploads++;
       }
       this.stats.active = this.sim.awake ? 1 : 0; this.stats.frames++;
@@ -365,7 +386,7 @@
     /**
      * Zona controlada alrededor de la salida del valle: COLONIAS naturales (ruido
      * determinista) con claros, bordes suaves y mezcla de especies; caminos y
-     * obstáculos despejados. Cada planta es un cuadro de 3 tramos: la flexión
+     * obstáculos despejados. Cada planta es un cuadro de 5 tramos: la flexión
      * crece hacia la punta (curva), la raíz no se mueve.
      */
     buildZone(v) {
@@ -399,14 +420,15 @@
         const flip = hash(x * 9.1, y) < 0.5, amp = spr[3] * (0.85 + hash(x, y * 3) * 0.3);
         const l = z + 0.01, c = Math.round(x * 16) / 16, hh = l - Math.round((l - y) * 16) / 16, u = r.w / 32, f = r.h / 32;
         const p0 = (flip ? r.x + r.w : r.x) / W, p1 = (flip ? r.x : r.x + r.w) / W, g0 = r.y / H, g1 = (r.y + r.h) / H, ph = hash(x * 2.3, y * 1.9);
-        // 3 tramos (4 filas de vértices): z de atrás (punta) a adelante (raíz).
+        // Tramos: z de atrás (punta) a adelante (raíz).
         const base = pos.length / 3; pts.push({ x, y, id });
-        for (let row = 0; row <= 3; row++) {
-          const tf = row / 3, zz = hh - f + tf * 2 * f, vv = g0 + (g1 - g0) * tf, wgt = Math.pow(1 - tf, 1.5);
+        const SEG = 5;                                   // 5 tramos: el doblez se ve curvo, no quebrado
+        for (let row = 0; row <= SEG; row++) {
+          const tf = row / SEG, zz = hh - f + tf * 2 * f, vv = g0 + (g1 - g0) * tf, wgt = Math.pow(1 - tf, 1.5);
           pos.push(c - u, l, zz, c + u, l, zz); uvs.push(p0, vv, p1, vv);
           cols.push(1, 0, 0, 1, 0, 0); vegs.push(wgt, amp, ph, 2 * f, wgt, amp, ph, 2 * f);
         }
-        for (let row = 0; row < 3; row++) { const q = base + row * 2; idx.push(q, q + 2, q + 3, q, q + 3, q + 1); }
+        for (let row = 0; row < SEG; row++) { const q = base + row * 2; idx.push(q, q + 2, q + 3, q, q + 3, q + 1); }
         n++;
       }
       if (!n) return;
@@ -433,7 +455,7 @@
     constructor(app) {
       this.app = app; this.ms = []; this.last = 0; this.prev = null; this.t0 = performance.now();
       const el = this.el = document.createElement('div'); el.id = 'tm-veg-tel';
-      el.style.cssText = 'position:fixed;left:6px;top:31%;z-index:9999;font:10px/1.35 ui-monospace,monospace;color:#e8ffe0;background:rgba(6,20,12,.78);padding:5px 7px;border-radius:6px;pointer-events:none;white-space:pre';
+      el.style.cssText = 'position:fixed;left:4px;top:31%;z-index:9999;font:9px/1.3 ui-monospace,monospace;color:#e8ffe0;background:rgba(6,20,12,.6);padding:2px 5px;border-radius:4px;pointer-events:none;white-space:pre';
       document.body.appendChild(el);
       const self = this, tick = (now) => { try { self.frame(now); } catch (_) { /* nunca romper el juego */ } requestAnimationFrame(tick); };
       requestAnimationFrame(tick);
@@ -458,9 +480,9 @@
         texturas_en_vertices: v ? (v.vtf ? 'sí' : 'no') : '—',
         calidad: a.tier || '—'
       };
-      this.el.textContent = 'Vegetación: ' + data.vegetacion + '\nFPS ' + data.fps + '  ·  ' + data.ms + ' ms (p95 ' + data.ms_p95 + ')' +
-        (v ? '\nSimulación: ' + data.sim + '  ' + data.pasos_s + ' pasos/s\nSubidas de textura: ' + data.subidas_s + '/s\nPlantas: ' + data.plantas : '') +
-        '\nCalidad: ' + data.calidad;
+      // Compacta (2 líneas) para no tapar el juego; los datos completos quedan en window.__TM_VEG_TEL__.data.
+      this.el.textContent = data.fps + ' FPS · ' + data.ms + ' ms (p95 ' + data.ms_p95 + ') · ' + data.calidad +
+        '\n' + (v ? 'hierba ' + data.sim + ' · ' + data.pasos_s + ' pasos/s · ' + data.subidas_s + ' subidas/s' : 'sin vegetación');
     }
   }
 
