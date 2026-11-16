@@ -1,0 +1,125 @@
+{
+ "sin_vegetacion": {
+  "plantas": null,
+  "quieto": {
+   "ms_prom": 36.49,
+   "ms_p95": 46.4,
+   "fps": 27.4,
+   "llamadas_dibujo": 72,
+   "triangulos": 3928,
+   "sim_ms_prom": 0,
+   "pasos_sim": 0,
+   "subidas_textura": 0,
+   "calidad": "low"
+  },
+  "caminando": {
+   "ms_prom": 42.35,
+   "ms_p95": 60.3,
+   "fps": 23.6,
+   "llamadas_dibujo": 74,
+   "triangulos": 3933,
+   "sim_ms_prom": 0,
+   "pasos_sim": 0,
+   "subidas_textura": 0,
+   "calidad": "low"
+  },
+  "quieto_tras_caminar": {
+   "ms_prom": 40.57,
+   "ms_p95": 61.5,
+   "fps": 24.6,
+   "llamadas_dibujo": 71,
+   "triangulos": 3932,
+   "sim_ms_prom": 0,
+   "pasos_sim": 0,
+   "subidas_textura": 0,
+   "calidad": "low"
+  },
+  "pixeles_que_cambian_en_2s_quieto": 48,
+  "errores": []
+ },
+ "antes_v11": {
+  "plantas": {
+   "plantas_zona": 600,
+   "plantas_terreno_marcadas": 1672,
+   "vtf": true
+  },
+  "quieto": {
+   "ms_prom": 45.77,
+   "ms_p95": 71.2,
+   "fps": 21.8,
+   "llamadas_dibujo": 73,
+   "triangulos": 5133,
+   "sim_ms_prom": 0.002,
+   "pasos_sim": null,
+   "subidas_textura": 241,
+   "calidad": "low"
+  },
+  "caminando": {
+   "ms_prom": 43.08,
+   "ms_p95": 62.4,
+   "fps": 23.2,
+   "llamadas_dibujo": 75,
+   "triangulos": 5138,
+   "sim_ms_prom": 0.012,
+   "pasos_sim": null,
+   "subidas_textura": 241,
+   "calidad": "low"
+  },
+  "quieto_tras_caminar": {
+   "ms_prom": 43.08,
+   "ms_p95": 64.1,
+   "fps": 23.2,
+   "llamadas_dibujo": 73,
+   "triangulos": 5141,
+   "sim_ms_prom": 0.004,
+   "pasos_sim": null,
+   "subidas_textura": 181,
+   "calidad": "low"
+  },
+  "pixeles_que_cambian_en_2s_quieto": 21944,
+  "errores": []
+ },
+ "despues_v12": {
+  "plantas": {
+   "plantas_zona": 228,
+   "plantas_terreno_marcadas": 1672,
+   "vtf": true
+  },
+  "quieto": {
+   "ms_prom": 38.79,
+   "ms_p95": 60.2,
+   "fps": 25.8,
+   "llamadas_dibujo": 73,
+   "triangulos": 5302,
+   "sim_ms_prom": 0.004,
+   "pasos_sim": 100,
+   "subidas_textura": 92,
+   "calidad": "low"
+  },
+  "caminando": {
+   "ms_prom": 39.64,
+   "ms_p95": 58,
+   "fps": 25.2,
+   "llamadas_dibujo": 75,
+   "triangulos": 5307,
+   "sim_ms_prom": 0.014,
+   "pasos_sim": 285,
+   "subidas_textura": 240,
+   "calidad": "low"
+  },
+  "quieto_tras_caminar": {
+   "ms_prom": 35.71,
+   "ms_p95": 45.1,
+   "fps": 28,
+   "llamadas_dibujo": 72,
+   "triangulos": 5308,
+   "sim_ms_prom": 0.001,
+   "pasos_sim": 0,
+   "subidas_textura": 0,
+   "calidad": "low"
+  },
+  "pixeles_que_cambian_en_2s_quieto": 96,
+  "errores": []
+ },
+ "nota": "Chromium con renderizado por SOFTWARE (sin tarjeta gráfica): no representa un celular. pasos_sim = null en antes_v11 porque esa versión no contaba los pasos de simulación (no es un cero). En v11 la hierba se recalculaba y subía la textura en cada cuadro incluso quieta."
+}

@@ -40,3 +40,43 @@ test('al seguir al jugador la ventana se desplaza sin perder la onda', () => {
   s.center(52, 50);
   assert.ok(Math.abs(s.at(50.4, 50)[0] - before) < 1e-6);
 });
+
+test('al caminar, la onda se ve en las matas vecinas (más débil y después) y luego todo queda quieto', () => {
+  const { DEF: D } = require('../../beta/vegetacion.js');
+  const s = new VegSim(D); s.center(0, 0); const h = 1 / D.hz; let x = -2, t = 0, sleepAt = null;
+  const peak = { 0.5: [0, 0], 2: [0, 0] };
+  for (let i = 0; i < D.hz * 12; i++) {
+    t += h;
+    if (x < 1) { s.impulse(x, 0, D.player.radius, D.player.force * 0.65, 1, 0); x += 2.6 * h; }
+    s.step(h);
+    for (const d in peak) { const v = s.at(0, +d), a = Math.hypot(v[0], v[1]); if (a > peak[d][0]) peak[d] = [a, t]; }
+    if (!s.awake && sleepAt === null) sleepAt = t;
+  }
+  assert.ok(peak[0.5][0] > 0.5, 'la mata tocada se dobla claramente: ' + peak[0.5][0]);
+  assert.ok(peak[2][0] > 0.12 && peak[2][0] < peak[0.5][0] * 0.5, 'a 2 u la reacción se nota pero es menor: ' + peak[2][0]);
+  assert.ok(sleepAt !== null && sleepAt - 1.15 < 6, 'vuelve al reposo en pocos segundos: ' + sleepAt);
+  assert.ok(s.dx.every(v => v === 0) && s.vx.every(v => v === 0), 'reposo exacto');
+});
+
+test('el arte nuevo es pixel art limpio con la paleta del juego (sin base de pegatina)', () => {
+  const { ART, PAL, NEW_SPRITES } = require('../../beta/vegetacion.js');
+  const kinds = new Set(NEW_SPRITES.map(q => q[4]));
+  for (const k of ['corta', 'alta', 'helecho', 'mata', 'flor']) assert.ok(kinds.has(k), 'falta la variedad ' + k);
+  for (const [id, rows] of Object.entries(ART)) {
+    const w = rows[0].length;
+    assert.ok(rows.every(r => r.length === w), id + ': filas de distinto ancho');
+    assert.ok(rows.every(r => [...r].every(c => c === '.' || PAL[c])), id + ': color fuera de la paleta');
+    assert.ok(!rows[rows.length - 1].includes('O'), id + ': la base no lleva contorno duro');
+    assert.ok(rows.length <= 18 && w <= 19, id + ': demasiado grande, taparía a los personajes');
+  }
+});
+
+test('las mediciones guardadas son JSON estricto (sin NaN ni Infinity)', () => {
+  const fs = require('node:fs'), path = require('node:path');
+  const dir = path.join(__dirname, '../../docs/evidencias/vegetacion-v12');
+  for (const f of ['mediciones_rendimiento.json', 'resultados_visuales.json']) {
+    const txt = fs.readFileSync(path.join(dir, f), 'utf8');
+    assert.ok(!/\bNaN\b|\bInfinity\b/.test(txt), f + ' contiene NaN o Infinity');
+    JSON.parse(txt);
+  }
+});
