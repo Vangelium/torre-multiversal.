@@ -1,6 +1,6 @@
 # Vangelium Dynamic Vegetation v1.0 · beta (`/beta/?veg=1`)
 
-> **Estado (15-11-2026): en beta, desactivado por defecto. NO publicado en producción.**
+> **Estado (16-11-2026): v1.1 en beta, desactivado por defecto (`?veg=1`). NO publicado en producción. Aspecto pendiente de aprobación.**
 
 ## Arquitectura
 1. **Simulación por celdas** (`VegSim`): rejilla de 48 × 48 celdas de 0,5 u
@@ -31,7 +31,7 @@
 | Helechos | **nuevo**, pintado en la zona libre del atlas | pesado y elástico |
 | Flores | flores del mapa (`flowers`) | delicadas, vibración rápida y pequeña |
 | Arbustos | arbustos del mapa (`bush`) | oscilación mínima y lenta |
-Para nuevas especies: pintar el sprite (`paintSprite`), añadirlo a
+Para nuevas especies: dibujar el sprite en `ART` (ver v1.1), que entra solo a
 `NEW_SPRITES` y darle un número de tipo con su amplitud y frecuencia en el shader.
 
 ## Interacciones
@@ -66,3 +66,36 @@ expansivas (todas las del Rey Slime; API `window.__TM_VEG__.blast(x, y, r, fuerz
 - Explosiones propias del motor (bola de fuego, etc.) aún no empujan la vegetación:
   falta conectarlas a `blast`.
 - Pasto alto y helechos solo existen en la zona controlada (el mapa no los genera).
+
+---
+
+## v1.1 · Rediseño visual (16-11-2026) — en beta, pendiente de aprobación
+Respuesta a la revisión del video real (pasto como «palitos verticales», demasiado
+uniforme y brillante, movimiento poco visible).
+
+**Arte.** Se eliminó el pasto procedural de líneas. Las 11 plantas nuevas están
+dibujadas a mano píxel por píxel (`ART`, una letra = un píxel) con la **misma paleta
+de los arbustos y árboles del juego** (`PAL`): hierba corta (3), hierba alta (2),
+helechos (2), matas pequeñas (2) y flores blancas y rosadas (2). Hojas anchas con
+luz arriba y sombra abajo; el contorno oscuro solo marca la silueta y la base se
+funde con el suelo (sin borde de pegatina).
+
+**Distribución.** Colonias por ruido determinista (dos escalas) con claros,
+bordes que se desvanecen, centro de la colonia con hierba alta y helechos, borde
+con hierba corta, matas y flores; volteo y amplitud propios por planta. Caminos de
+tierra y obstáculos despejados. **228 plantas** en la zona (antes 600).
+
+**Movimiento.** La hoja se dobla hacia donde la empujan y además la punta baja
+hacia la raíz (se aplasta), así el doblez se lee aunque la planta sea chica.
+Acoplamiento entre celdas 120 → 400 (la onda llega a 2–3 u), contacto más fuerte
+(jugador radio 1,3 fuerza 20; criaturas 16; ataque 30). Cada planta lee la onda en
+un punto propio (reacción desfasada). Viento solo en ráfagas lentas y suaves. La
+simulación solo da pasos si está despierta: en reposo **0 pasos y 0 subidas de
+textura**.
+
+**Pruebas (16-11-2026).** 76/76 en `node --test` (nuevas: onda visible a 2 u y
+reposo exacto en pocos segundos; arte con paleta del juego y sin base dura).
+Mediciones en Chromium con renderizado por software (no representativo de un
+celular): sin vegetación ≈ 36–42 ms/cuadro; v1.0 ≈ 43–46 ms; v1.1 ≈ 36–40 ms.
+Triángulos: 3.928 sin vegetación, 5.302 con v1.1. Quieto tras caminar: 0 pasos de
+simulación, 0 subidas. **Sin probar en Android.**

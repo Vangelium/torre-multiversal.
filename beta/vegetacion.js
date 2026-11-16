@@ -22,10 +22,10 @@
   'use strict';
   const DEF = Object.freeze({
     cells: 48, cell: 0.5, hz: 30,
-    spring: 22, damping: 3.6, couple: 120, maxDisp: 1, sleep: 2e-5,
-    player: { radius: 1.0, force: 7 }, creature: { force: 4 }, attack: { radius: 1.8, force: 16 },
-    wind: { strength: 0.45, gust: 0.35 }, lod: { near: 8, far: 15 },
-    zone: { radius: 16, tall: 0.32, fern: 0.06, max: 600 }
+    spring: 22, damping: 3.6, couple: 400, maxDisp: 1, sleep: 2e-5,
+    player: { radius: 1.3, force: 20 }, creature: { force: 16 }, attack: { radius: 1.8, force: 30 },
+    wind: { strength: 0.1, gust: 1 }, lod: { near: 8, far: 15 },
+    zone: { radius: 18, max: 380, spacing: 0.62 }
   });
 
   // ════════════════════════════════════════════════════════════════════
@@ -103,43 +103,38 @@
     at(x, y) { const c = this.cfg.cell, i = Math.floor((x - this.x0) / c), j = Math.floor((y - this.y0) / c); if (i < 0 || j < 0 || i >= this.N || j >= this.N) return [0, 0]; const k = this.idx(i, j); return [this.dx[k], this.dy[k]]; }
   }
 
-  const API = { DEF, VegSim };
+  const AMP = { vegCorta: 0.2, vegAlta: 0.44, vegHelecho: 0.32, vegMata: 0.1, vegFlor: 0.16 };
+  // Paleta = la misma de los arbustos y árboles del juego (contorno, sombras, luz).
+  // Nada de verdes nuevos: así las plantas quedan integradas con el terreno.
+  const PAL = { O: '#0c241a', D: '#19472a', d: '#235e31', k: '#337838', m: '#4b9440', l: '#6fb14b', h: '#a3d064', s: '#d2ec8c',
+    w: '#eeeadb', g: '#b9b3a2', y: '#e9c25e', p: '#ea94bc', q: '#b45f8c' };
+  // Pixel art dibujado a mano (una letra = un píxel; '.' = transparente).
+  const ART = {
+    vegCorta0: ['.....O......', '..O.OhO..O..', '.OhODlO.OhO.', '.OlDllmODlO.', 'OllDllmDlmO.', 'OmkDmkdDmkdO', '.DmkmkdmkdD.', '.Ddkmdkdkdd.', '..DdDdDdDD..'],
+    vegCorta1: ['....O.....', '.O.OhO.O..', 'OhODlDOhO.', 'OllDllDlmO', '.OmkmkmkdO', '.DdkdkdkdD', '..DdDdDD..'],
+    vegCorta2: ['.O....O....O.', 'OhO..OhO..OhO', 'OlO..OlO.OlmO', '.OlOODlmODlO.', '.OllDllmDlmO.', '..DmkmkdmkdD.', '..DdkdkdkddD.', '...DdDdDdDD..'],
+    vegAlta0: ['......O........', '.....OhO.......', '.O...OlO....O..', 'OhO..OllO..OhO.', 'OlO...OllO.OlO.', '.OlO..OllO.OllO', '.OlO.ODllDOllO.', '..OlODlDlmDllO.', '.O.OlDlDlmDlmO.', 'OhODllDllmDlmO.', 'OlmDDmDlmkmkO..', '.DlmDmkDmkmkD..', '.DmkDmkDmkdkD..', '..DmkmkdmkdkdD.', '..DdkmkdkdkddD.', '...DdkdkdddDD..', '....DDdDdDDD...'],
+    vegAlta1: ['....OOO......', '...OhllO.....', '..OhODlO.....', '..OO.OlO..O..', '.....OllO.OhO', '..O..OllO.OlO', '.OhO.OllDOlO.', '.OlO.OllmDlO.', '..OlODllmDlO.', '..OlDDllmDlO.', '..OlmDDmkDmkO', '...DlmDmkDmkD', '...DmkDmkmkD.', '...DmkmkdkdD.', '...DdkmkdkdD.', '....DdkdkdD..', '....DdkdddD..', '.....DDdDD...'],
+    vegHelecho0: ['.........O.........', '........OhO........', '.......OlhlO.......', '......OllDllO......', '...O..OllmllO..O...', '..OhO.ODlmlDO.OhO..', '.OlhlO.OlmlO.OlhlO.', 'OllDllODlmlDOllDllO', 'DDDmlmkDlkmDkmlmDDD', '..DDmlmkmkmkmlmDD..', '...DkmdkmkdkmdkD...', '....DdkdkdkdkdD....', '.....DDdDdDdDD.....'],
+    vegHelecho1: ['..........O.....', '...O.....OhO....', '..OhO...OlhlO...', '.OlhlO.OllDllO..', 'OllDllODllmlO...', 'OOOlllmDlmlDO.O.', '...OlllmlmlO.OhO', '...ODmlmkmkDOlhO', '....DkmdkmkmlmDD', '.....DdkmkdkmD..', '......DdkdkdD...', '.......DDdDD....'],
+    vegMata0: ['....OOO.OO...', '..OOhllOhlO..', '.OhllmDlllmO.', 'OhllmDhlllmmO', 'OllmDlllmmDkO', 'OlmkDllmmkDmO', '.OkdDmkkdDkdO', '.DdkdDkddDkD.', '..DdddDdDdD..', '...DDDDDDD...'],
+    vegMata1: ['...OO.OO...', '..OhlOhlO..', '.OhllDllmO.', 'OhllmDllmmO', 'OllmkDlmkmO', 'OmkdDkkdDdO', '.DkdddkdddD', '..DdddDddD.', '...DDDDDD..'],
+    vegFlor0: ['..w.....w...', '.wyw...wyw..', '..g..w..g...', '..k.wyw.k...', '..k..g..k...', '.O.k.k.k.O..', 'OhO.kkk..OhO', 'OlmODkO.OlmO', '.DmkDmkDDmkD', '.DmkdmkdmkD.', '..DdkdkdkdD.', '...DDdDdDD..'],
+    vegFlor1: ['...p....p..', '..pyp..pyp.', '...q....q..', '.p.k....k..', 'pyp.k..k...', '.q.Ok.kO.O.', '.OhDkkkDOhO', '.DlmDkDDlmD', 'DmkDmkDDmkD', '.DdkdkdkdD.', '..DDdDdDD..'],
+  };
+  // id, ancho, alto, amplitud de flexión (u), tipo
+  const NEW_SPRITES = Object.keys(ART).map(id => { const k = id.replace(/\d+$/, ''); return [id, ART[id][0].length, ART[id].length, AMP[k], k.slice(3).toLowerCase()]; });
+  const API = { DEF, VegSim, ART, PAL, NEW_SPRITES };
   if (typeof module !== 'undefined' && module.exports) { module.exports = API; return; }
   if (!root.document) return;
 
   // ════════════════════════════════════════════════════════════════════
   // 2. Arte de las especies nuevas (pintadas en la zona libre del atlas)
   // ════════════════════════════════════════════════════════════════════
-  const NEW_SPRITES = [
-    // id, w, h, tipo (2 = pasto alto, 3 = helecho)
-    ['vegAlto0', 9, 20, 2], ['vegAlto1', 11, 18, 2], ['vegAlto2', 7, 22, 2], ['vegHelecho0', 18, 15, 3], ['vegHelecho1', 15, 13, 3]
-  ];
-  function paintSprite(g, x0, y0, id, w, h) {
-    const G = ['#163f1c', '#1f5229', '#2b6e30', '#3d8c38', '#59aa42', '#82c552', '#b2df70'], OUT = '#0f2614';
-    const put = (x, y, c) => { if (x >= 0 && y >= 0 && x < w && y < h) { g.fillStyle = c; g.fillRect(x0 + x, y0 + y, 1, 1); } };
-    if (id.startsWith('vegAlto')) {
-      const blades = id === 'vegAlto1' ? 5 : 4;
-      for (let b = 0; b < blades; b++) {
-        const bx = 1 + Math.round(b * (w - 3) / (blades - 1)), lean = (b - (blades - 1) / 2) * 0.35, top = Math.round((b % 2) * 4 + (id === 'vegAlto2' ? 0 : 2));
-        for (let y = h - 1; y >= top; y--) {
-          const t = (h - 1 - y) / (h - 1 - top), x = Math.round(bx + lean * (1 - t) * 0 + lean * t * 4);
-          put(x, y, t > 0.75 ? G[6] : t > 0.45 ? G[5] : t > 0.2 ? G[4] : G[3]);
-          if (t < 0.85) put(x + 1, y, t > 0.5 ? G[3] : G[2]);
-        }
-        put(Math.round(bx + lean * 4), top - 1, OUT);
-      }
-      for (let x = 0; x < w; x++) put(x, h - 1, G[1]);
-    } else {
-      // Helecho: tallo central curvo con hojuelas alternadas.
-      const fronds = id === 'vegHelecho0' ? 3 : 2;
-      for (let f = 0; f < fronds; f++) {
-        const ang = -0.9 + f * (1.8 / Math.max(1, fronds - 1)), len = h - 2 - (f === 1 ? 0 : 2);
-        for (let s = 0; s < len; s++) {
-          const t = s / len, x = Math.round(w / 2 + Math.sin(ang) * s * 0.75 + Math.sin(t * 3) * 0.6), y = Math.round(h - 1 - Math.cos(ang * 0.6) * s);
-          put(x, y, G[2]);
-          if (s % 2 === 0 && t < 0.9) { const L = Math.round((1 - t) * 3) + 1; for (let q = 1; q <= L; q++) { put(x - q, y - (q >> 1), q === L ? G[5] : G[4]); put(x + q, y - (q >> 1), q === L ? G[4] : G[3]); } }
-        }
-      }
+  function paintSprite(g, x0, y0, id) {
+    const rows = ART[id]; if (!rows) return;
+    for (let y = 0; y < rows.length; y++) for (let x = 0; x < rows[y].length; x++) {
+      const c = PAL[rows[y][x]]; if (c) { g.fillStyle = c; g.fillRect(x0 + x, y0 + y, 1, 1); }
     }
   }
 
@@ -154,25 +149,27 @@
       #endif`;
   const VS_BODY = `
         if (aVeg.x > 0.0 && uVegWin.w > 0.5) {
-          float vw = aVeg.x, vt = aVeg.y, dist = distance(wp.xz, uVegCam.xy);
+          float vw = aVeg.x, amp = aVeg.y, ph = aVeg.z, dist = distance(wp.xz, uVegCam.xy);
           float lod = 1.0 - smoothstep(uVegLod.x, uVegLod.y, dist), mid = 1.0 - smoothstep(uVegLod.y, uVegLod.y + 4.0, dist);
-          float amp = vt < 1.5 ? 0.16 : vt < 2.5 ? 0.26 : vt < 3.5 ? 0.2 : vt < 4.5 ? 0.09 : 0.06;
-          float freq = vt < 1.5 ? 1.9 : vt < 2.5 ? 1.4 : vt < 3.5 ? 1.0 : vt < 4.5 ? 3.2 : 0.8;
-          float gust = 0.65 + 0.35 * sin(uVegCam.z * 0.27 + wp.x * 0.045 + wp.z * 0.03);
-          float wind = sin(uVegCam.z * freq + wp.x * 0.55 + wp.z * 0.35 + aVeg.z * 6.2831) * uVegWind.z * gust;
+          // Viento secundario: solo durante ráfagas (la mayor parte del tiempo, quieto).
+          float freq = 2.4 - amp * 3.0;
+          float wind = sin(uVegCam.z * freq + wp.x * 0.5 + wp.z * 0.3 + ph * 6.2831) * uVegWind.z;
           vec2 d = vec2(0.0);
           #ifdef TM_VEG_TEX
-          vec2 tuv = (wp.xz - uVegWin.xy) / uVegWin.z;
-          if (tuv.x > 0.0 && tuv.y > 0.0 && tuv.x < 1.0 && tuv.y < 1.0) d = (texture2D(uVegTex, tuv).rg * 2.0 - 1.0) * lod;
+          // Cada planta lee la onda en un punto propio (reacción desfasada, no todas iguales).
+          vec2 tuv = (wp.xz + vec2(ph - 0.5, fract(ph * 7.3) - 0.5) * 0.35 - uVegWin.xy) / uVegWin.z;
+          if (tuv.x > 0.0 && tuv.y > 0.0 && tuv.x < 1.0 && tuv.y < 1.0) d = (texture2D(uVegTex, tuv).rg * 2.0 - 1.0) * lod * (0.8 + 0.4 * ph);
           #endif
-          wp.x += (d.x * amp + (wind + uVegWind.w) * amp * 0.45 * mid * uVegWind.x) * vw;
-          wp.z += d.y * amp * 0.45 * vw;
+          // Flexión hacia donde empuja el contacto + la punta baja hacia la raíz (se aplasta),
+          // así el doblez se lee claro aunque la hoja sea pequeña.
+          wp.x += (d.x * amp + wind * amp * 0.35 * mid) * vw;
+          wp.z += (d.y * amp * 0.4 + min(1.0, length(d)) * amp * 0.45) * vw;
         }`;
 
   class Veg {
     constructor(app, cfg) {
       this.app = app; this.cfg = cfg; this.sim = new VegSim(cfg);
-      this.acc = 0; this.prev = null; this.ent = new Map(); this.stats = { simMs: 0, uploads: 0, active: 0, plants: 0, frames: 0 };
+      this.acc = 0; this.prev = null; this.ent = new Map(); this.stats = { simMs: 0, uploads: 0, active: 0, plants: 0, frames: 0, steps: 0, src: { jugador: 0, ataque: 0, criaturas: 0, ondas: 0 } };
       this.view = null; this.mat = null; this.tex = null; this.data = null; this.on = true; this.lastAtk = 0;
       this.hook();
       root.__TM_VEG__ = this;
@@ -194,7 +191,7 @@
     }
     fail(e) { if (this._f) return; this._f = true; console.error('Vegetación beta:', e); setTimeout(() => { this._f = false; }, 4000); }
     /** Onda expansiva pública (la usan el Rey Slime y otros efectos). */
-    blast(x, y, r = 3, force = 9) { if (this.on) this.sim.impulse(x, y, r, force); }
+    blast(x, y, r = 3, force = 9) { if (this.on) { this.sim.impulse(x, y, r, force); this.stats.src.ondas++; } }
 
     // ── Simulación (30 Hz fijos) ──
     tick(dt) {
@@ -205,12 +202,12 @@
       // Jugador: posición, velocidad y dirección.
       if (this.prev) {
         const vx = (av.x - this.prev.x) / Math.max(dt, 1e-3), vy = (av.y - this.prev.y) / Math.max(dt, 1e-3), sp = Math.hypot(vx, vy);
-        if (sp > 0.4 && sp < 40) this.sim.impulse(av.x, av.y + 0.1, C.player.radius, C.player.force * Math.min(1.6, sp / 4) * dt * 30, vx / sp, vy / sp);
+        if (sp > 0.4 && sp < 40) { this.sim.impulse(av.x, av.y + 0.1, C.player.radius, C.player.force * Math.min(1.6, sp / 4) * dt * 30, vx / sp, vy / sp); this.stats.src.jugador++; }
         // Ataque cuerpo a cuerpo: abanico al frente.
         const atk = av.atk | 0;
         if (atk && atk !== this.lastAtk) {
           const fx = sp > 0.2 ? vx / sp : (this.face ? this.face[0] : 1), fy = sp > 0.2 ? vy / sp : (this.face ? this.face[1] : 0);
-          this.sim.impulse(av.x + fx * 0.9, av.y + fy * 0.9, C.attack.radius, C.attack.force, fx, fy);
+          this.sim.impulse(av.x + fx * 0.9, av.y + fy * 0.9, C.attack.radius, C.attack.force, fx, fy); this.stats.src.ataque++;
         }
         this.lastAtk = atk;
         if (sp > 0.2) this.face = [vx / sp, vy / sp];
@@ -223,13 +220,13 @@
         const p = this.ent.get(e.id); this.ent.set(e.id, { x: e.x, y: e.y });
         if (!p) continue;
         const mx = e.x - p.x, my = e.y - p.y, m = Math.hypot(mx, my);
-        if (m > 0.01 && m < 2) { const r = Math.max(0.6, (e.r || 0.4) * 1.3); this.sim.impulse(e.x, e.y, r, C.creature.force * Math.min(2, m / dt / 3) * (0.6 + r * 0.4) * dt * 30, mx / m, my / m); }
+        if (m > 0.01 && m < 2) { const r = Math.max(0.6, (e.r || 0.4) * 1.3); this.stats.src.criaturas++; this.sim.impulse(e.x, e.y, r, C.creature.force * Math.min(2, m / dt / 3) * (0.6 + r * 0.4) * dt * 30, mx / m, my / m); }
       }
       if (this.ent.size > 400) this.ent.clear();
       // Paso fijo.
       this.acc += Math.min(dt, 0.1);
       const h = 1 / C.hz, t0 = performance.now();
-      while (this.acc >= h) { this.sim.step(h); this.acc -= h; this.dirty = true; }
+      while (this.acc >= h) { if (this.sim.awake) { this.sim.step(h); this.stats.steps++; this.dirty = true; } this.acc -= h; }
       this.stats.simMs = this.stats.simMs * 0.9 + (performance.now() - t0) * 0.1;
     }
 
@@ -244,8 +241,8 @@
       const inValley = a.terrain && a.terrain.id === 'valle-alba';
       U.uVegWin.value.set(this.sim.x0, this.sim.y0, C.cells * C.cell, this.on && inValley ? 1 : 0);
       U.uVegCam.value.set(av.x, av.y, t, 0);
-      const gust = Math.max(0, Math.sin(t * 0.21) * Math.sin(t * 0.13 + 1)) * C.wind.gust;
-      U.uVegWind.value.set(1, 0, C.wind.strength * (0.7 + gust), gust * 0.6);
+      const g0 = Math.max(0, Math.sin(t * 0.17) * Math.sin(t * 0.071 + 1.3)), gust = Math.pow(g0, 3) * C.wind.gust;   // casi siempre 0
+      U.uVegWind.value.set(1, 0, C.wind.strength * gust, 0);
       U.uVegLod.value.set(C.lod.near, C.lod.far);
       if (this.tex && (this.dirty || this.sim.awake)) {
         const N = C.cells, d = this.data, S = this.sim;
@@ -290,8 +287,8 @@
       if (this._regs) return this._regs;
       const at = v.atlas, W = at.w || 512, H = at.h || 512, out = [];
       for (const [k, r] of Object.entries(at.regions)) {
-        const type = /^tuft/.test(k) ? 1 : /^vegAlto/.test(k) ? 2 : /^vegHelecho/.test(k) ? 3 : /^flowers/.test(k) ? 4 : /^bush/.test(k) ? 5 : 0;
-        if (type) out.push({ type, u0: r.x / W, v0: r.y / H, u1: (r.x + r.w) / W, v1: (r.y + r.h) / H });
+        const amp = /^tuft/.test(k) ? 0.12 : /^flowers/.test(k) ? 0.07 : /^bush/.test(k) ? 0.04 : 0;
+        if (amp) out.push({ type: amp, u0: r.x / W, v0: r.y / H, u1: (r.x + r.w) / W, v1: (r.y + r.h) / H });
       }
       this._regs = out; return out;
     }
@@ -332,50 +329,70 @@
       for (const [id, w, h] of NEW_SPRITES) {
         if (at.regions[id]) continue;
         if (y + h > img.height) return;
-        g.clearRect(x, y, w, h); paintSprite(g, x, y, id, w, h);
+        g.clearRect(x, y, w, h); paintSprite(g, x, y, id);
         at.regions[id] = { x, y, w, h };
         x += w + 2;
       }
       v.atlasTex.needsUpdate = true; this._regs = null;
     }
-    /** Zona controlada: pradera de pasto alto y helechos alrededor de la salida del valle. */
+    /**
+     * Zona controlada alrededor de la salida del valle: COLONIAS naturales (ruido
+     * determinista) con claros, bordes suaves y mezcla de especies; caminos y
+     * obstáculos despejados. Cada planta es un cuadro de 3 tramos: la flexión
+     * crece hacia la punta (curva), la raíz no se mueve.
+     */
     buildZone(v) {
       const a = this.app, T = a.terrain; if (!T || T.id !== 'valle-alba' || !v.scene) return;
       const at = v.atlas, W = at.w || 512, H = at.h || 512, sp = (T.spawns && T.spawns[0]) || { x: T.w / 2, y: T.h / 2 };
-      const Z = this.cfg.zone, pos = [], uvs = [], cols = [], vegs = [], idx = [];
-      const free = (x, y) => !(T.obstacles || []).some(o => Math.abs(o.x - x) < (o.r || 0.3) + 0.5 && Math.abs(o.y - y) < (o.r || 0.3) + 0.5);
+      const Z = this.cfg.zone, pts = [], pos = [], uvs = [], cols = [], vegs = [], idx = [];
       const hash = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
+      // Ruido de valor suave (colonias de varios tamaños).
+      const vn = (x, y, sc) => {
+        const X = x / sc, Y = y / sc, xi = Math.floor(X), yi = Math.floor(Y), fx = X - xi, fy = Y - yi, sm = q => q * q * (3 - 2 * q);
+        const a00 = hash(xi, yi), a10 = hash(xi + 1, yi), a01 = hash(xi, yi + 1), a11 = hash(xi + 1, yi + 1);
+        return (a00 + (a10 - a00) * sm(fx)) + ((a01 + (a11 - a01) * sm(fx)) - (a00 + (a10 - a00) * sm(fx))) * sm(fy);
+      };
+      const nearDirt = (x, y) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const cx = Math.floor(x + dx * 0.8), cy = Math.floor(y + dy * 0.8); if (T.inBounds(cx, cy) && T.dirtAt && T.dirtAt(cx, cy)) return true; } return false; };
+      const free = (x, y) => !(T.obstacles || []).some(o => Math.abs(o.x - x) < (o.r || 0.3) + 0.6 && Math.abs(o.y - y) < (o.r || 0.3) + 0.6);
+      const pick = (list, r) => list[Math.floor(r * list.length) % list.length];
       let n = 0;
-      for (let j = -Z.radius; j <= Z.radius && n < Z.max; j += 0.5) for (let i = -Z.radius; i <= Z.radius && n < Z.max; i += 0.5) {
-        const x = sp.x + i + (hash(i, j) - 0.5) * 0.4, y = sp.y + j + (hash(j, i) - 0.5) * 0.4, d = Math.hypot(i, j);
-        if (d < 3.5 || d > Z.radius) continue;
-        const h0 = hash(i * 3.1, j * 1.7), fern = h0 < Z.fern, tall = !fern && h0 < Z.fern + Z.tall * (1 - d / Z.radius * 0.4);
-        if (!fern && !tall) continue;
-        const z = T.surfaceAt(x, y); if (z !== z || !free(x, y)) continue;
-        if (T.kind && T.idx && T.inBounds(Math.floor(x), Math.floor(y)) && T.dirtAt && T.dirtAt(Math.floor(x), Math.floor(y))) continue;   // no sobre caminos
-        const id = fern ? 'vegHelecho' + (h0 < Z.fern / 2 ? 0 : 1) : 'vegAlto' + Math.floor(hash(j, i * 2) * 3), r = at.regions[id]; if (!r) continue;
-        // Mismo esquema de cuadrado que usan las plantas del mapa (horneado por el motor).
+      for (let j = -Z.radius; j <= Z.radius && n < Z.max; j += Z.spacing) for (let i = -Z.radius; i <= Z.radius && n < Z.max; i += Z.spacing) {
+        const x = sp.x + i + (hash(i * 1.3, j) - 0.5) * Z.spacing * 0.9, y = sp.y + j + (hash(j, i * 1.7) - 0.5) * Z.spacing * 0.9;
+        const d = Math.hypot(i, j); if (d < 4 || d > Z.radius) continue;
+        const col = vn(x, y, 3.2) * 0.65 + vn(x + 40, y - 17, 1.4) * 0.35;           // colonias + detalle
+        const edge = 1 - Math.max(0, (d - Z.radius * 0.75) / (Z.radius * 0.25));      // se desvanece hacia afuera
+        const dens = (col - 0.52) / 0.3 * edge;
+        if (dens <= 0 || hash(x * 3.7, y * 2.9) > dens) continue;                     // claros y bordes suaves
+        const z = T.surfaceAt(x, y); if (z !== z || !free(x, y) || nearDirt(x, y)) continue;
+        // Especie: centro de la colonia → altas y helechos; borde → cortas, matas y flores.
+        const r2 = hash(y * 5.1, x * 4.3), core = dens > 0.75;
+        const id = core ? (r2 < 0.55 ? pick(['vegAlta0', 'vegAlta1'], hash(x, y)) : r2 < 0.8 ? pick(['vegHelecho0', 'vegHelecho1'], hash(y, x)) : pick(['vegCorta0', 'vegCorta2'], r2))
+          : (r2 < 0.58 ? pick(['vegCorta0', 'vegCorta1', 'vegCorta2'], hash(x, y)) : r2 < 0.74 ? pick(['vegMata0', 'vegMata1'], hash(y, x)) : r2 < 0.86 ? pick(['vegFlor0', 'vegFlor1'], hash(x, x)) : pick(['vegAlta1', 'vegHelecho1'], hash(x * 3, y)));
+        const spr = NEW_SPRITES.find(q => q[0] === id), r = at.regions[id]; if (!spr || !r) continue;
+        const flip = hash(x * 9.1, y) < 0.5, amp = spr[3] * (0.85 + hash(x, y * 3) * 0.3);
         const l = z + 0.01, c = Math.round(x * 16) / 16, hh = l - Math.round((l - y) * 16) / 16, u = r.w / 32, f = r.h / 32;
-        const p0 = r.x / W, p1 = (r.x + r.w) / W, g0 = r.y / H, g1 = (r.y + r.h) / H, b = n * 4;
-        pos.push(c - u, l, hh - f, c - u, l, hh + f, c + u, l, hh + f, c + u, l, hh - f);
-        uvs.push(p0, g0, p0, g1, p1, g1, p1, g0);
-        for (let q = 0; q < 4; q++) cols.push(1, 0, 0);
-        const ph = hash(x, y), ty = fern ? 3 : 2;
-        vegs.push(1, ty, ph, 0, ty, ph, 0, ty, ph, 1, ty, ph);
-        idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+        const p0 = (flip ? r.x + r.w : r.x) / W, p1 = (flip ? r.x : r.x + r.w) / W, g0 = r.y / H, g1 = (r.y + r.h) / H, ph = hash(x * 2.3, y * 1.9);
+        // 3 tramos (4 filas de vértices): z de atrás (punta) a adelante (raíz).
+        const base = pos.length / 3; pts.push({ x, y, id });
+        for (let row = 0; row <= 3; row++) {
+          const tf = row / 3, zz = hh - f + tf * 2 * f, vv = g0 + (g1 - g0) * tf, wgt = Math.pow(1 - tf, 1.5);
+          pos.push(c - u, l, zz, c + u, l, zz); uvs.push(p0, vv, p1, vv);
+          cols.push(1, 0, 0, 1, 0, 0); vegs.push(wgt, amp, ph, wgt, amp, ph);
+        }
+        for (let row = 0; row < 3; row++) { const q = base + row * 2; idx.push(q, q + 2, q + 3, q, q + 3, q + 1); }
         n++;
       }
       if (!n) return;
-      const geo = new THREE.BufferGeometry();
+      const vc = pos.length / 3, geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
       geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
       geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
-      geo.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(n * 4).fill(0).flatMap(() => [0, 1, 0]), 3));
-      geo.setAttribute('aMask', new THREE.Float32BufferAttribute(new Array(n * 8).fill(-1), 2));
+      geo.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(vc).fill(0).flatMap(() => [0, 1, 0]), 3));
+      geo.setAttribute('aMask', new THREE.Float32BufferAttribute(new Array(vc * 2).fill(-1), 2));
       geo.setAttribute('aVeg', new THREE.Float32BufferAttribute(vegs, 3));
       geo.setIndex(idx);
       const mesh = new THREE.Mesh(geo, v.terrainMat); mesh.frustumCulled = false; mesh.name = 'vegetacion-zona';
-      v.scene.add(mesh); this.zone = mesh; this.tagged.add(geo); this.stats.zonePlants = n;
+      v.scene.add(mesh); this.zone = mesh; this.zonePts = pts; this.tagged.add(geo); this.stats.zonePlants = n;
     }
   }
 
