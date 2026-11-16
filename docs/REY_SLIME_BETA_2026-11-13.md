@@ -152,6 +152,69 @@ trono, se recompone y la corona regresa torcida. Luego aparece la elección
   (rendimiento, sonido, tacto) antes de llevarlo al juego público.
 - La economía sigue `verified=false`; el arma es equipo del cliente.
 
+## Arte v6 · «El Rey Loco» redibujado con la técnica de la hoja (15-11-2026)
+
+`drawLocoCell` en `rey-formas.js`: ya no usa el esculpido con texturas; se
+dibuja como la hoja del director. Contorno oscuro de 2 px, sombreado en bandas
+limpias con la luz arriba a la izquierda, borde celeste a la derecha y abajo,
+brillo blanco grande, cuerpo redondo de base plana, **ojo izquierdo enorme y
+ojo derecho asomando arriba a la derecha** (magenta, brillo redondo, pupila
+pequeña), **boca en franja negra de zigzag** de lado a lado con filo celeste
+(se abre al rugir), corona grande de tres puntas inclinada sobre el ojo
+izquierdo, aura violeta, burbujas y salpicaduras. Las expresiones (espiral,
+X, corazón, parpadeo, tristeza) se mantienen. Híbridos: mitad y mitad.
+
+## Arte v5 · «El Rey Loco» ajustado a la hoja de referencia (15-11-2026)
+
+Comparado cuadro a cuadro con la ilustración principal de la hoja: cuerpo
+ancho de gelatina azul profunda con borde celeste, ojo izquierdo grande y ojo
+derecho asomando arriba a la derecha (magenta con brillo blanco grande y pupila
+pequeña), **boca de lado a lado** con dientes triangulares grandes de filo
+celeste y la comisura derecha subiendo, **corona amarilla grande de tres puntas
+redondeadas inclinada a la izquierda** (dibujada ya inclinada, sin escalones),
+salpicaduras en la base y aura. La corona nunca se sale del cuadro.
+
+## Arte v4 · Forma I definitiva: «El Rey Loco» (15-11-2026)
+
+Basada en la figura de plastilina del director y su hoja «Rey Slime · El Rey
+Loco»: gelatina redonda y brillante, **ojos rosados saltones y desparejos**
+(el izquierdo más grande, cada pupila mirando para su lado), **boca ancha en
+zigzag llena de dientes** (se abre al rugir), **corona amarilla de tres puntas
+con bolitas rosadas, chueca**, aura y burbujas alrededor. Expresiones de la
+hoja: ojos en espiral con lengua afuera (mareado), ojos en X (golpe), ojos de
+corazón (feliz), parpadeo, sorpresa y tristeza con lágrima. El cuerpo conserva
+el color de los diez slimes. El aliado pequeño usa la misma figura simplificada.
+Los estilos anteriores («rey», «cupula», etc.) quedan disponibles en el código.
+
+## Arte v3 · Forma I «El Rey» según el concepto aprobado (15-11-2026)
+
+Replica la Forma I de la imagen «Rey Slime · modelo definitivo»: cuerpo ancho
+y bajo de gelatina pulida con brillo grande, **ojos rasgados encendidos en
+violeta** (el párpado grueso hace de ceño), boca pequeña y seria, **corona
+real** con punta central alta y diamante violeta, gemas violetas y de los
+colores del ritual en el aro, **aura violeta** pegada a la silueta y burbujas
+que flotan alrededor. El cuerpo conserva el color de los diez slimes (verde,
+azul, rosa, híbrido y vetas); lo real (ojos, aura, diamante) siempre es violeta.
+Las expresiones de dolor, mareo, tristeza y alegría usan los ojos expresivos.
+La barrita de vida del motor ya no tapa la cara del Rey (tiene su barra de jefe).
+Formas II y III: pendientes del concepto que mostrará el director.
+
+## Arte v2 del Rey Slime (15-11-2026)
+
+- **Forma I redibujada** con el mismo motor de esculpido de las Formas II y III
+  (`drawKingI` en `rey-formas.js`, usada por `kingSheet` de `rey-art.js`):
+  gelatina con luz, borde translúcido y brillo especular; bultitos vivos que
+  cambian al respirar; burbujas de colores (una por limo fusionado); charco y
+  gotas; ojos grandes con brillo dibujados a mano y 8 expresiones (normal,
+  enojado con cejas, sorpresa, parpadeo, dolor, mareo en espiral, tristeza con
+  lágrima, feliz); 7 bocas (grito con colmillos y lengua, dientes apretados…);
+  destello que recorre la gelatina; núcleo violeta al invocar y en la fusión.
+- **Respiración en 8 cuadros** (antes 4). Hoja de 32 cuadros (antes 28).
+- El aliado (32 px) usa la misma figura con un rostro simplificado.
+- **Rey humanoide: caminata real en 4 cuadros** (pierna izquierda arriba, paso,
+  pierna derecha arriba, paso) y un cuadro más de respiración.
+- Cada cuadro se dibuja aparte y se recorta a su celda (nada se sale al vecino).
+
 ## Ritual de mundo · fase E (en beta, 15-11-2026)
 
 Archivo `beta/rey-ritual.js`. Según el diseño §2–§4.

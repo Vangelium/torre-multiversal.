@@ -436,6 +436,11 @@
     { id: 'idle2', sx: 1.05, sy: 0.955, t: 0.5, glint: 0.2 },
     { id: 'idle3', sx: 1.025, sy: 0.975, t: 0.75, glint: 0.7 },
     { id: 'blink', sx: 1.025, sy: 0.975, t: 0.3, eyes: 'blink' },
+    // Respiración extendida (8 cuadros en total): las burbujas suben y la masa se mece.
+    { id: 'idle4', sx: 1.012, sy: 0.988, t: 0.125, glint: -1 },
+    { id: 'idle5', sx: 1.038, sy: 0.965, t: 0.375, glint: -1 },
+    { id: 'idle6', sx: 1.038, sy: 0.965, t: 0.625, glint: 0.45 },
+    { id: 'idle7', sx: 1.012, sy: 0.988, t: 0.875, glint: -1 },
     { id: 'hopCrouch', sx: 1.14, sy: 0.82, t: 0.4, crownDy: 2 },
     { id: 'hopAir', sx: 0.9, sy: 1.12, t: 0.5, crownDy: -2, mouth: 'o' },
     { id: 'hopLand', sx: 1.2, sy: 0.8, t: 0.6, crownDy: 2, drips: 2 },
@@ -483,7 +488,12 @@
     const full = { hue: look.hue, mix: spec.mix, look, gems: gemsOf(spec), frags: fragsOf(spec) };
     const cols = 8, rows = Math.ceil(KING_FRAMES.length / cols);
     const px = new Px(cols * cell, rows * cell);
-    KING_FRAMES.forEach((f, i) => drawFrame(px, (i % cols) * cell, Math.floor(i / cols) * cell, cell, full, f));
+    // Forma I v2: se esculpe con el mismo motor de las Formas II y III (rey-formas.js).
+    const F = root.TMReyFormas;
+    KING_FRAMES.forEach((f, i) => {
+      if (F && F.drawKingI) F.drawKingI(px, (i % cols) * cell, Math.floor(i / cols) * cell, cell, spec, f);
+      else drawFrame(px, (i % cols) * cell, Math.floor(i / cols) * cell, cell, full, f);
+    });
     s = { canvas: px.canvas(), cols, rows, cell, frames: FRAME_INDEX };
     sheetCache.set(key, s);
     return s;

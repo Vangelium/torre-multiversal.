@@ -443,14 +443,18 @@
       P.push({ k: 'poly', pts: [[cx - 36, 44 + cr], [cx + 36, 44 + cr], [cx + w + sway * 5, hem - 8], [cx + w * 0.6 + sway * 3, hem], [cx + w * 0.2 + sway * 2, hem - 5], [cx - w * 0.2 + sway, hem], [cx - w * 0.6 + sway, hem - 5], [cx - w + sway * 5, hem - 8]], cx, top: 44, bottom: hem, sway: sway * 2, z: -60, m: 'cape', noCrease: true });
     }
     // ── Piernas gruesas y separadas ──
+    // Paso: `stride` (-1..1) levanta la pierna de ese lado (rodilla adelante, pie en el aire).
+    const stride = o.stride || 0;
     const leg = s => {
-      const hip = cx + s * 12, knee = cx + s * (15 + cr * 0.3), ank = cx + s * 17;
-      P.push({ k: 'cap', x1: hip, y1: 98 + cr, x2: knee, y2: 120 + cr * 0.6, r1: 12 * g, r2: 9.5 * g, z: 2 });
-      lump(P, hip + s * 3, 108 + cr, 8 * g, 10 * g);                                                           // cuádriceps
-      P.push({ k: 'cap', x1: knee, y1: 120 + cr * 0.6, x2: ank, y2: G - 8, r1: 9.5 * g, r2: 7.5 * g, z: 3 });
-      lump(P, knee + s * 2, 128, 6 * g, 8 * g);                                                                 // pantorrilla
-      P.push({ k: 'ell', x: ank + s * 3, y: G - 4, rx: 11 * g, ry: 5 * g, z: 5, d: 5 });
-      if (m > 0.6) [-4, 0, 4].forEach(dx => P.push({ k: 'ell', x: ank + s * 3 + dx + s * 5, y: G - 3, rx: 3, ry: 2.8, z: 7, d: 2.6 }));
+      const lift = Math.max(0, stride * s) * 9, plant = Math.max(0, -stride * s) * 1.5;
+      const hip = cx + s * 12, knee = cx + s * (15 + cr * 0.3) - s * lift * 0.25, ank = cx + s * 17 - s * lift * 0.15;
+      const ky = 120 + cr * 0.6 - lift * 0.8, ay = G - 8 - lift, fy = G - 4 - lift;
+      P.push({ k: 'cap', x1: hip, y1: 98 + cr, x2: knee, y2: ky, r1: 12 * g, r2: 9.5 * g, z: 2 + lift * 0.4 });
+      lump(P, hip + s * 3, 108 + cr - lift * 0.3, 8 * g, 10 * g);                                              // cuádriceps
+      P.push({ k: 'cap', x1: knee, y1: ky, x2: ank, y2: ay + plant, r1: 9.5 * g, r2: 7.5 * g, z: 3 + lift * 0.4 });
+      lump(P, knee + s * 2, 128 - lift * 0.8, 6 * g, 8 * g);                                                   // pantorrilla
+      P.push({ k: 'ell', x: ank + s * 3, y: fy + plant, rx: 11 * g, ry: 5 * g, z: 5 + lift * 0.4, d: 5 });
+      if (m > 0.6) [-4, 0, 4].forEach(dx => P.push({ k: 'ell', x: ank + s * 3 + dx + s * 5, y: fy + 1 + plant, rx: 3, ry: 2.8, z: 7 + lift * 0.4, d: 2.6 }));
     };
     leg(-1); leg(1);
     // ── Torso en V ──
@@ -585,5 +589,505 @@
     drawBeast(px, ox, oy, spec, { morph: k, crouch: 1 - k, inflate: (1 - k) * 0.6 });
   }
 
-  root.TMReyFormas = Object.freeze({ BEAST, TITAN, SCALE, GEL, BUBBLE, CAPE, ERMINE, MOUTH, sculpt, drawBeast, drawTitan, drawMorphI_II, beastParts, titanParts });
+  // ════════════════════════════════════════════════════════════════════
+  // FORMA I · REY SLIME CLÁSICO (v2 · 15-11-2026) — mismo motor que II y III
+  // Gelatina esculpida con luz, burbujas de colores, charco, gotas, rostro
+  // dibujado a mano (ojos y bocas por expresión) y corona con rubí.
+  // ════════════════════════════════════════════════════════════════════
+  const EYES = {
+    normal: ['..###..', '.#ppp#.', '#hhppp#', '#hhppp#', '#ppppp#', '#pppbp#', '#ppbhp#', '.#bbb#.', '..###..'],
+    wide: ['..###..', '.#www#.', '#wwwww#', '#wwhpw#', '#wwppw#', '#wwppw#', '#wwwww#', '.#www#.', '..###..'],
+    blink: ['.......', '.......', '.......', '.#####.', '#sssss#', '.#####.', '.......'],
+    closed: ['.......', '.......', '.......', '.......', '#######', '.......', '.......'],
+    happy: ['.......', '..###..', '.#...#.', '#.....#', '.......', '.......', '.......'],
+    hurt: ['.......', '##.....', '..##...', '....##.', '..##...', '##.....', '.......'],
+    dazed: ['.#####.', '#ppppp#', '#pwwwp#', '#pwppp#', '#pwwww#', '#ppppp#', '.#####.'],
+    small: ['.##.', '#hp#', '#pb#', '.##.']
+  };
+  // Ojo real (concepto «El Rey»): rasgado, encendido en violeta y con halo.
+  const ROYAL_EYE = ['.#####...', '#wwwww##.', '#wwwwwwg#', '#gwwwggv#', '.#vgggv#.', '..#####..'];
+  function stampRoyalEye(px, x, y, mirror, open = 1) {
+    // Almendra inclinada: el párpado (grueso, hace de ceño) baja hacia el centro de la cara.
+    const W = 10, put = (i, j, c, a = 255) => px.set(x + (mirror ? W - 1 - i : i), y + j, c, a);
+    for (let i = 0; i < W; i++) {
+      const top = 1 + i * 0.42, bot = 6.2 - 0.07 * (i - 4.5) * (i - 4.5);
+      const t0 = Math.floor(top);
+      put(i, t0, OUT); put(i, t0 - 1, OUT);                          // párpado grueso
+      if (i === W - 1) put(i, t0 + 1, OUT);
+      if (open < 1) { if (i > 0 && i < W - 1) put(i, t0 + 1, '#c79bff', 192); continue; }
+      for (let j = t0 + 1; j <= Math.floor(bot); j++) {
+        const low = (j - t0) / Math.max(1, bot - t0), inner = i / (W - 1);
+        const c = low > 0.75 || inner > 0.85 ? '#9b5cff' : low > 0.45 ? '#e3b8ff' : '#fbf4ff';
+        put(i, j, c, 192);
+      }
+      if (i > 0 && i < W - 1) put(i, Math.floor(bot) + 1, OUT);
+    }
+    // Halo violeta alrededor (brilla solo, también de noche).
+    for (let j = 0; j < 9; j++) for (let i = -1; i <= W; i++) {
+      const xx = x + i, yy = y + j;
+      if (!px.alpha(xx, yy) && (px.alpha(xx - 1, yy) || px.alpha(xx + 1, yy) || px.alpha(xx, yy - 1)) && bayer(xx, yy) < 0.5) px.set(xx, yy, '#7a3dff', 192);
+    }
+  }
+  // ── «El Rey Loco» (figura de plastilina del director) ──
+  const PINK = ['#5e0a45', '#c0128a', '#ff2fbf', '#ff7fdc', '#ffd0f4'];
+  /** Ojo saltón rosado con pupila negra (cada ojo mira para su lado). */
+  function locoEye(px, cx, cy, r, pdx, pdy, pr, kind) {
+    const R2 = r + 0.5;
+    for (let y = -Math.ceil(R2) - 1; y <= Math.ceil(R2) + 1; y++) for (let x = -Math.ceil(R2) - 1; x <= Math.ceil(R2) + 1; x++) {
+      const d = Math.hypot(x, y);
+      if (d > R2 + 0.9) continue;
+      if (d > R2) { px.set(cx + x, cy + y, OUT); continue; }
+      if (kind === 'spiral') { const a = Math.atan2(y, x), v = (a / (Math.PI * 2) + d / 2.6) % 1; px.set(cx + x, cy + y, v < 0.45 ? PINK[1] : PINK[3]); continue; }
+      const shade = (x + y) / (r * 2.2);
+      px.set(cx + x, cy + y, shade > 0.35 ? PINK[2] : shade < -0.45 ? PINK[4] : PINK[3]);
+    }
+    if (kind === 'spiral') return;
+    if (kind === 'x') { for (let i = -2; i <= 2; i++) { px.set(cx + i, cy + i, OUT); px.set(cx + i, cy - i, OUT); } return; }
+    if (kind === 'heart') { [[-2, -1], [-1, -2], [1, -2], [2, -1], [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0], [-1, 1], [0, 1], [1, 1], [0, 2], [0, -1]].forEach(([x, y]) => px.set(cx + x, cy + y, '#ff2a6a')); return; }
+    for (let y = -3; y <= 3; y++) for (let x = -3; x <= 3; x++) if (Math.hypot(x, y) <= pr + 0.45) px.set(cx + pdx + x, cy + pdy + y, '#0b0b14');
+    const hx = cx - r * 0.42, hy = cy - r * 0.42, hr = Math.max(0.6, r * 0.28);
+    for (let y = -3; y <= 3; y++) for (let x = -3; x <= 3; x++) if (Math.hypot(x, y) <= hr) px.set(Math.round(hx + x), Math.round(hy + y), '#ffffff', 192);
+  }
+  /** Boca ancha en zigzag llena de dientes (abierta = rugido). */
+  function locoMouth(px, cx, y, w, open, tongue, small) {
+    // Boca de oreja a oreja: borde redondeado y dientes triangulares grandes arriba y abajo.
+    const h = small ? 4 : open ? 17 : 14, x0 = Math.round(cx - w / 2), P = small ? 4 : 10, A2 = small ? 1 : 5;
+    for (let x = 0; x <= w; x++) {
+      const u = x / w, edge = Math.sqrt(Math.max(0, 1 - Math.pow(u * 2 - 1, 2)));   // la boca se cierra en las comisuras
+      const tri = q => 1 - Math.abs(((q % P) / P) * 2 - 1);                        // 0..1 diente
+      const zt = tri(x + P / 2) * A2, zb = tri(x) * A2;
+      const lift = small ? 0 : Math.round(Math.pow(Math.max(0, u - 0.6) / 0.4, 2) * 4);   // la comisura derecha sube (sonrisa loca)
+      const top = y - lift + Math.round(h * 0.5 * (1 - edge) + zt), bot = y - lift + h - Math.round(h * 0.5 * (1 - edge) + zb);
+      if (bot < top) continue;
+      for (let yy = top; yy <= bot; yy++) {
+        const deep = (yy - top) / Math.max(1, bot - top);
+        px.set(x0 + x, yy, yy === top || yy === bot ? OUT : (tongue && deep > 0.55 && Math.abs(u - 0.55) < 0.12 ? '#ff6fae' : deep > 0.65 ? '#1c0820' : '#06040c'));
+      }
+      // Filo celeste de los dientes (luz de borde de la gelatina).
+      if (!small) { if (top - 1 > y) px.set(x0 + x, top - 1, '#7fe9ff'); if (bot + 1 < y + h) px.set(x0 + x, bot + 1, '#5fd8ff'); }
+    }
+    if (tongue) for (let j = 0; j < 3; j++) for (let i = -2; i <= 2; i++) if (Math.abs(i) < 3 - j * 0.5) px.set(Math.round(cx + w * 0.05) + i, y + h + j, j === 2 ? '#c2185b' : '#ff6fae');
+  }
+  /** Corona amarilla de tres puntas con bolitas (como la de plastilina). */
+  function locoCrown(scale = 1) {
+    const W = 36, H = 30, c = new A.Px(W, H), Y = ['#6b3a00', '#b56d00', '#f2a90f', '#ffd23a', '#ffe98a', '#fff7cf'];
+    const tips = [[6, 7], [18, 2], [30, 6]];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let inside = y >= 18 && y <= 25 && x >= 3 && x <= 33;
+      for (const [tx, ty] of tips) { const half = (y - ty) * 0.42; if (y >= ty + 2 && y <= 19 && Math.abs(x - tx) <= half + 1.6) inside = true; }
+      if (!inside) continue;
+      const lv = (W - x) / W * 0.6 + (H - y) / H * 0.3;
+      c.set(x, y, lv > 0.62 ? Y[5] : lv > 0.5 ? Y[4] : lv > 0.36 ? Y[3] : lv > 0.25 ? Y[2] : Y[1]);
+    }
+    for (const [tx, ty] of tips) for (let y = -2; y <= 2; y++) for (let x = -2; x <= 2; x++) if (Math.hypot(x, y) <= 2.2) c.set(tx + x, ty + 2 + y, x + y < -1 ? Y[5] : x + y > 1 ? Y[2] : Y[4]);
+    c.outline(0, 0, W, H, side => (side === 'up' ? Y[1] : Y[0]));
+    if (scale === 1) return c;
+    const s = new A.Px(W, H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const sx = Math.round(W / 2 + (x - W / 2) / scale), sy = Math.round(H - 5 + (y - H + 5) / scale);
+      if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+      const j = (sy * W + sx) * 4; if (!c.d[j + 3]) continue;
+      s.set(x, y, [c.d[j], c.d[j + 1], c.d[j + 2]], c.d[j + 3]);
+    }
+    return s;
+  }
+  function drawLocoCrownAt(px, ox, oy, cx, cy, ang, sc) {
+    const Y = ['#6b3a00', '#b55f00', '#ef9a0a', '#ffc21f', '#ffdc55', '#fff1a8'];
+    const ca = Math.cos(ang), sa = Math.sin(ang), Wd = 15 * sc, Hb = 5 * sc;
+    // Forma local: aro (x ±Wd, y 0..Hb) y tres puntas redondeadas (centro más alta).
+    const tips = [[-Wd * 0.68, -10 * sc], [0, -15 * sc], [Wd * 0.68, -10 * sc]];
+    const inside = (lx, ly) => {
+      if (Math.abs(lx) <= Wd && ly >= -1 * sc && ly <= Hb) return true;
+      for (const [tx, ty] of tips) {
+        const r = 3.4 * sc;
+        if (Math.hypot(lx - tx, ly - ty) <= r) return true;
+        if (ly >= ty && ly <= 0) { const half = r * 0.85 + (ly - ty) * 0.22; if (Math.abs(lx - tx) <= half) return true; }
+      }
+      return false;
+    };
+    const R = Math.ceil(20 * sc), cells = [];
+    for (let y = -R; y <= R; y++) for (let x = -R; x <= R; x++) {
+      const lx = x * ca + y * sa, ly = -x * sa + y * ca;
+      if (!inside(lx, ly)) continue;
+      cells.push([x, y]);
+      const lv = (-lx / Wd) * 0.35 + (-(ly + 6 * sc) / (12 * sc)) * 0.45 + 0.45;
+      let c = lv > 0.82 ? Y[5] : lv > 0.62 ? Y[4] : lv > 0.42 ? Y[3] : lv > 0.25 ? Y[2] : Y[1];
+      if (ly > Hb - 1.2 * sc) c = Y[1];                                  // sombra bajo el aro
+      else if (ly > -1 * sc && ly < 0.6 * sc) c = Y[5];                  // filo de luz del aro
+      px.set(ox + cx + x, oy + cy + y, c);
+    }
+    const set = new Set(cells.map(([x, y]) => x + ',' + y));
+    for (const [x, y] of cells) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      if (!set.has((x + dx) + ',' + (y + dy))) { const xx = ox + cx + x + dx, yy = oy + cy + y + dy; if (!set.has((x + dx) + ',' + (y + dy))) px.set(xx, yy, Y[0]); }
+    }
+  }
+  /**
+   * «El Rey Loco» dibujado como en la hoja del director: contorno oscuro grueso,
+   * sombreado en bandas limpias (luz arriba a la izquierda), borde celeste,
+   * brillo blanco grande, ojos enormes, boca de lado a lado con pocos dientes
+   * grandes y corona de tres puntas inclinada. Sin texturas ruidosas.
+   */
+  function drawLocoCell(px, ox, oy, cell, spec, f) {
+    const k = cell / 64, look = A.lookOf(spec.mix, spec.hue);
+    const rampL = GEL[look.hybrid ? look.hybrid[0] : look.hue] || GEL.azul, rampR = look.hybrid ? (GEL[look.hybrid[1]] || rampL) : rampL;
+    const sx = f.sx || 1, sy = f.sy || 1, skew = f.skew || 0, t = f.t || 0, TT = t * Math.PI * 2;
+    const G = cell - 5 * k, W = Math.min(30 * k, 25 * k * sx), H = 20 * k * sy, cy = G - H, cx = cell / 2 + 1 * k;
+    const LINE = '#0b0d24', CYAN = '#5fe3ff', CYAN2 = '#bff6ff';
+    const inBody = (x, y) => {
+      const lx = x - cx - skew * (cy - y) * 0.6, nx = lx / W, ny = (y - cy) / H;
+      return ny <= 0 ? nx * nx + ny * ny * 1.02 <= 1 : Math.pow(Math.abs(nx), 2.2) + Math.pow(ny, 3.2) <= 1;
+    };
+    const body = new Uint8Array(cell * cell);
+    for (let y = 0; y < cell; y++) for (let x = 0; x < cell; x++) if (inBody(x + 0.5, y + 0.5)) body[y * cell + x] = 1;
+    const B = (x, y) => x >= 0 && y >= 0 && x < cell && y < cell && body[y * cell + x] === 1;
+    // Cuerpo: bandas de luz con tramado solo en los bordes de banda.
+    for (let y = 0; y < cell; y++) for (let x = 0; x < cell; x++) {
+      if (!B(x, y)) continue;
+      const lx = x + 0.5 - cx - skew * (cy - y) * 0.6, nx = lx / W, ny = (y + 0.5 - cy) / H;
+      const ramp = look.hybrid && lx > Math.sin(y * 0.4) * 1.5 ? rampR : rampL;
+      let v = -nx * 0.38 - ny * 0.62 + 0.18 + (bayer(x, y) - 0.5) * 0.08;
+      if (ny > 0.55) v -= 0.25;
+      const c = v > 0.82 ? ramp[6] : v > 0.58 ? ramp[5] : v > 0.3 ? ramp[4] : v > 0.02 ? ramp[3] : v > -0.3 ? ramp[2] : ramp[1];
+      px.set(ox + x, oy + y, c);
+      // Borde de luz celeste (derecha y abajo) y borde claro arriba a la izquierda.
+      const edge = !B(x + 1, y) || !B(x, y + 1) || !B(x - 1, y) || !B(x, y - 1);
+      const edge2 = !B(x + 2, y) || !B(x, y + 2);
+      if (edge && (nx > 0.1 || ny > 0.35)) px.set(ox + x, oy + y, ny > 0.35 ? CYAN : CYAN2);
+      else if (edge2 && (nx > 0.35 || ny > 0.55) && bayer(x, y) < 0.6) px.set(ox + x, oy + y, CYAN);
+      else if (edge && nx < -0.2 && ny < 0) px.set(ox + x, oy + y, ramp[6]);
+    }
+    // Brillo blanco grande arriba a la izquierda y uno pequeño a la derecha.
+    const gl = (gx, gy, rx, ry, rot) => {
+      for (let y = -Math.ceil(ry) - 2; y <= Math.ceil(ry) + 2; y++) for (let x = -Math.ceil(rx) - 2; x <= Math.ceil(rx) + 2; x++) {
+        const qx = x * Math.cos(rot) + y * Math.sin(rot), qy = -x * Math.sin(rot) + y * Math.cos(rot), d = Math.hypot(qx / rx, qy / ry);
+        const xx = Math.round(gx + x), yy = Math.round(gy + y); if (d > 1 || !B(xx, yy)) continue;
+        px.set(ox + xx, oy + yy, d < 0.62 ? '#ffffff' : rampL[7], d < 0.62 ? 192 : 255);
+      }
+    };
+    gl(cx - W * 0.55 + skew * H * 0.6, cy - H * 0.55, 4.5 * k, 2 * k, -0.5);
+    gl(cx + W * 0.62 + skew * H * 0.4, cy - H * 0.25, 1.6 * k, 1.1 * k, 0.6);
+    if (f.coreGlow) for (let y = -5; y <= 5; y++) for (let x = -5; x <= 5; x++) { const d = Math.hypot(x, y) / 5; const xx = Math.round(cx + x * k), yy = Math.round(cy + 6 * k + y * k); if (d <= 1 && B(xx, yy)) px.set(ox + xx, oy + yy, d < 0.45 ? '#f4e6ff' : d < 0.75 ? '#c79bff' : '#8a5cf0', 192); }
+    // Contorno grueso oscuro (2 px) y aura violeta por fuera.
+    const ring = [];
+    for (let y = 0; y < cell; y++) for (let x = 0; x < cell; x++) if (!B(x, y) && (B(x + 1, y) || B(x - 1, y) || B(x, y + 1) || B(x, y - 1))) ring.push([x, y]);
+    ring.forEach(([x, y]) => px.set(ox + x, oy + y, LINE));
+    if (k > 0.75) {
+      const ring2 = [];
+      for (const [x, y] of ring) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + dx, yy = y + dy; if (!B(xx, yy) && !px.alpha(ox + xx, oy + yy)) ring2.push([xx, yy]); }
+      ring2.forEach(([x, y]) => { if (y < G) px.set(ox + x, oy + y, y > cy ? LINE : '#1a1240'); });
+      for (const [x, y] of ring2) for (const [dx, dy] of [[1, 0], [-1, 0], [0, -1]]) { const xx = x + dx, yy = y + dy; if (yy < G - 1 && !px.alpha(ox + xx, oy + yy) && bayer(xx, yy) < 0.5) px.set(ox + xx, oy + yy, (xx + yy + Math.floor(t * 8)) % 4 ? '#7a3dff' : '#d07bff', 192); }
+    }
+    // Charco y salpicaduras.
+    puddle(px, ox, oy, cx, G + 0.5 * k, W * 1.18, 2.6 * k, look);
+    if (k > 0.75) [[-1, 0], [1, 0.4]].forEach(([sd, ph]) => {
+      for (let i = 0; i < 3; i++) {
+        const bx = Math.round(cx + sd * (W + 3 + i * 2.5)), by = Math.round(G - 2 - i * 2.2 - Math.sin(TT + ph + i));
+        px.set(ox + bx, oy + by, i === 0 ? rampL[5] : rampL[6]); if (i < 2) px.set(ox + bx, oy + by + 1, rampL[3]);
+        if (i === 2) px.set(ox + bx + sd, oy + by - 1, '#ffffff', 192);
+      }
+    });
+    // Burbujas que flotan alrededor (como en la hoja).
+    if (k > 0.75) for (let i = 0; i < 3; i++) {
+      const a = TT + i * 2.1, bx = Math.round(cx + (i === 1 ? -1 : 1) * (W + 3 * k) * (0.85 + 0.15 * Math.cos(a))), by = Math.round(cy - H * 0.6 - i * 5 * k - ((t * 6 + i * 3) % 6));
+      const r = i === 0 ? 2.2 : 1.6;
+      for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) { const d = Math.hypot(xx, yy); if (d <= r + 0.5 && !px.alpha(ox + bx + xx, oy + by + yy)) px.set(ox + bx + xx, oy + by + yy, d > r - 0.4 ? CYAN : rampL[4]); }
+      px.set(ox + bx - 1, oy + by - 1, '#ffffff', 192);
+    }
+    // Rostro.
+    if (!f.noFace) {
+      const e = f.eyes || 'normal', m = f.mouth || 'smile', fsk = skew * H * 0.6;
+      const kind = e === 'dazed' ? 'spiral' : e === 'hurt' ? 'x' : e === 'happy' ? 'heart' : 'eye';
+      // Boca de lado a lado: franja negra en zigzag (los dientes de arriba y de abajo casi se tocan).
+      const open = ['roar', 'o'].includes(m), tongue = e === 'dazed' || m === 'wavy';
+      const mx0 = Math.round(cx - W * 0.8 + fsk), mx1 = Math.round(cx + W * 0.86 + fsk), span = mx1 - mx0;
+      const teeth = k > 0.75 ? 4.5 : 3, tw = span / teeth, A2 = (k > 0.75 ? 6.5 : 3) * k, gap = (open ? 9 : 4) * k;
+      const base = cy + H * 0.3;
+      for (let x = mx0; x <= mx1; x++) {
+        const u = (x - mx0) / span, taper = Math.sqrt(Math.max(0, 1 - Math.pow(u * 2 - 1, 6)));
+        const lift = Math.pow(Math.max(0, u - 0.62) / 0.38, 2) * 4 * k;          // la comisura derecha sube
+        const zig = (1 - Math.abs(((x - mx0) % tw) / tw * 2 - 1)) * A2;
+        const top = Math.round(base - lift + zig), bot = Math.round(top + gap * taper + (open ? Math.sin(u * Math.PI) * 4 * k : 0));
+        if (taper < 0.15) { px.set(ox + x, oy + top, LINE); continue; }
+        for (let y = top - 1; y <= bot + 1; y++) {
+          let c = y === top - 1 || y === bot + 1 ? LINE : (tongue && y > bot - 3 && Math.abs(u - 0.5) < 0.12 ? '#ff6fae' : y > top + (bot - top) * 0.6 ? '#1c0820' : '#06040c');
+          px.set(ox + x, oy + y, c);
+        }
+        if (k > 0.75) { px.set(ox + x, oy + top - 2, CYAN2); px.set(ox + x, oy + bot + 2, CYAN); }
+      }
+      // Ojos saltones: izquierdo enorme, derecho asomando arriba a la derecha.
+      if (e === 'blink' || e === 'closed') {
+        for (let i = -6; i <= 6; i++) { px.set(ox + Math.round(cx - W * 0.4 + fsk) + i, oy + Math.round(cy - H * 0.15) + Math.round(Math.abs(i) * 0.2), LINE); px.set(ox + Math.round(cx + W * 0.5 + fsk) + i, oy + Math.round(cy - H * 0.55) + Math.round(Math.abs(i) * 0.2), LINE); }
+      } else {
+        const wide = e === 'wide' || e === 'angry';
+        locoEye(px, ox + Math.round(cx - W * 0.42 + fsk), oy + Math.round(cy - H * 0.26), (k > 0.75 ? 9.5 : 3.4) * (wide ? 1.08 : 1), Math.round(2 * k), 0, (wide ? 1.2 : 1.8) * k * (k > 0.75 ? 1 : 1.2), kind);
+        locoEye(px, ox + Math.round(cx + W * 0.5 + fsk), oy + Math.round(cy - H * 0.66), (k > 0.75 ? 8 : 2.9) * (wide ? 1.08 : 1), -Math.round(1 * k), Math.round(2 * k), (wide ? 1.1 : 1.6) * k * (k > 0.75 ? 1 : 1.4), kind);
+        if (e === 'sad') for (let j = 0; j < 4; j++) px.set(ox + Math.round(cx - W * 0.55), oy + Math.round(cy - H * 0.18 + 10 * k) + j + (f.tear || 0), j === 3 ? '#d2f2ff' : '#7cc8ff', 192);
+      }
+    }
+    // Corona grande inclinada a la izquierda, encima del ojo izquierdo.
+    if (!f.noCrown) drawLocoCrownAt(px, ox, oy, Math.round(cx - W * 0.42 + skew * H + (f.crownDx || 0) * k), Math.round(Math.max(k > 0.75 ? 19 : 10, cy - H * 0.95 - 4 * k + (f.crownDy || 0) * k)), (f.crownAng || 0) - 0.42, k > 0.75 ? 1 : 0.42);
+    if (f.crownGlow && !f.noCrown) for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; px.set(ox + Math.round(cx - W * 0.42 + Math.cos(a) * 17 * k), oy + Math.round(cy - H - 6 * k + Math.sin(a) * 10 * k), '#fff4c4', 192); }
+  }
+  function drawLocoFace(px, ox, oy, fx, fy, f, k) {
+    const e = f.eyes || 'normal', m = f.mouth || 'smile';
+    const kind = e === 'dazed' ? 'spiral' : e === 'hurt' ? 'x' : e === 'happy' ? 'heart' : 'eye';
+    if (k > 0.75) {
+      if (e === 'blink' || e === 'closed') {
+        for (let i = -5; i <= 5; i++) { px.set(ox + fx - 9 + i, oy + fy + Math.round(Math.abs(i) * 0.25), OUT); px.set(ox + fx + 9 + i, oy + fy + Math.round(Math.abs(i) * 0.25), OUT); }
+      } else {
+        const wide = e === 'wide' || e === 'angry';
+        // Ojo izquierdo grande mirando arriba-afuera; derecho más chico mirando abajo-adentro: el Rey Loco.
+        locoEye(px, ox + fx - 9, oy + fy + 4, 8, 1, 0, wide ? 1 : 1.7, kind);
+        locoEye(px, ox + fx + 12, oy + fy - 2, 6.5, 2, -1, wide ? 1 : 1.5, kind);
+        if (e === 'sad') for (let j = 0; j < 3; j++) px.set(ox + fx - 12, oy + fy + 7 + j + (f.tear || 0), j === 2 ? '#d2f2ff' : '#7cc8ff', 192);
+      }
+      const open = ['roar', 'o'].includes(m), tongue = e === 'dazed' || m === 'wavy';
+      locoMouth(px, ox + fx + 2, oy + fy + 11, 44, open, tongue);
+    } else {
+      locoEye(px, ox + fx - 5, oy + fy, 2.5, -1, -1, 1, kind === 'eye' ? 'eye' : kind);
+      locoEye(px, ox + fx + 4, oy + fy, 2, 0, 1, 0.8, kind === 'eye' ? 'eye' : kind);
+      locoMouth(px, ox + fx, oy + fy + 4, 9, false, false, true);
+    }
+  }
+  /** Corona real del concepto: punta central alta con diamante violeta, gemas en el aro. */
+  function royalCrown(spec, scale = 1) {
+    const W = 40, H = 34, c = new A.Px(W, H), G = GOLD;
+    const tips = [[7, 15, 6], [13, 11, 9], [20, 5, 14], [27, 11, 9], [33, 15, 6]];
+    for (const [tx, ty, h] of tips) {
+      for (let y = ty + 2; y <= 24; y++) {
+        const half = Math.floor((y - ty - 2) * (h > 10 ? 0.3 : 0.38));
+        for (let x = tx - half; x <= tx + half; x++) c.set(x, y, x < tx ? G[5] : x === tx ? G[4] : G[3]);
+      }
+      c.set(tx, ty, G[6], 192); c.set(tx, ty + 1, G[5]);
+    }
+    for (let y = 22; y <= 28; y++) for (let x = 4; x <= 36; x++) c.set(x, y, y === 22 ? G[6] : y === 28 ? G[2] : y >= 26 ? G[3] : G[4]);
+    for (let x = 5; x <= 35; x += 3) c.set(x, 25, G[2]);
+    // Diamante violeta central (brilla solo).
+    const dia = [[20, 12], [19, 13], [20, 13], [21, 13], [18, 14], [19, 14], [20, 14], [21, 14], [22, 14], [19, 15], [20, 15], [21, 15], [20, 16], [20, 17]];
+    dia.forEach(([x, y], i) => c.set(x, y, i < 4 ? '#f3dcff' : i < 9 ? '#b57dff' : '#6a2fd6', 192));
+    const gem = (x, col) => { c.set(x, 24, col[0], 192); c.set(x + 1, 24, col[1]); c.set(x, 25, col[1]); c.set(x + 1, 25, col[2]); };
+    gem(19, ['#f3dcff', '#9b5cff', '#5a22b8']);
+    const hues = A.gemsOf(spec);
+    [9, 29, 14, 24].forEach((x, i) => { const h = hues[i % Math.max(1, hues.length)]; const pal = PAL[h] || PAL.rune; gem(x, i < 2 ? ['#f3dcff', '#9b5cff', '#5a22b8'] : [pal[5] || '#fff', pal[3], pal[1]]); });
+    c.outline(0, 0, W, H, side => (side === 'up' ? G[1] : G[0]));
+    if (scale === 1) return c;
+    const s = new A.Px(W, H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const sx = Math.round(W / 2 + (x - W / 2) / scale), sy = Math.round(H - 6 + (y - H + 6) / scale);
+      if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+      const j = (sy * W + sx) * 4; if (!c.d[j + 3]) continue;
+      s.set(x, y, [c.d[j], c.d[j + 1], c.d[j + 2]], c.d[j + 3]);
+    }
+    return s;
+  }
+  function stampEye(px, x, y, kind, mirror, cols) {
+    const map = EYES[kind] || EYES.normal, w = map[0].length;
+    map.forEach((row, j) => [...row].forEach((ch, i0) => {
+      const i = mirror ? w - 1 - i0 : i0;
+      if (ch === '.') return;
+      const c = ch === '#' ? OUT : ch === 'w' ? '#fffdf4' : ch === 'h' ? '#ffffff' : ch === 's' ? '#b8c6d8' : ch === 'b' ? '#3b5fae' : cols.pupil;
+      px.set(x + i, y + j, c, ch === 'h' ? 192 : 255);
+    }));
+  }
+  function drawMouth(px, x, y, kind, small) {
+    const M = MOUTH, T = TOOTH;
+    const put = (rows, map) => rows.forEach((row, j) => [...row].forEach((ch, i) => { if (ch !== '.') px.set(x - (row.length >> 1) + i, y + j, map[ch]); }));
+    const mp = { '#': OUT, 'm': M[1], 'n': M[2], 't': M[4], 'w': T[3], 'v': T[2] };
+    if (small) {
+      const sm = { o: ['.#.', '#m#', '.#.'], roar: ['###', '#m#', '#t#', '###'], grit: ['###', '#w#', '###'], smile: ['#.#', '.#.'], frown: ['.#.', '#.#'], flat: ['###'], wavy: ['#.#.#', '.#.#.'] };
+      put(sm[kind] || sm.flat, mp); return;
+    }
+    const big = {
+      o: ['.###.', '#mmm#', '#mnm#', '#mtm#', '.###.'],
+      grit: ['#########', '#wvwvwvw#', '#########'],
+      roar: ['.###########.', '#wv#mmmmm#vw#', '#v#mmmmmmm#v#', '#mmmmnnnmmmm#', '#mmmntttnmmm#', '.#mmttttmm#.', '..########..'],
+      flat: ['.#######.'],
+      serio: ['..###..', '.#...#.'],
+      wavy: ['.#...#...#.', '#.#.#.#.#.#', '...#...#...'],
+      frown: ['...###...', '.##...##.', '#.......#'],
+      smile: ['#.......#', '.##...##.', '..#ttt#..', '...###...']
+    };
+    put(big[kind] || big.flat, mp);
+  }
+  /** Dibuja un cuadro de la Forma I en una celda (64 px el jefe, 32 px el aliado). */
+  function drawKingI(px, ox, oy, cell, spec, f) {
+    // Cada cuadro se dibuja aparte y se recorta a su celda: nada se sale al cuadro vecino.
+    const local = new A.Px(cell, cell);
+    drawKingICell(local, 0, 0, cell, spec, f);
+    for (let y = 0; y < cell; y++) for (let x = 0; x < cell; x++) {
+      const i = (y * cell + x) * 4; if (!local.d[i + 3]) continue;
+      px.set(ox + x, oy + y, [local.d[i], local.d[i + 1], local.d[i + 2]], local.d[i + 3]);
+    }
+  }
+  function drawKingICell(px, ox, oy, cell, spec, f) {
+    const k = cell / 64, look = A.lookOf(spec.mix, spec.hue), ramp = GEL[look.hybrid ? look.hybrid[0] : look.hue] || GEL.azul;
+    const G = Math.round(cell - 4 * k), cx = cell / 2;
+    const t = f.t || 0, TT = t * Math.PI * 2;
+    // Charco final (derrota).
+    if (f.puddle) {
+      const P = [{ k: 'ell', x: cx, y: G - 3 * k, rx: 26 * k * f.puddle, ry: 6 * k, d: 3 * k }];
+      const body = { x: cx, y: G - 3 * k, rx: 26 * k, ry: 6 * k };
+      const sc = sculpt(px, ox, oy, cell, cell, P, look, { body });
+      bubbles(px, ox, oy, sc, look, A.fragsOf(spec), Math.round(6 * k), 9, t, [], Math.max(0.5, k * 0.7));
+      if (k > 0.75) { stampEye(px, ox + Math.round(cx - 10), oy + Math.round(G - 9), 'closed', false, { pupil: '#141a33' }); stampEye(px, ox + Math.round(cx + 3), oy + Math.round(G - 9), 'closed', true, { pupil: '#141a33' }); }
+      return;
+    }
+    if ((spec.style || f.style || 'loco') === 'loco') { drawLocoCell(px, ox, oy, cell, spec, f); return; }
+    const sx = f.sx || 1, sy = f.sy || 1, skew = f.skew || 0, style = spec.style || f.style || 'loco';
+    const SH = { loco: [25, 19.5], rey: [24, 16.5], cupula: [21, 19.5], gota: [17.5, 23], monarca: [20, 19], colosal: [25, 16.5] }[style] || [21, 19.5];
+    const rx = Math.min(30 * k, SH[0] * k * sx), ry = SH[1] * k * sy, cy = G - ry * 0.9;
+    const wob = Math.sin(TT) * 0.6 * k;
+    const P = [];
+    // Falda ancha que se apoya en el suelo y cúpula principal (la parte alta se inclina con `skew`).
+    P.push({ k: 'ell', x: cx, y: G - 4 * k, rx: rx * (style === 'loco' ? 0.98 : 1.1), ry: 6.5 * k * Math.min(1.3, sx), d: 6 * k, z: -2 * k });
+    P.push({ k: 'ell', x: cx + skew * ry * 0.25, y: cy + ry * 0.18, rx: rx, ry: ry * 0.82, d: ry * 0.8 });
+    P.push({ k: 'ell', x: cx + skew * ry * 0.55, y: cy - ry * 0.12 + wob, rx: rx * 0.84, ry: ry * 0.78, d: ry * 0.85, z: 0.5 * k });
+    if (style === 'gota') P.push({ k: 'ell', x: cx + skew * ry * 0.7, y: cy - ry * 0.55 + wob, rx: rx * 0.55, ry: ry * 0.5, d: ry * 0.5, z: 2 * k });
+    if (style === 'colosal') { lump(P, cx - rx * 0.62, G - 7 * k, 7 * k, 6 * k); lump(P, cx + rx * 0.62, G - 7 * k, 7 * k, 6 * k); }
+    if (style === 'monarca' && k > 0.75) {
+      // Capa púrpura por detrás y cuello de armiño bajo la corona (une la Forma I con la III).
+      P.push({ k: 'poly', pts: [[cx - rx * 0.7, cy - ry * 0.5], [cx + rx * 0.7, cy - ry * 0.5], [cx + rx * 1.18, G - 1 * k], [cx - rx * 1.18, G - 1 * k]], cx, top: cy - ry * 0.5, bottom: G, sway: 0, z: -40, m: 'cape', noCrease: true });
+      for (let i = 0; i < 7; i++) { const a = Math.PI * (0.12 + i * 0.127); P.push({ k: 'ell', x: cx + Math.cos(a) * rx * 0.55, y: cy - ry * 0.62 + Math.sin(a) * 2.5 * k, rx: 3.6 * k, ry: 3 * k, d: 3 * k, z: ry * 0.85, m: 'ermine' }); }
+    }
+    // Bultitos vivos en la superficie (cambian con la respiración).
+    if (k > 0.75 && style !== 'rey' && style !== 'loco') for (let i = 0; i < 4; i++) {
+      const a = TT * (i % 2 ? 1 : -1) + i * 1.7, lx = cx + skew * ry * 0.4 + Math.cos(a) * rx * 0.55, ly = cy - ry * 0.25 + Math.sin(a * 0.7) * ry * 0.35;
+      lump(P, lx, ly, (2.6 + (i % 2)) * k, (2.2 + (i % 3) * 0.4) * k);
+    }
+    // Gotas que cuelgan del borde.
+    const drips = f.drips || 0;
+    for (let i = 0; i < drips; i++) {
+      const dx = (i % 2 ? 1 : -1) * (0.35 + 0.18 * Math.floor(i / 2)) * rx, dl = (2 + (i % 3)) * k;
+      P.push({ k: 'ell', x: cx + dx, y: G - 1 * k + dl * 0.3, rx: 1.6 * k, ry: dl * 0.6, d: 1.4 * k, z: 2 * k });
+    }
+    const body = { x: cx, y: cy, rx, ry };
+    const sc = sculpt(px, ox, oy, cell, cell, P, look, { body, crease: 3, trim: style === 'monarca' ? 1 : 0 });
+    if (style === 'monarca' && k > 0.75) chain(px, ox, oy, cx - rx * 0.62, cx + rx * 0.62, cy + ry * 0.48, 2 * k);
+    if (style === 'loco') {
+      const RAMPS = Object.values(GEL);
+      const rgbOf = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+      const map = new Map();
+      for (const rp of RAMPS) rp.forEach((h, i) => { if (i >= 2 && i <= 5) map.set(rgbOf(h).join(','), rp[i - 1]); });
+      for (let y = 0; y < cell; y++) for (let x = 0; x < cell; x++) {
+        if (sc.id[y * cell + x] < 0) continue;
+        const j = ((oy + y) * px.w + ox + x) * 4, key = px.d[j] + ',' + px.d[j + 1] + ',' + px.d[j + 2];
+        const to = map.get(key); if (to) px.set(ox + x, oy + y, to);
+      }
+    }
+    // Barrido de luz (destello que recorre la gelatina).
+    if (f.glint >= 0 && f.glint !== undefined) {
+      for (let y = 0; y < cell; y++) for (let x = 0; x < cell; x++) {
+        const i = y * cell + x; if (sc.id[i] < 0) continue;
+        const gx = cx + (f.glint - 0.5) * rx * 1.4, gy = cy - ry * 0.55;
+        const d = Math.hypot((x - gx) / (3.2 * k), (y - gy) / (2 * k));
+        if (d < 1 && y < cy) px.set(ox + x, oy + y, d < 0.45 ? '#ffffff' : ramp[7], d < 0.45 ? 192 : 255);
+      }
+    }
+    // Núcleo de esencia violeta (ritual, invocación).
+    const faceY = cy - ry * 0.12, faceX = cx + skew * ry * 0.55;
+    if (f.coreGlow || style === 'colosal') {
+      for (let y = -5; y <= 5; y++) for (let x = -5; x <= 5; x++) {
+        const d = Math.hypot(x, y) / (5 * k); if (d > 1) continue;
+        const xx = Math.round(cx + x * k), yy = Math.round(cy + ry * (style === 'colosal' && !f.coreGlow ? 0.62 : 0.2) + y * k);
+        if (sc.id[yy * cell + xx] < 0) continue;
+        px.set(ox + xx, oy + yy, d < 0.45 ? '#f4e6ff' : d < 0.75 ? '#c79bff' : '#8a5cf0', 192);
+      }
+    }
+    const avoid = f.noFace ? [] : [{ x: faceX, y: faceY + 4 * k, r: 13 * k }];
+    bubbles(px, ox, oy, sc, look, A.fragsOf(spec), Math.round((k > 0.75 ? 11 : 5)), 4, t, avoid, Math.max(0.55, k * 0.85));
+    // Brillo grande arriba a la izquierda (gelatina pulida).
+    if (style === 'rey' || style === 'loco') {
+      const hx = (style === 'loco' ? cx + rx * 0.62 : cx - rx * 0.42) + skew * ry * 0.5, hy = cy - ry * (style === 'loco' ? 0.05 : 0.52);
+      for (let y = -4; y <= 4; y++) for (let x = -7; x <= 7; x++) {
+        const d = Math.hypot(x / (6 * k), y / (2.6 * k)); if (d > 1) continue;
+        const xx = Math.round(hx + x), yy = Math.round(hy + y + x * 0.25);
+        if (xx < 0 || yy < 0 || xx >= cell || yy >= cell || sc.id[yy * cell + xx] < 0) continue;
+        px.set(ox + xx, oy + yy, d < 0.5 ? '#ffffff' : ramp[7], d < 0.5 ? 192 : 255);
+      }
+    }
+    // Rostro.
+    if (!f.noFace && style === 'loco') drawLocoFace(px, ox, oy, Math.round(faceX), Math.round(faceY - (k > 0.75 ? 4 : 2)), f, k);
+    else if (!f.noFace) {
+      const cols = { pupil: '#141a33' }, ey = Math.round(faceY - (k > 0.75 ? 3 : 1));
+      if (k > 0.75) {
+        if (style === 'colosal' && !f.eyes) f = { ...f, eyes: 'angry', mouth: f.mouth || 'grit' };
+        const kind = f.eyes === 'angry' ? 'normal' : f.eyes === 'sad' ? 'normal' : (f.eyes || 'normal');
+        const lx = Math.round(faceX - 11), rxx = Math.round(faceX + 4);
+        const royal = style === 'rey' && [undefined, 'normal', 'angry', 'wide', 'blink'].includes(f.eyes);
+        if (royal) {
+          // Mirada real: ojos rasgados encendidos en violeta y ceño grueso.
+          const open = f.eyes === 'blink' ? 0 : 1;
+          stampRoyalEye(px, ox + lx - 2, oy + ey - 1, false, open); stampRoyalEye(px, ox + rxx - 1, oy + ey - 1, true, open);
+        } else {
+          stampEye(px, ox + lx, oy + ey, kind, false, cols);
+          stampEye(px, ox + rxx, oy + ey, kind, true, cols);
+        }
+        // Cejas: furia (hacia el centro) o tristeza (caídas hacia afuera).
+        if (!royal && (f.eyes === 'angry' || f.eyes === 'sad')) {
+          const down = f.eyes === 'angry' ? 1 : -1;
+          for (let i = 0; i < 7; i++) {
+            const yy = ey - 2 + Math.round((down > 0 ? i : 6 - i) * 0.4) - (down > 0 ? 0 : 1);
+            px.set(ox + lx + i, oy + yy, OUT); px.set(ox + rxx + 6 - i, oy + yy, OUT);
+          }
+        }
+        if (f.tear !== undefined) for (let j = 0; j < 3; j++) px.set(ox + lx + 1, oy + ey + 9 + j + (f.tear || 0), j === 2 ? '#d2f2ff' : '#7cc8ff', 192);
+        if (f.blush) for (const bx of [lx - 2, rxx + 6]) { px.set(ox + bx, oy + ey + 8, "#ff9ac8"); px.set(ox + bx + 1, oy + ey + 8, "#ff9ac8"); px.set(ox + bx + 2, oy + ey + 8, "#ffc6e2"); }
+        drawMouth(px, ox + Math.round(faceX), oy + Math.round(ey + (royal ? 9 : 10)), f.mouth || (style === 'rey' ? 'serio' : 'smile'), false);
+      } else {
+        const lx = Math.round(faceX - 6), rxx = Math.round(faceX + 2);
+        const kind = ['blink', 'closed', 'happy', 'hurt'].includes(f.eyes) ? 'blink' : 'small';
+        stampEye(px, ox + lx, oy + ey, kind === 'blink' ? 'closed' : 'small', false, cols);
+        stampEye(px, ox + rxx, oy + ey, kind === 'blink' ? 'closed' : 'small', true, cols);
+        drawMouth(px, ox + Math.round(faceX), oy + Math.round(ey + 5), f.mouth || 'smile', true);
+      }
+    }
+    // Luz de borde celeste (como la referencia) en el lado derecho e inferior.
+    if (style === 'loco' && k > 0.75) {
+      for (let y = 1; y < cell - 1; y++) for (let x = 1; x < cell - 1; x++) {
+        const i = y * cell + x; if (sc.id[i] < 0) continue;
+        const edgeR = sc.id[i + 1] < 0, edgeL = sc.id[i - 1] < 0, edgeB = sc.id[i + cell] < 0;
+        if (edgeR) px.set(ox + x - 1, oy + y, y < cy ? '#bff6ff' : '#5fe3ff');
+        else if (edgeL && y > cy - ry * 0.3) px.set(ox + x + 1, oy + y, '#3fc8f0');
+        else if (edgeB && y < G) px.set(ox + x, oy + y - 1, '#4fdcff');
+      }
+    }
+    // Charco bajo el cuerpo.
+    puddle(px, ox, oy, cx, G + 0.5 * k, rx * 1.25, 2.6 * k, look);
+    if (style === 'loco' && k > 0.75) {
+      // Salpicaduras a los lados de la base.
+      [[-1, 0], [1, 0.4]].forEach(([sd, ph]) => {
+        for (let i = 0; i < 3; i++) {
+          const bx = Math.round(cx + sd * (rx + 2 + i * 2.5) * 1), by = Math.round(G - 2 - i * 2.2 - Math.sin(t * 6.28 + ph + i) * 1);
+          px.set(ox + bx, oy + by, i === 0 ? ramp[5] : ramp[6]); if (i < 2) px.set(ox + bx, oy + by + 1, ramp[3]);
+          if (i === 2) px.set(ox + bx + sd, oy + by - 1, '#ffffff', 192);
+        }
+      });
+    }
+    if ((style === 'rey' || style === 'loco') && k > 0.75) {
+      // Aura real violeta pegada a la silueta (brilla sola) y burbujas que flotan alrededor.
+      const halo = [];
+      for (let y = 1; y < G - 1; y++) for (let x = 1; x < cell - 1; x++) {
+        if (px.alpha(ox + x, oy + y)) continue;
+        const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => sc.id[(y + dy) * cell + x + dx] >= 0);
+        if (near) halo.push([x, y]);
+      }
+      for (const [x, y] of halo) if (bayer(x, y) < 0.55) px.set(ox + x, oy + y, (x + y + Math.floor(t * 8)) % 5 ? '#7a3dff' : '#c79bff', 192);
+      for (let i = 0; i < 3; i++) {
+        const a = TT + i * 2.1, bx = Math.round(cx + Math.cos(a) * (rx + 4 * k) * (i === 1 ? -1 : 1)), by = Math.round(cy - ry * 0.4 - i * 5 * k - ((t * 6 + i * 3) % 6));
+        const r = i === 0 ? 2 : 1.5;
+        for (let yy = -2; yy <= 2; yy++) for (let xx = -2; xx <= 2; xx++) if (Math.hypot(xx, yy) <= r && !px.alpha(ox + bx + xx, oy + by + yy)) px.set(ox + bx + xx, oy + by + yy, Math.hypot(xx, yy) > r - 0.8 ? ramp[3] : ramp[5]);
+        px.set(ox + bx - 1, oy + by - 1, '#ffffff', 192);
+      }
+    }
+    // Corona con rubí (ladeada, saltando o brillando según la pose).
+    if (!f.noCrown) {
+      const top = cy - ry * 0.9, ccx = cx + skew * ry * 0.8 + (f.crownDx || 0) * k, ccy = Math.max(10 * k, top - 3 * k + (f.crownDy || 0) * k);
+      if (style === 'loco') drawLocoCrownAt(px, ox, oy, Math.round(ccx - 11 * k), Math.round(Math.max(k > 0.75 ? 19 : 10, ccy - 1 * k)), (f.crownAng || 0) - 0.42, k > 0.75 ? 1 : 0.38);
+      else if (style === 'rey') px.blitRot(royalCrown(spec, k > 0.75 ? 1 : 0.42), 0, 0, 40, 34, ox + Math.round(ccx), oy + Math.round(ccy - 8 * k), f.crownAng || 0);
+      else stampCrown(px, spec, ox + Math.round(ccx), oy + Math.round(ccy), f.crownAng || 0, k > 0.75 ? 1 : 0.6);
+      if (f.crownGlow) for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; px.set(ox + Math.round(ccx + Math.cos(a) * 15 * k), oy + Math.round(ccy + Math.sin(a) * 9 * k), '#fff4c4', 192); }
+    }
+  }
+
+  root.TMReyFormas = Object.freeze({ drawKingI,  BEAST, TITAN, SCALE, GEL, BUBBLE, CAPE, ERMINE, MOUTH, sculpt, drawBeast, drawTitan, drawMorphI_II, beastParts, titanParts });
 })(typeof window !== 'undefined' ? window : globalThis);

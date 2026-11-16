@@ -530,6 +530,7 @@
     }
 
     shock(x, z, y, r1 = 3, dur = 0.5) {
+      if (root.__TM_VEG__) root.__TM_VEG__.blast(x, y, r1, 10); // la onda expansiva sacude la vegetación
       const s = this.shocks.find(q => q.t >= q.dur) || this.shocks[0];
       Object.assign(s, { x, z, y, t: 0, dur, r1 });
     }
@@ -979,7 +980,7 @@
       const actor = {
         id, kind: 1, species: 'limo', hue: k.hue, royal: true, heavy: true, foe, slot: false, r: 1.05, homeX: x, homeY: y, x, y, z: zz,
         px: x, py: y, pz: zz, vx: 0, vy: 0, facing: 0, moving: false, animT: 0, tp: 0, state: 0, timer: 0.5, tx: x, ty: y, rng: rand,
-        maxHp: k.maxHp, hp: k.hp > 0 ? k.hp : k.maxHp, mul: 2 + k.level * 0.28, gen: 0, dead: false, deadT: 0, ag: t.self.pid, agT: 0,
+        vTop: 58, maxHp: k.maxHp, hp: k.hp > 0 ? k.hp : k.maxHp, mul: 2 + k.level * 0.28, gen: 0, dead: false, deadT: 0, ag: t.self.pid, agT: 0,
         stagger: 0, kbx: 0, kby: 0, kbT: 0, poise: 0, threat: new Map([[t.self.pid, 10]]), atk: 0, atkT: 0, atkCd: 99,
         aimX: 0, aimY: 0, lvx: 0, lvy: 0, hitSet: new Set(), mood: 0
       };
@@ -1503,7 +1504,16 @@
         else this.ui.setBoss(null);
       }
       // El sprite pequeño del motor para el actor queda oculto.
-      if (this.actor) { const v = a.view.entityVis.get(this.actor.id); if (v) { v.sprite.visible = false; if (v.shadow) v.shadow.visible = false; } }
+      if (this.actor) {
+        const v = a.view.entityVis.get(this.actor.id); if (v) { v.sprite.visible = false; if (v.shadow) v.shadow.visible = false; }
+        // La barrita de vida del motor quedaría sobre la cara del Rey: él ya tiene su barra de jefe arriba.
+        if (this._barHost === undefined) {
+          this._barHost = null;
+          for (const o of [a.view, a, a.session].concat(Object.values(a.view || {}), Object.values(a))) if (o && typeof o === 'object' && o.bars instanceof Map && o.pools) { this._barHost = o; break; }
+        }
+        const bar = this._barHost && this._barHost.bars.get(this.actor.id);
+        if (bar && typeof bar.visible === 'boolean') bar.visible = false;
+      }
     }
 
     drawSanctuary(dt, s, zAt) {
@@ -1631,7 +1641,7 @@
       let frame = 'idle0', jitter = 0;
       const idleF = () => {
         const blink = (time % 3.4) < 0.12;
-        return blink ? 'blink' : 'idle' + (Math.floor(time * 6) % 4);
+        return blink ? 'blink' : 'idle' + [0, 4, 1, 5, 2, 6, 3, 7][Math.floor(time * 8) % 8];
       };
       switch (ai.st) {
         case 'idle': frame = ai.hurt > 0 ? 'hurt' : idleF(); break;

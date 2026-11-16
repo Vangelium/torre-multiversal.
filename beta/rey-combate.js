@@ -40,7 +40,9 @@
   ];
   const TITAN_FRAMES = [
     ['idle0', { breath: 0, sway: 0, t: 0 }], ['idle1', { breath: 1, sway: 0.6, t: 0.3 }], ['idle2', { breath: 0, sway: 1, t: 0.6 }],
-    ['walk0', { crouch: 0.25, sway: -0.5, t: 0.1 }], ['walk1', { crouch: 0.25, sway: 0.5, t: 0.4 }],
+    ['walk0', { stride: -1, crouch: 0.1, sway: -0.5, t: 0.1 }], ['walk1', { stride: 0, crouch: 0.35, sway: 0, t: 0.3 }],
+    ['walk2', { stride: 1, crouch: 0.1, sway: 0.5, t: 0.5 }], ['walk3', { stride: 0, crouch: 0.35, sway: 0, t: 0.7 }],
+    ['idle3', { breath: 0.5, sway: 0.3, t: 0.85 }],
     ['charge', { right: 'charge', glow: 1, crouch: 0.4, t: 0.2 }], ['aim', { right: 'charge', glow: 1.5, crouch: 0.6, t: 0.5 }],
     ['punch', { right: 'punch', t: 0.8 }], ['hammerUp', { left: 'up', right: 'up', crouch: 0.2, t: 0.1 }],
     ['hammerDown', { left: 'punch', right: 'punch', crouch: 0.9, t: 0.3 }], ['hook', { left: 'punch', crouch: 0.3, t: 0.5 }],
@@ -134,7 +136,7 @@
       if (!this.kit()) return;
       const f = this.API.formOf(e.hp, e.maxHp);
       Object.assign(e.ai, { form: f, pending: 0, summonCd: 3, absorbCd: 6, spineCd: 2, biteCd: 1.5, jumpCd: 3, punchCd: 2.5, hammerCd: 2, hookCd: 1, absorbed: 0, step: 0 });
-      e.r = this.API.FORMS[f].r;
+      e.r = this.API.FORMS[f].r; e.vTop = [0, 58, 76, 122][f];
       this.shownForm = 0;
       this.queue(f);
       if (f >= 2) this.sheet(f === 2 ? 'beast' : 'titan', true);
@@ -348,7 +350,7 @@
         case 'morph': {
           ai.h = Math.max(0, ai.h - dt * 30);
           if (Math.random() < 0.5) C.fxBurst(e.x + (Math.random() - 0.5) * 2, e.y, 0.6 + Math.random() * 2, 'drop' + (HUE_IDX[k.hue] || 0), 1, 0.4);
-          if (ai.t > 1.4 && !ai.hit) { ai.hit = true; ai.form = ai.to; e.r = API.FORMS[ai.to].r; }
+          if (ai.t > 1.4 && !ai.hit) { ai.hit = true; ai.form = ai.to; e.r = API.FORMS[ai.to].r; e.vTop = [0, 58, 76, 122][ai.to]; }
           if (ai.t > 2.2 && !ai.boomed) {
             ai.boomed = true;
             shake(0.5); C.stage.shock(e.x, e.z, e.y, 4.5, 0.6); C.stage.shock(e.x, e.z, e.y, 2.8, 0.4);
@@ -706,7 +708,7 @@
       const x = K.lerp(ai.ox, e.x, al), y = K.lerp(ai.oy, e.y, al), h = K.lerp(ai.oh, ai.h, al);
       const z = zAt(x, y), time = K.now() / 1000, blink = n => Math.floor(time * n) % 2;
       let kind = f === 2 ? 'beast' : 'titan', frame = 'idle0', jitter = 0, tint = 0, glow = 0;
-      const idle = () => kind === 'beast' ? 'idle' + (Math.floor(time * 5) % 4) : 'idle' + [0, 1, 2, 1][Math.floor(time * 3) % 4];
+      const idle = () => kind === 'beast' ? 'idle' + (Math.floor(time * 5) % 4) : 'idle' + [0, 1, 2, 3][Math.floor(time * 3) % 4];
       // ── Elección de cuadro ──
       if (ai.st === 'morph') {
         const u = ai.t / MORPH;
@@ -736,7 +738,7 @@
       } else {
         switch (ai.st) {
           case 'idle': frame = ai.hurt > 0 ? 'hurt' : idle(); break;
-          case 'walk': case 'return': frame = ai.st === 'walk' || e.moving ? 'walk' + (Math.floor(time * 4.8) % 2) : idle(); break;
+          case 'walk': case 'return': frame = ai.st === 'walk' || e.moving ? 'walk' + (Math.floor(time * 5.5) % 4) : idle(); break;
           case 'punch': frame = ai.phase === 'charge' ? 'charge' : ai.phase === 'aim' ? 'aim' : ai.phase === 'strike' ? 'punch' : 'hurt';
             glow = ai.phase === 'charge' ? 0.6 + ai.t : ai.phase === 'aim' ? 1.6 : 0;
             if (ai.phase === 'aim') { jitter = (blink(30) ? 1 : -1) / 16; tint = 1; } break;
