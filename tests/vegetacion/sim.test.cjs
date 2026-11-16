@@ -61,20 +61,21 @@ test('al caminar, la onda se ve en las matas vecinas (más débil y después) y 
 test('el arte nuevo es pixel art limpio con la paleta del juego (sin base de pegatina)', () => {
   const { ART, PAL, NEW_SPRITES } = require('../../beta/vegetacion.js');
   const kinds = new Set(NEW_SPRITES.map(q => q[4]));
-  for (const k of ['corta', 'alta', 'helecho', 'mata', 'flor']) assert.ok(kinds.has(k), 'falta la variedad ' + k);
+  for (const k of ['corta', 'flor', 'matorral']) assert.ok(kinds.has(k), 'falta la variedad ' + k);
   for (const [id, rows] of Object.entries(ART)) {
     const w = rows[0].length;
     assert.ok(rows.every(r => r.length === w), id + ': filas de distinto ancho');
     assert.ok(rows.every(r => [...r].every(c => c === '.' || PAL[c])), id + ': color fuera de la paleta');
     assert.ok(!rows[rows.length - 1].includes('O'), id + ': la base no lleva contorno duro');
-    assert.ok(rows.length <= 18 && w <= 19, id + ': demasiado grande, taparía a los personajes');
+    if (/Matorral/.test(id)) assert.ok(rows.length <= 30 && w <= 30, id + ': matorral demasiado grande');
+    else assert.ok(rows.length <= 10 && w <= 12, id + ': el pasto debe ser corto');
   }
 });
 
 test('las mediciones guardadas son JSON estricto (sin NaN ni Infinity)', () => {
   const fs = require('node:fs'), path = require('node:path');
   const files = [['vegetacion-v12', 'mediciones_rendimiento.json'], ['vegetacion-v12', 'resultados_visuales.json'],
-    ['vegetacion-v12.2', 'mediciones_rendimiento.json'], ['vegetacion-v12.2', 'resultados_visuales.json'], ['vegetacion-v12.2', 'funcional.json'], ['vegetacion-v12.3', 'resultados_visuales.json'], ['vegetacion-v12.3', 'funcional.json']];
+    ['vegetacion-v12.2', 'mediciones_rendimiento.json'], ['vegetacion-v12.2', 'resultados_visuales.json'], ['vegetacion-v12.2', 'funcional.json'], ['vegetacion-v12.3', 'resultados_visuales.json'], ['vegetacion-v12.3', 'funcional.json'], ['vegetacion-v12.4', 'resultados_visuales.json'], ['vegetacion-v12.4', 'funcional.json'], ['vegetacion-v12.5', 'corte.json'], ['vegetacion-v12.5', 'funcional.json'], ['vegetacion-v12.5', 'mediciones_rendimiento.json']];
   for (const [d, f] of files) {
     const txt = fs.readFileSync(path.join(__dirname, '../../docs/evidencias', d, f), 'utf8');
     assert.ok(!/\bNaN\b|\bInfinity\b/.test(txt), f + ' contiene NaN o Infinity');
@@ -92,12 +93,12 @@ test('v12.2: sin contornos negros interiores (solo la silueta exterior lleva con
   }
 });
 
-test('v12.2: el doblez es visible (amplitudes) y la hierba se agacha delante de los personajes', () => {
+test('v12.4: pasto corto flexible, flores más rígidas, matorral alto como masa; la hierba se agacha delante de los personajes', () => {
   const { DEF: D, NEW_SPRITES } = require('../../beta/vegetacion.js');
   const amp = Object.fromEntries(NEW_SPRITES.map(q => [q[4], q[3]]));
-  assert.ok(amp.alta >= 0.6 && amp.helecho >= 0.4 && amp.corta >= 0.25, JSON.stringify(amp));
-  assert.ok(amp.mata < amp.alta && amp.flor < amp.alta, 'las matas y flores son más rígidas que la hierba alta');
+  assert.ok(amp.corta >= 0.2 && amp.flor < amp.corta && amp.matorral >= 0.25, JSON.stringify(amp));
   assert.ok(D.near && D.near.player > 0 && D.near.squash > 0 && D.near.squash < 1, 'agacharse sin desaparecer');
+  assert.ok(D.zone.thickets > 0 && D.zone.thicketGap >= 2.5, 'pocos matorrales y separados');
 });
 
 test('v12.3: la textura lleva desplazamiento y velocidad; en reposo todo vale 128 (nada se mueve)', () => {
@@ -128,4 +129,33 @@ test('v12.3: una onda que llega al borde de la ventana no deja la hierba doblada
   for (let i = 0; i < D.hz * 15 && s.awake; i++) s.step(1 / D.hz);
   assert.equal(s.awake, false, 'la simulación se duerme (energía ' + s.energy + ')');
   assert.ok(s.dx.every(v => v === 0) && s.dy.every(v => v === 0), 'todo vuelve exacto a 0');
+});
+
+test('v12.4: el pasto corto crece hacia arriba (hojas verticales, sin contorno negro)', () => {
+  const { ART } = require('../../beta/vegetacion.js');
+  for (const [id, rows] of Object.entries(ART)) {
+    if (!/Corta/.test(id)) continue;
+    assert.ok(!rows.join('').includes('O'), id + ': el pasto corto no lleva contorno negro');
+    // Cada columna con pasto es una hoja continua desde su punta hasta la base (línea hacia arriba).
+    const h = rows.length, w = rows[0].length;
+    for (let x = 0; x < w; x++) {
+      const ys = []; for (let y = 0; y < h; y++) if (rows[y][x] !== '.') ys.push(y);
+      if (ys.length < 2) continue;
+      for (let k = 1; k < ys.length; k++) assert.equal(ys[k], ys[k - 1] + 1, id + ' columna ' + x + ': hoja cortada');
+    }
+  }
+});
+
+test('v12.5: cada planta suelta materiales para craftear y su rastrojo es la base cortada', () => {
+  const { DROPS, ITEM_ART, ART, PAL, stubble } = require('../../beta/vegetacion.js');
+  for (const k of ['vegCorta', 'vegFlor', 'vegMatorral']) assert.ok(DROPS[k] && DROPS[k].length, 'sin botín: ' + k);
+  const mats = new Set(Object.values(DROPS).flat().map(d => d[0]));
+  for (const m of ['fibra', 'semilla', 'cana']) assert.ok(mats.has(m), 'falta el material ' + m);
+  for (const t of Object.values(DROPS)) for (const [, p, n] of t) assert.ok(p > 0 && p <= 1 && n >= 1);
+  assert.ok(DROPS.vegMatorral.some(d => d[0] === 'cana' && d[1] === 1), 'el matorral siempre da caña');
+  for (const rows of Object.values(ITEM_ART)) assert.ok(rows.every(r => r.length === rows[0].length && [...r].every(c => c === '.' || PAL[c])));
+  const c = stubble(ART.vegMatorral0, 5);
+  assert.equal(c.length, ART.vegMatorral0.length, 'mismo alto (solo cambia la imagen)');
+  assert.ok(c.slice(0, -5).every(r => /^\.+$/.test(r)), 'arriba queda vacío');
+  assert.ok(c.slice(-5).some(r => /[^.]/.test(r)), 'abajo queda el rastrojo');
 });

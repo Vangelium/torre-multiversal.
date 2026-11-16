@@ -25,8 +25,9 @@
     spring: 22, damping: 3.6, couple: 400, maxDisp: 1, sleep: 2e-5,
     player: { radius: 1.3, force: 20 }, creature: { force: 16 }, attack: { radius: 1.8, force: 30 },
     wind: { strength: 0.1, gust: 1 }, lod: { near: 8, far: 15 },
-    zone: { radius: 18, max: 380, spacing: 0.72 },
-    near: { player: 0.7, creature: 0.55, squash: 0.55 }
+    zone: { radius: 26, max: 1000, spacing: 0.42, thickets: 16, thicketGap: 3.4, thicketMin: 0.6 },
+    near: { player: 0.7, creature: 0.55, squash: 0.55 },
+    regrow: { grass: 150, thicket: 300 }, pickup: 1.3
   });
 
   // ════════════════════════════════════════════════════════════════════
@@ -107,25 +108,42 @@
     at(x, y) { const c = this.cfg.cell, i = Math.floor((x - this.x0) / c), j = Math.floor((y - this.y0) / c); if (i < 0 || j < 0 || i >= this.N || j >= this.N) return [0, 0]; const k = this.idx(i, j); return [this.dx[k], this.dy[k]]; }
   }
 
-  const AMP = { vegCorta: 0.3, vegAlta: 0.62, vegHelecho: 0.45, vegMata: 0.16, vegFlor: 0.22 };
+  // Pasto corto flexible; flores algo más rígidas; el matorral alto se mece como una masa.
+  const AMP = { vegCorta: 0.26, vegFlor: 0.2, vegMatorral: 0.3 };
   // Paleta = la misma de los arbustos y árboles del juego (contorno, sombras, luz).
   // Nada de verdes nuevos: así las plantas quedan integradas con el terreno.
   const PAL = { O: '#0c241a', D: '#19472a', d: '#235e31', k: '#337838', m: '#4b9440', l: '#6fb14b', h: '#a3d064', s: '#d2ec8c',
     w: '#eeeadb', g: '#b9b3a2', y: '#e9c25e', p: '#ea94bc', q: '#b45f8c' };
   // Pixel art dibujado a mano (una letra = un píxel; '.' = transparente).
   const ART = {
-    vegCorta0: ['.....OhO..O.', '.O..Ohl..OlO', 'OlO..lm..mlO', 'OlmOOlmOOkmO', '.Omkdllmkmdh', '.Omkdmmkdkml', '..OkdmmkkmlO', '..OddkkddkmO', '....dddddd..'],
-    vegCorta1: ['OlO.hO.OlO', 'OlmOhlOmlO', '.OmklmkmO.', '.OmklmkmO.', '..OkmkkkO.', '..OdkkdO..', '...dddd...'],
-    vegCorta2: ['.....OhO....O', 'O...Ohl....Ol', 'lO...lmO.OOml', 'lmOOOllmOhkmO', 'OmkddmmkmlmmO', '.OkddmmkmlkO.', '..OddkkkmdO..', '...ddddddd...'],
-    vegAlta0: ['......OhO......', '......OhO......', '.....OhlO....O.', '.O...Ohhl...OlO', 'OlO...llm...mlO', 'Olm...llm..OmlO', 'OlmO..llm..mlO.', '.Omk..llm.OkmO.', '.OmkOOllmOkmhO.', '.OmkddllmdklhO.', '.OhmkdmmkdkmlO.', '.OhlkdmmkdmlO..', '..OlmdmmkdmlO..', '..OlmdmmkkmmO..', '...OmkkkdkmO...', '...OmkkkdkmO...', '....OkdkddkO...', '.....dddddd....'],
-    vegAlta1: ['..OhllO......', '.Ohl.lmO.....', 'Ohl...lmO....', 'Olm...lmO....', 'Ol....hlO..O.', '.....OhlO.OlO', '.....Ohhl.mlO', '.....OllmOmlO', '.....OllmkmO.', '.OldddllmkmkO', '.Olmdllmdkmdh', '.Omkdllmkmmlh', '..Omkmmkdkdml', '..OmkmmkdkmlO', '..OkdmmkdkkmO', '...OkkkddkmmO', '...OdkkdddkO.', '....ddddddd..'],
-    vegHelecho0: ['...................', '...................', '...................', '...................', '.....O.............', '....OkOO....OO.....', '....OkkhO.OOlkO....', '..OOkklkhOhlklkO...', '.OlhlhlklhlkllhlOO.', '.OkhlkkmklkmkkkkkkO', '....OhmmlmklmhO....', '......OlmkllhO.....', '...................'],
-    vegHelecho1: ['................', '................', '..........O.....', '.........OkO....', '........OhkO....', '.......OhklO....', '.......OlkO.....', '.OOOOOOmkhkOOOO.', 'OkkkkmhlkmmlkkhO', 'OhllhklmkmklllkO', '....OlmlklhO....', '......d..d......'],
-    vegMata0: ['.OO..OhO..OO.', 'OhlOOhhlOOlhO', 'OhhlllklmlhhO', 'OlllllklmlllO', 'lmllllklmllml', 'mmkmmmkkmmkmm', 'mmmkkmkkkkmmm', 'OkkkdkmkdkkkO', '.OdddkkddddO.', '....ddddd....'],
-    vegMata1: ['....OhO....', '...OhklO...', 'OOOllklmOOO', 'lmkllklmkml', 'mmkllklmkmm', 'mmmkmkkkmmm', 'OkkdmmkdkkO', '.OddkkdddO.', '...ddddd...'],
-    vegFlor0: ['............', '..w......w..', '.wyg....wyg.', '..g...w..g..', '..k..wyg.k..', '..k..Og..k..', '..k.OhlO.k..', '.OlOkhlkOlO.', '.OmklllmkmO.', '.OmmmmmkmmO.', '..OkkkkdkO..', '...dddddd...'],
-    vegFlor1: ['...........', '.....p.....', '..p.pyq.p..', '.pyq.q.pyq.', '..q..k..q..', '..k.OkO.k..', '.OlOhhlOlO.', '.OmkllmkmO.', '.OmmllmmmO.', '..OkmmkkO..', '...ddddd...'],
+    vegCorta0: ['.....h.....', '.....l.....', '...h.m.h...', '...l.m.l...', 'h..m.mlm..h', 'l..mlkmm..l', '.mlkmkdk.m.', '.kmkdddk.k.', '.dDdDdDd.d.', '.DDDDDDD.D.'],
+    vegCorta1: ['...h.....', '...l.....', '...m.h...', 'h..m.l...', 'l..mlm..h', '.mlkmm..l', '.kmkdk.m.', '.dDdDd.k.', '.DDDDD.D.'],
+    vegCorta2: ['.....h......', '.....l.h....', '...h.m.l....', '...l.mlm...h', 'h..m.mmml..l', 'l..mlkdkm.m.', '.m.kmkdkd.k.', '.k.dDdDdD.d.', '.D.DDDDDD.D.'],
+    vegCorta3: ['...h....', '...l....', '...m..h.', 'h..ml.l.', 'l..kmmh.', '.mlkdkl.', '.kddDdk.', '.DDDDDD.'],
+    vegFlor0: ['........w.', '..w....wyg', '.wyg.w.kg.', '..g.wygk..', '..k..g.k..', '..k..k.k..', '..kh.khk..', 'h.kl.klk.h', '.kkk.kkkk.', '.DDD.DDDD.'],
+    vegFlor1: ['......p..', '..p..pyq.', '.pyq..q..', '..q...k..', '..k...k..', '..k.h.k..', 'h.k.l.k.h', '.kk.k.kk.', '.DD.D.DD.'],
+    vegMatorral0: ['..........O...................', '.........OlO.....O............', '.........Om..O.O.lO.O.........', '.........Ok..l.l.m..lO........', '........Olk..m.m.k..mO........', '........Omk..k.k.k..kOO.......', '........OkkO.k.k.k..k.lO......', '.......OOkkl.k.kOk..k.mO......', '......Ol.kkm.kOklk..k.kO......', '......Om.ldk.khkmd..k.kO......', '......Ok.mdkOdldkd.Od.klO.....', '....O.Ok.kdkhdmdkh.ll.kmO.O...', '...Ol..k.kdkldmdkl.mm.hk..lO..', '...Om..l.h.dmdmdkm.kk.lk..mO..', '..ODkOOmOl.dmdmddmOdkOmkOOkO..', '.OldDlhDhmDdmdmddmddhdmdlDDO..', '.OdDDdlDlmDdmdmddmDdldmhDDdO..', '.ODDdDmdmmddmddkdmDdmdmlDddO..', '.ODddDmdmmdDkddkdkddmdkmhDdlO.', 'ODdhDdmdmkdDkDdkdkdDmkdmlddhO.', 'lldlddkdkDkDkDdkdkdDkkdmmdDlO.', 'dDDmddkDkDkDkDdkDkdkdkdkmdDmO.', 'DDdmddkDkDkDkDDkDkDkDkkDkddmDO', 'ddDdkDkDkDkDkDDkDkDkDkkDkDkddl', 'OdhDkDkDkDkDdDDdDdDkDdkDkDkdDD', 'OdlDkDdDdDdDdDDdDdDdDdkDkDkDDd', 'ODkDkDdDdDdDdDDdDdDdDddDdDkDdO', 'ODkDdDdDdDdDdDDdDdDdDddDdDdDDO', 'ODdDdDdDdDdDdDDdDdDdDddDdDdDDO', '.DDDDDDDDDDDDDDDDDDDDDDDDDDDD.'],
+    vegMatorral1: ['.........O...............', '........OlO..............', '........OmOO.O...........', '........Ok.l.lOO.........', '.......OOk.m.m.lO........', '.....OOl.k.k.k.mO........', '....Ol.m.kOkOk.kOO.......', '....Om.k.klklk.k.lO......', '...OOk.l.dhkmk.k.mOO.....', '..Ol.kOm.dldkd.kOk.lO....', '..Om.khk.dmdkd.dlk.mO....', '..OkOllk.dmdkd.dmk.kO....', '..OkhmmkOhmdhdOdkdOkO....', '.ODDldmddlmdldddDdDDO....', 'OlDdmDmdDmkdmdDdhdDhDOO..', 'ODhdmdmddmdkmdDdlhdlldlO.', 'ODldmdkddmdkmdddmlDmdhDO.', 'OdmdkdkddkdkkDdDmmDmDldO.', 'OdmddkkDdkDkkDdDkmdkdmdO.', 'OdkDdkkDDkDkkDdkkDkDdmDDO', 'OdkDDkkDDkDdkDDkkDkDdkdll', 'ODkDDkdDDkDdkDDkkDkDdkDDd', 'ODkDDddDDdDddDDdkDdDDkdhO', 'ODdDDddDDdDddDDddDdDDddlO', 'ODdDDddDDdDddDDddDdDDdkDO', '.DDDDDDDDDDDDDDDDDDDDDDD.'],
   };
+  // Lo que se recoge al cortar (va a la bolsa; servirá para craftear).
+  const ITEM_ART = {
+    itemFibra: ['..l.h..', '.lkmlh.', 'lkmlmkl', '.dkmkd.', 'lkmlmkl', '.lkmlh.', '..d.d..'],
+    itemSemilla: ['..yy..', '.ywgy.', 'ygwwgy', 'yggggy', '.ygqy.', '..yy..'],
+    itemCana: ['......hl', '.....lmk', '....lmkd', '...lmkd.', '..lmkd..', '.lmkd...', 'lmkd....', 'kdd.....']
+  };
+  const DROPS = {
+    vegCorta: [['fibra', 0.55, 1], ['semilla', 0.12, 1]],
+    vegFlor: [['semilla', 0.7, 1], ['fibra', 0.35, 1]],
+    vegMatorral: [['cana', 1, 2], ['fibra', 1, 2], ['semilla', 0.35, 1]]
+  };
+  const MAT_ICON = { fibra: 'itemFibra', semilla: 'itemSemilla', cana: 'itemCana' };
+  /** Rastrojo: la misma planta cortada a ras (las filas de abajo, con el corte más claro). */
+  function stubble(rows, keep) {
+    const h = rows.length, out = rows.map((r, y) => y < h - keep ? '.'.repeat(r.length) : r);
+    const top = h - keep;
+    out[top] = [...out[top]].map(c => c === '.' ? '.' : (c === 'O' || c === 'D' ? 'm' : 'l')).join('');
+    return out;
+  }
   // id, ancho, alto, amplitud de flexión (u), tipo
   const NEW_SPRITES = Object.keys(ART).map(id => { const k = id.replace(/\d+$/, ''); return [id, ART[id][0].length, ART[id].length, AMP[k], k.slice(3).toLowerCase()]; });
   /** Campo → textura RGBA8: rg = desplazamiento (−1..1), ba = velocidad (÷ VMAX, −1..1). 128 = reposo. */
@@ -138,15 +156,15 @@
     }
     return d;
   }
-  const API = { DEF, VegSim, ART, PAL, NEW_SPRITES, encodeField, VMAX };
+  const API = { DEF, VegSim, ART, PAL, NEW_SPRITES, encodeField, VMAX, DROPS, ITEM_ART, stubble };
   if (typeof module !== 'undefined' && module.exports) { module.exports = API; return; }
   if (!root.document) return;
 
   // ════════════════════════════════════════════════════════════════════
   // 2. Arte de las especies nuevas (pintadas en la zona libre del atlas)
   // ════════════════════════════════════════════════════════════════════
-  function paintSprite(g, x0, y0, id) {
-    const rows = ART[id]; if (!rows) return;
+  function paintSprite(g, x0, y0, id, rowsIn) {
+    const rows = rowsIn || ART[id]; if (!rows) return;
     for (let y = 0; y < rows.length; y++) for (let x = 0; x < rows[y].length; x++) {
       const c = PAL[rows[y][x]]; if (c) { g.fillStyle = c; g.fillRect(x0 + x, y0 + y, 1, 1); }
     }
@@ -167,9 +185,11 @@
   // pieza (la punta se mueve más que la base) y la raíz nunca se desplaza.
   const VS_BODY = `
         if (aVeg.x > 0.0 && uVegWin.w > 0.5) {
-          float vw = aVeg.x, amp = aVeg.y, ph = aVeg.z;
+          float vw = aVeg.x, amp = aVeg.y, ph = fract(aVeg.z), thick = step(3.5, aVeg.z), up = step(1.5, aVeg.z - 4.0 * thick);
           float toRoot = pow(vw, 0.6667) * aVeg.w;                 // distancia de este vértice a la raíz
-          vec2 root = vec2(wp.x, wp.z + toRoot);
+          // Plantas de la zona: de pie (up = 1; la raíz está en su mismo z y tapan lo que hay detrás).
+          // Matas del mapa: planas sobre el suelo (la raíz está más adelante en z).
+          vec2 root = vec2(wp.x, wp.z + toRoot * (1.0 - up));
           float dist = distance(root, uVegCam.xy);
           float lod = 1.0 - smoothstep(uVegLod.x, uVegLod.y, dist), mid = 1.0 - smoothstep(uVegLod.y, uVegLod.y + 4.0, dist);
           // Viento secundario: solo durante ráfagas (la mayor parte del tiempo, quieto).
@@ -192,7 +212,9 @@
           vec2 lag = clamp(-vel * (0.75 + 0.5 * ph), -0.8, 0.8);
           float flutter = sin(uVegCam.z * (11.0 + 5.0 * ph) + ph * 31.0) * push * 0.18;
           wp.x += (d.x * amp + wind * amp * 0.35 * mid) * vw + (lag.x * 0.9 + flutter) * amp * vw2;
-          wp.z += (d.y * amp * 0.4) * vw + lag.y * amp * 0.35 * vw2 + push * 0.5 * min(1.0, amp * 2.0) * toRoot;
+          float squash = push * 0.5 * min(1.0, amp * 2.0) * toRoot;
+          wp.z += (d.y * amp * 0.4) * vw + lag.y * amp * 0.35 * vw2 + squash * (1.0 - up);
+          wp.y -= squash * up;
           // Profundidad legible: la hierba justo delante de un personaje se agacha y se abre,
           // así tapa los pies y parte de las piernas, nunca el cuerpo.
           for (int q = 0; q < 5; q++) {
@@ -200,7 +222,10 @@
             if (n.z <= 0.0 || amp < 0.08) continue;     // los arbustos sólidos no se agachan
             float ax = abs(root.x - n.x), dz = root.y - n.y;
             float f = (1.0 - smoothstep(n.z * 0.55, n.z, ax)) * step(-0.15, dz) * (1.0 - smoothstep(n.z * 0.7, n.z * 1.35, dz));
-            wp.z += f * n.w * toRoot;
+            // El matorral alto es un escondite: a las criaturas no las destapa; al jugador apenas.
+            f *= (q == 0) ? mix(1.0, 0.35, thick) : (1.0 - thick);
+            wp.z += f * n.w * toRoot * (1.0 - up);
+            wp.y -= f * n.w * toRoot * up;
             wp.x += sign(root.x - n.x + 0.001) * f * amp * 0.6 * vw;
           }
         }`;
@@ -209,7 +234,8 @@
     constructor(app, cfg) {
       this.app = app; this.cfg = cfg; this.sim = new VegSim(cfg);
       this.acc = 0; this.prev = null; this.ent = new Map(); this.stats = { simMs: 0, uploads: 0, active: 0, plants: 0, frames: 0, steps: 0, src: { jugador: 0, ataque: 0, criaturas: 0, ondas: 0 } };
-      this.view = null; this.mat = null; this.tex = null; this.data = null; this.on = true; this.lastAtk = 0;
+      this.view = null; this.mat = null; this.tex = null; this.data = null; this.on = true; this.lastAtk = undefined;
+      this.plants = []; this.drops = []; this.chips = []; this.gain = {}; this.cuts = 0; this._regT = 0;
       this.hook();
       root.__TM_VEG__ = this;
     }
@@ -244,9 +270,13 @@
         if (sp > 0.4 && sp < 40) { this.sim.impulse(av.x, av.y + 0.1, C.player.radius, C.player.force * Math.min(1.6, sp / 4) * dt * 30, vx / sp, vy / sp); this.stats.src.jugador++; }
         // Ataque cuerpo a cuerpo: abanico al frente.
         const atk = (av.ac | 0) * 1000 + (av.atk | 0);   // «ac» cuenta las acciones de ataque del avatar
-        if (atk && atk !== this.lastAtk) {
-          const fx = sp > 0.2 ? vx / sp : (this.face ? this.face[0] : 1), fy = sp > 0.2 ? vy / sp : (this.face ? this.face[1] : 0);
+        if (this.lastAtk !== undefined && atk !== this.lastAtk) {
+          // Mira hacia donde mira el personaje (8 direcciones: 0 abajo, 2 derecha, 4 arriba, 6 izquierda).
+          const fa = Number.isFinite(av.facing) ? av.facing * Math.PI / 4 : null;
+          const fx = fa !== null ? Math.sin(fa) : sp > 0.2 ? vx / sp : (this.face ? this.face[0] : 1);
+          const fy = fa !== null ? Math.cos(fa) : sp > 0.2 ? vy / sp : (this.face ? this.face[1] : 0);
           this.sim.impulse(av.x + fx * 0.9, av.y + fy * 0.9, C.attack.radius, C.attack.force, fx, fy); this.stats.src.ataque++;
+          this.slash(av.x, av.y, fx, fy);
         }
         this.lastAtk = atk;
         if (sp > 0.2) this.face = [vx / sp, vy / sp];
@@ -262,6 +292,9 @@
         if (m > 0.01 && m < 2) { const r = Math.max(0.6, (e.r || 0.4) * 1.3); this.stats.src.criaturas++; this.sim.impulse(e.x, e.y, r, C.creature.force * Math.min(2, m / dt / 3) * (0.6 + r * 0.4) * dt * 30, mx / m, my / m); }
       }
       if (this.ent.size > 400) this.ent.clear();
+      // Rebrote: el pasto cortado vuelve a crecer (comida para los animales, más adelante).
+      this._regT += dt;
+      if (this._regT > 1) { this._regT = 0; const now = performance.now() / 1000; for (const p of this.plants) if (p.cut && now >= p.regrowAt) this.setCut(p, false); }
       // Paso fijo.
       this.acc += Math.min(dt, 0.1);
       const h = 1 / C.hz, t0 = performance.now();
@@ -298,6 +331,122 @@
         this.tex.needsUpdate = true; this.dirty = false; this.stats.uploads++;
       }
       this.stats.active = this.sim.awake ? 1 : 0; this.stats.frames++;
+      const now = performance.now() / 1000, fdt = Math.min(0.05, now - (this._lastFx || now)); this._lastFx = now;
+      if (this.chips.length || this.drops.length) this.updateFx(fdt, av);
+    }
+    // ════ Cortar plantas con el arma: rastrojo, recortes que saltan y lo que se recoge ════
+    /** Golpe del arma: corta lo que está en el arco de enfrente (el matorral aguanta 3 golpes). */
+    slash(x, y, fx, fy) {
+      if (!this.plants.length || !this.zoneUV) return 0;
+      const cx = x + fx * 0.75, cy = y + fy * 0.75; let n = 0;
+      for (const p of this.plants) {
+        if (p.cut) continue;
+        const r = p.thick ? 1.45 : 1.0;
+        const d1 = Math.hypot(p.x - cx, p.y - cy), d0 = Math.hypot(p.x - x, p.y - y);
+        if (d1 > r && d0 > 0.55) continue;
+        // detrás del personaje no corta
+        if (d0 > 0.55 && ((p.x - x) * fx + (p.y - y) * fy) < -0.1) continue;
+        if (--p.hp > 0) { this.sim.impulse(p.x, p.y, 1.1, 30, fx, fy); this.burst(p, 7); continue; }
+        this.setCut(p, true); this.burst(p, p.thick ? 22 : 9); this.drop(p); n++;
+      }
+      return n;
+    }
+    /** Cambia la imagen de la planta a rastrojo (o de vuelta a la planta al rebrotar). */
+    setCut(p, cut) {
+      const at = this.view && this.view.atlas; if (!at) return;
+      const r = at.regions[cut ? p.id + '_c' : p.id]; if (!r) return;
+      const W = at.w || 512, H = at.h || 512, uv = this.zoneUV;
+      const p0 = (p.flip ? r.x + r.w : r.x) / W, p1 = (p.flip ? r.x : r.x + r.w) / W, g0 = r.y / H, g1 = (r.y + r.h) / H;
+      const SEG = p.seg || 5;
+      for (let row = 0; row <= SEG; row++) { const v = g0 + (g1 - g0) * row / SEG; uv.setXY(p.base + row * 2, p0, v); uv.setXY(p.base + row * 2 + 1, p1, v); }
+      uv.needsUpdate = true;
+      p.cut = cut;
+      if (cut) { p.regrowAt = performance.now() / 1000 + (p.thick ? this.cfg.regrow.thicket : this.cfg.regrow.grass) * (0.8 + Math.random() * 0.4); this.cuts++; this.stats.cuts = this.cuts; }
+      else p.hp = p.thick ? 3 : 1;
+      if (p.thick) { const t = this.thickets.find(q => q.x === p.x && q.y === p.y); if (t) t.cut = cut; }
+    }
+    fxMat(kind) {
+      const v = this.view; this._fxm = this._fxm || {};
+      if (!this._fxm[kind]) this._fxm[kind] = kind === 'icon'
+        ? new THREE.MeshBasicMaterial({ map: v.atlasTex, alphaTest: 0.5, transparent: false })
+        : new THREE.MeshBasicMaterial({ color: new THREE.Color(kind) });
+      return this._fxm[kind];
+    }
+    /** Recortes de pasto que saltan al cortar. */
+    burst(p, n) {
+      const v = this.view, T = this.app.terrain; if (!v || !v.scene || !T) return;
+      const z = T.surfaceAt(p.x, p.y); if (z !== z) return;
+      this._chipGeo = this._chipGeo || new THREE.PlaneGeometry(2 / 16, 2 / 16);   // trocitos de 2 px
+      const cols = ['#6fb14b', '#a3d064', '#4b9440', '#337838'];
+      for (let i = 0; i < n && this.chips.length < 120; i++) {
+        const m = new THREE.Mesh(this._chipGeo, this.fxMat(cols[i % cols.length])); m.renderOrder = 3;
+        const a = Math.random() * Math.PI * 2, sp = 0.8 + Math.random() * 1.6;
+        m.position.set(p.x, z + 0.15 + Math.random() * (p.thick ? 0.9 : 0.25), p.y);
+        v.scene.add(m); this.stats.chipsMade = (this.stats.chipsMade || 0) + 1;
+        this.chips.push({ m, vx: Math.cos(a) * sp, vz: Math.sin(a) * sp * 0.6, vy: 2.2 + Math.random() * 2.2, g: z, life: 0.8 + Math.random() * 0.4 });
+      }
+    }
+    /** Lo que suelta la planta: cae al suelo y se recoge al pasar cerca (va a la bolsa). */
+    drop(p) {
+      const kind = p.id.replace(/\d+$/, ''), table = DROPS[kind]; if (!table) return;
+      for (const [mat, chance, count] of table) {
+        if (Math.random() > chance) continue;
+        for (let k = 0; k < count; k++) this.spawnDrop(p.x, p.y, mat);
+      }
+    }
+    spawnDrop(x, y, mat) {
+      const v = this.view, T = this.app.terrain, at = v && v.atlas, r = at && at.regions[MAT_ICON[mat]]; if (!r || !T) return;
+      const z = T.surfaceAt(x, y); if (z !== z) return;
+      const W = at.w || 512, H = at.h || 512, geo = new THREE.PlaneGeometry(r.w / 16, r.h / 16);
+      const uv = geo.attributes.uv, u0 = r.x / W, u1 = (r.x + r.w) / W, v0 = 1 - r.y / H, v1 = 1 - (r.y + r.h) / H;
+      // PlaneGeometry: (0,1) arriba-izq, (1,1), (0,0), (1,0); el atlas usa flipY por defecto.
+      const flipY = v.atlasTex.flipY !== false;
+      const top = flipY ? v0 : r.y / H, bot = flipY ? v1 : (r.y + r.h) / H;
+      uv.setXY(0, u0, top); uv.setXY(1, u1, top); uv.setXY(2, u0, bot); uv.setXY(3, u1, bot); uv.needsUpdate = true;
+      const m = new THREE.Mesh(geo, this.fxMat('icon')); m.renderOrder = 3;
+      const a = Math.random() * Math.PI * 2, sp = 0.6 + Math.random() * 0.9;
+      m.position.set(x, z + r.h / 32 + 0.05, y); v.scene.add(m); this.stats.dropsMade = (this.stats.dropsMade || 0) + 1;
+      this.drops.push({ m, mat, x, y, z, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7, h: 0.05, vh: 2.2, t: 0, half: r.h / 32, state: 'cae' });
+    }
+    updateFx(dt, av) {
+      const v = this.view;
+      for (let i = this.chips.length - 1; i >= 0; i--) {
+        const c = this.chips[i]; c.life -= dt; c.vy -= 9 * dt;
+        c.m.position.x += c.vx * dt; c.m.position.z += c.vz * dt; c.m.position.y = Math.max(c.g + 0.02, c.m.position.y + c.vy * dt);
+        if (c.life <= 0) { v.scene.remove(c.m); this.chips.splice(i, 1); }
+      }
+      const T = this.app.terrain;
+      for (let i = this.drops.length - 1; i >= 0; i--) {
+        const d = this.drops[i]; d.t += dt;
+        if (d.state === 'cae') {
+          d.x += d.vx * dt; d.y += d.vy * dt; d.vx *= 0.9; d.vy *= 0.9; d.vh -= 9 * dt; d.h += d.vh * dt;
+          if (d.h <= 0) { d.h = 0; d.vh = -d.vh * 0.35; if (Math.abs(d.vh) < 0.4) { d.vh = 0; if (d.t > 0.45) d.state = 'suelo'; } }
+          const z = T.surfaceAt(d.x, d.y); if (z === z) d.z = z;
+        } else if (d.state === 'suelo') {
+          d.h = 0.04 + Math.sin(d.t * 4) * 0.03;                       // flota apenas: se nota que se puede recoger
+          if (Math.hypot(av.x - d.x, av.y - d.y) < this.cfg.pickup) d.state = 'va';
+          if (d.t > 90) { v.scene.remove(d.m); this.drops.splice(i, 1); continue; }
+        } else {                                                       // vuela hacia el personaje
+          const k = Math.min(1, dt * 12); d.x += (av.x - d.x) * k; d.y += (av.y - d.y) * k; d.z += ((av.z || d.z) - d.z) * k; d.h += (0.6 - d.h) * k;
+          if (Math.hypot(av.x - d.x, av.y - d.y) < 0.2) { this.collect(d.mat); v.scene.remove(d.m); this.drops.splice(i, 1); continue; }
+        }
+        d.m.position.set(d.x, d.z + d.half + d.h, d.y);
+      }
+    }
+    /** Suma a la bolsa (progress.materials) y avisa una sola vez por tanda. */
+    collect(mat) {
+      const a = this.app; if (a.trial || !a.data || !a.data.progress) return;
+      const pr = a.data.progress, m = pr.materials || (pr.materials = {}); m[mat] = Math.min(99, (m[mat] | 0) + 1);
+      this.gain[mat] = (this.gain[mat] || 0) + 1; this.stats.collected = (this.stats.collected || 0) + 1;
+      try { a.saves && a.saves.markDirty && a.saves.markDirty(); } catch (_) { /* nada */ }
+      clearTimeout(this._gainT);
+      this._gainT = setTimeout(() => {
+        const N = { fibra: 'fibra de pasto', semilla: 'semillas silvestres', cana: 'caña de matorral' };
+        const txt = Object.entries(this.gain).map(([k, n]) => '+' + n + ' ' + (N[k] || k)).join(' · ');
+        this.gain = {};
+        try { a.ui && a.ui.toast && a.ui.toast(txt + ' (en tu bolsa)', 'gold', 2600); if (a.audio) a.audio.play('click'); } catch (_) { /* nada */ }
+        try { if (a.gearScreen && a.gearScreen.refresh) a.gearScreen.refresh(); } catch (_) { /* nada */ }
+      }, 700);
     }
     setup(v) {
       this.view = v; this.tagged = new WeakSet();
@@ -381,6 +530,18 @@
         at.regions[id] = { x, y, w, h };
         x += w + 2;
       }
+      // Rastrojo de cada planta (mismo tamaño: al cortar solo cambia la imagen) e íconos.
+      const extra = NEW_SPRITES.map(([id]) => [id + '_c', stubble(ART[id], /Matorral/.test(id) ? 5 : 2)])
+        .concat(Object.entries(ITEM_ART));
+      for (const [id, rows] of extra) {
+        if (at.regions[id]) continue;
+        const w = rows[0].length, h = rows.length;
+        if (x + w > img.width) { x = 2; y += 32; }
+        if (y + h > img.height) break;
+        g.clearRect(x, y, w, h); paintSprite(g, x, y, id, rows);
+        at.regions[id] = { x, y, w, h };
+        x += w + 2;
+      }
       v.atlasTex.needsUpdate = true; this._regs = null;
     }
     /**
@@ -403,34 +564,65 @@
       const nearDirt = (x, y) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const cx = Math.floor(x + dx * 0.8), cy = Math.floor(y + dy * 0.8); if (T.inBounds(cx, cy) && T.dirtAt && T.dirtAt(cx, cy)) return true; } return false; };
       const free = (x, y) => !(T.obstacles || []).some(o => Math.abs(o.x - x) < (o.r || 0.3) + 0.6 && Math.abs(o.y - y) < (o.r || 0.3) + 0.6);
       const pick = (list, r) => list[Math.floor(r * list.length) % list.length];
+      // Cada planta ocupa un rectángulo en pantalla; ninguna se dibuja encima de otra
+      // (antes se encimaban y parecían dos plantas pegadas).
+      const placed = [], M = 0.04, plants = [];
+      const box = (x, y, r) => ({ x0: x - r.w / 32 - M, x1: x + r.w / 32 + M, y0: y - r.h / 32 - M, y1: y + r.h / 32 + M });
+      const fits = b => !placed.some(q => b.x0 < q.x1 && q.x0 < b.x1 && b.y0 < q.y1 && q.y0 < b.y1);
       let n = 0;
-      for (let j = -Z.radius; j <= Z.radius && n < Z.max; j += Z.spacing) for (let i = -Z.radius; i <= Z.radius && n < Z.max; i += Z.spacing) {
-        const x = sp.x + i + (hash(i * 1.3, j) - 0.5) * Z.spacing * 0.9, y = sp.y + j + (hash(j, i * 1.7) - 0.5) * Z.spacing * 0.9;
-        const d = Math.hypot(i, j); if (d < 4 || d > Z.radius) continue;
-        const col = vn(x, y, 3.2) * 0.65 + vn(x + 40, y - 17, 1.4) * 0.35;           // colonias + detalle
-        const edge = 1 - Math.max(0, (d - Z.radius * 0.75) / (Z.radius * 0.25));      // se desvanece hacia afuera
-        const dens = (col - 0.52) / 0.3 * edge;
-        if (dens <= 0 || hash(x * 3.7, y * 2.9) > dens) continue;                     // claros y bordes suaves
-        const z = T.surfaceAt(x, y); if (z !== z || !free(x, y) || nearDirt(x, y)) continue;
-        // Especie: centro de la colonia → altas y helechos; borde → cortas, matas y flores.
-        const r2 = hash(y * 5.1, x * 4.3), core = dens > 0.75;
-        const id = core ? (r2 < 0.55 ? pick(['vegAlta0', 'vegAlta1'], hash(x, y)) : r2 < 0.8 ? pick(['vegHelecho0', 'vegHelecho1'], hash(y, x)) : pick(['vegCorta0', 'vegCorta2'], r2))
-          : (r2 < 0.58 ? pick(['vegCorta0', 'vegCorta1', 'vegCorta2'], hash(x, y)) : r2 < 0.74 ? pick(['vegMata0', 'vegMata1'], hash(y, x)) : r2 < 0.86 ? pick(['vegFlor0', 'vegFlor1'], hash(x, x)) : pick(['vegAlta1', 'vegHelecho1'], hash(x * 3, y)));
-        const spr = NEW_SPRITES.find(q => q[0] === id), r = at.regions[id]; if (!spr || !r) continue;
+      const emit = (x, y, id, thick) => {
+        const spr = NEW_SPRITES.find(q => q[0] === id), r = at.regions[id]; if (!spr || !r) return false;
+        const z = T.surfaceAt(x, y); if (z !== z) return false;
+        const bb = box(x, y, r); if (!fits(bb)) return false;
         const flip = hash(x * 9.1, y) < 0.5, amp = spr[3] * (0.85 + hash(x, y * 3) * 0.3);
         const l = z + 0.01, c = Math.round(x * 16) / 16, hh = l - Math.round((l - y) * 16) / 16, u = r.w / 32, f = r.h / 32;
-        const p0 = (flip ? r.x + r.w : r.x) / W, p1 = (flip ? r.x : r.x + r.w) / W, g0 = r.y / H, g1 = (r.y + r.h) / H, ph = hash(x * 2.3, y * 1.9);
-        // Tramos: z de atrás (punta) a adelante (raíz).
-        const base = pos.length / 3; pts.push({ x, y, id });
-        const SEG = 5;                                   // 5 tramos: el doblez se ve curvo, no quebrado
-        for (let row = 0; row <= SEG; row++) {
-          const tf = row / SEG, zz = hh - f + tf * 2 * f, vv = g0 + (g1 - g0) * tf, wgt = Math.pow(1 - tf, 1.5);
-          pos.push(c - u, l, zz, c + u, l, zz); uvs.push(p0, vv, p1, vv);
+        const p0 = (flip ? r.x + r.w : r.x) / W, p1 = (flip ? r.x : r.x + r.w) / W, g0 = r.y / H, g1 = (r.y + r.h) / H;
+        const ph = hash(x * 2.3, y * 1.9) * 0.999 + 2 + (thick ? 4 : 0);  // +2 = de pie, +4 = matorral (el shader los distingue)
+        const base = pos.length / 3; pts.push({ x, y, id }); placed.push(bb);
+        plants.push({ id, x, y, base, flip, thick, seg: thick ? 5 : 2, hp: thick ? 3 : 1, cut: false, regrowAt: 0 });
+        const SEG = thick ? 5 : 2;                       // matorral: 5 tramos (doblez curvo); pasto corto: 2 bastan
+        for (let row = 0; row <= SEG; row++) {           // de la punta (atrás) a la raíz (adelante)
+          // De pie, mirando a la cámara (inclinada 45°): mismo tamaño en pantalla que una mata plana,
+          // pero con profundidad real: tapa a quien esté detrás y no a quien esté delante.
+          const tf = row / SEG, yy = l + (1 - tf) * 2 * f, zr = hh + f, vv = g0 + (g1 - g0) * tf, wgt = Math.pow(1 - tf, 1.5);
+          pos.push(c - u, yy, zr, c + u, yy, zr); uvs.push(p0, vv, p1, vv);
           cols.push(1, 0, 0, 1, 0, 0); vegs.push(wgt, amp, ph, 2 * f, wgt, amp, ph, 2 * f);
         }
         for (let row = 0; row < SEG; row++) { const q = base + row * 2; idx.push(q, q + 2, q + 3, q, q + 3, q + 1); }
-        n++;
+        n++; return true;
+      };
+      const colony = (x, y) => vn(x, y, 3.2) * 0.65 + vn(x + 40, y - 17, 1.4) * 0.35;
+      // 1) Matorrales altos: pocos, en el corazón de las colonias y separados entre sí.
+      //    Son el escondite (refugio de animales y, más adelante, de acechadores).
+      const cand = [];
+      for (let j = -Z.radius; j <= Z.radius; j += 1.1) for (let i = -Z.radius; i <= Z.radius; i += 1.1) {
+        const d = Math.hypot(i, j); if (d < 6 || d > Z.radius - 2) continue;
+        const x = sp.x + i + (hash(i, j * 1.3) - 0.5) * 0.6, y = sp.y + j + (hash(j * 1.1, i) - 0.5) * 0.6, col = colony(x, y);
+        if (col >= Z.thicketMin) cand.push({ x, y, col });
       }
+      cand.sort((p, q) => q.col - p.col);
+      const thickets = [];
+      for (const t of cand) {
+        if (thickets.length >= Z.thickets) break;
+        if (thickets.some(o => Math.hypot(o.x - t.x, o.y - t.y) < Z.thicketGap)) continue;
+        const id = pick(['vegMatorral0', 'vegMatorral1'], hash(t.x, t.y)), r = at.regions[id]; if (!r) continue;
+        const half = r.w / 32 + 0.4;
+        if (!free(t.x, t.y) || !free(t.x - half, t.y) || !free(t.x + half, t.y) || nearDirt(t.x - half, t.y) || nearDirt(t.x + half, t.y) || nearDirt(t.x, t.y)) continue;
+        if (emit(t.x, t.y, id, true)) thickets.push({ x: t.x, y: t.y, r: r.w / 32, id });
+      }
+      // 2) Pasto corto (hojas hacia arriba) y algunas flores en colonias con claros.
+      for (let j = -Z.radius; j <= Z.radius && n < Z.max; j += Z.spacing) for (let i = -Z.radius; i <= Z.radius && n < Z.max; i += Z.spacing) {
+        const x = sp.x + i + (hash(i * 1.3, j) - 0.5) * Z.spacing * 0.9, y = sp.y + j + (hash(j, i * 1.7) - 0.5) * Z.spacing * 0.9;
+        const d = Math.hypot(i, j); if (d < 4 || d > Z.radius) continue;
+        const edge = 1 - Math.max(0, (d - Z.radius * 0.75) / (Z.radius * 0.25));      // se desvanece hacia afuera
+        const dens = (colony(x, y) - 0.4) / 0.3 * edge;
+        if (dens <= 0 || hash(x * 3.7, y * 2.9) > dens) continue;                     // claros y bordes suaves
+        if (!free(x, y) || nearDirt(x, y)) continue;
+        const r2 = hash(y * 5.1, x * 4.3);
+        const id = r2 < 0.86 ? pick(['vegCorta0', 'vegCorta1', 'vegCorta2', 'vegCorta3'], hash(x, y)) : pick(['vegFlor0', 'vegFlor1'], hash(x, x));
+        emit(x, y, id, false);
+      }
+      this.thickets = thickets; this.stats.thickets = thickets.length; this.plants = plants;
       if (!n) return;
       const vc = pos.length / 3, geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -441,7 +633,7 @@
       geo.setAttribute('aVeg', new THREE.Float32BufferAttribute(vegs, 4));
       geo.setIndex(idx);
       const mesh = new THREE.Mesh(geo, v.terrainMat); mesh.frustumCulled = false; mesh.name = 'vegetacion-zona';
-      v.scene.add(mesh); this.zone = mesh; this.zonePts = pts; this.tagged.add(geo); this.stats.zonePlants = n;
+      v.scene.add(mesh); this.zone = mesh; this.zonePts = pts; this.tagged.add(geo); this.stats.zonePlants = n; this.zoneUV = geo.attributes.uv;
     }
   }
 

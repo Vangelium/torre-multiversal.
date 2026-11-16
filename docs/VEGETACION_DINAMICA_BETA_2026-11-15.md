@@ -1,6 +1,6 @@
 # Vangelium Dynamic Vegetation v1.0 · beta (`/beta/?veg=1`)
 
-> **Estado (16-11-2026): v1.3 (beta v12.3) en beta, desactivado por defecto (`?veg=1`). NO publicado en producción. Aspecto pendiente de aprobación.**
+> **Estado (16-11-2026): v1.5 (beta v12.5) en beta, desactivado por defecto (`?veg=1`). NO publicado en producción. Pendiente de aprobación.**
 
 ## Arquitectura
 1. **Simulación por celdas** (`VegSim`): rejilla de 48 × 48 celdas de 0,5 u
@@ -177,3 +177,74 @@ hojas algo rígidas y helechos angulosos.
 Pruebas: 81/81 en `node --test`; 11/11 en el navegador. Evidencias en
 `docs/evidencias/vegetacion-v12.3/`. **Falta medir en Android sin vegetación
 (`?tel=1`)** para comparar con los 60 FPS observados con ella.
+
+---
+
+## v1.4 · Pasto corto hacia arriba y matorrales altos (16-11-2026) — en beta
+Pedido de Yonnah: «no me gusta que se encimen con la de atrás… se ven como las 2
+juntas o medio bugeadas; me gusta el pasto en línea hacia arriba, pero corto; altos
+solo los matorrales, donde se escondan animales o acechadores; el pasto, para que
+coman los animales».
+
+**Especies (todas nuevas):**
+- **Pasto corto** (4 variantes, 6–11 × 6–8 px): hojas verticales de 1 px, base
+  oscura y punta clara, sin contorno negro (como las matas originales del mapa).
+- **Flores** (2): pasto corto con dos o tres flores en tallo.
+- **Matorral alto** (2, 25–30 px): un manojo denso de hojas verticales con la base
+  oscura. Se usan pocos (9) y separados, en el centro de las colonias.
+- Se eliminaron la hierba alta suelta, los helechos y las matas redondas.
+
+**Nunca se encima una planta con otra:** cada planta ocupa su rectángulo en pantalla
+y no se coloca si toca otro. 281 plantas (9 matorrales, 232 de pasto, 40 flores).
+
+**Profundidad real:** las plantas nuevas se dibujan **de pie** mirando a la cámara
+(inclinada 45°; mismo tamaño en pantalla que antes), así que tapan lo que está detrás
+y no lo que está delante. Un slime detrás de un matorral queda escondido; si el
+jugador queda detrás, el juego muestra su silueta tramada (como con los árboles).
+El matorral no se agacha ante las criaturas (pueden esconderse); ante el jugador,
+un poco (35 %).
+
+**Preparado para el juego:** `window.__TM_VEG__.thickets` lista los matorrales
+(posición y radio) para conectar después acechadores que viven en ellos y animales
+que pastan.
+
+Pruebas: 85/85 en `node --test` (nuevas: pasto corto vertical sin contorno, matorrales
+pocos y separados); 11/11 en el navegador. Evidencias en `docs/evidencias/vegetacion-v12.4/`.
+
+---
+
+## v1.5 · Más pasto, cortar con el arma y recolectar (16-11-2026) — en beta
+Pedido de Yonnah: «quiero más pasto; que se puedan cortar con un arma y que al cortarlas
+boten algo para craftear más adelante».
+
+**Más pasto.** Zona de radio 26 (antes 18), colonias más tupidas y matas de pasto corto
+un poco más altas (8–10 px) y llenas. 794 plantas (670 de pasto, 108 flores, 16 matorrales; antes 281); siguen sin encimarse.
+Para no cargar de más, el pasto corto usa 2 tramos (el matorral, 5).
+
+**Cortar.** Cada golpe del arma (cualquier ataque cuerpo a cuerpo) corta lo que está en
+el arco de enfrente, según hacia dónde mira el personaje. El pasto y las flores caen de
+un golpe; el **matorral alto aguanta 3** (se sacude con cada uno). La planta queda como
+**rastrojo** (su base cortada) y saltan recortes verdes. Vuelve a crecer sola: pasto
+≈ 2,5 min, matorral ≈ 5 min (en la partida; al recargar todo está crecido). El matorral
+cortado deja de servir de escondite hasta que rebrota.
+
+**Lo que suelta** (cae al suelo, flota un poco y se recoge al pasar cerca; va a la bolsa):
+| Planta | Suelta |
+|---|---|
+| Pasto corto | fibra de pasto (55 %), semillas (12 %) |
+| Flores | semillas silvestres (70 %), fibra (35 %) |
+| Matorral alto | 2 cañas de matorral, 2 fibras, semillas (35 %) |
+
+Los tres materiales nuevos (`fibra`, `semilla`, `cana`) se guardan en
+`progress.materials` como el resto de la bolsa (máx. 99 c/u), sobreviven a guardar,
+recargar y exportar, y en **Equipo → Mochila** aparecen en un grupo nuevo,
+**«Recolección»**, con su descripción y su uso futuro (cuerdas, vendas, cestas, cebos,
+cultivos, flechas, mangos, empalizadas). Cambio en `beta/game.js`: solo la lista de
+materiales y ese grupo de la mochila.
+
+**Pruebas (16-11-2026).** 86/86 en `node --test` (nueva: botín, materiales e íconos,
+rastrojo). En el navegador 9/9 del corte (más pasto, golpe que corta, recortes y botín,
+recoger al pasar, matorral de 3 golpes, guardar y recargar, «Recolección» en la mochila,
+rebrote, sin errores) y 11/11 de las comprobaciones generales. Rendimiento en software:
+27 ms/cuadro sin vegetación y 31 ms con la v12.5 (7.213 triángulos frente a 3.928). **Sin probar en Android;
+en multijugador el corte y el botín son locales de cada jugador (por ahora).**

@@ -1,0 +1,83 @@
+{
+ "sin_vegetacion": {
+  "plantas": null,
+  "quieto": {
+   "ms_prom": 26.84,
+   "ms_p95": 35.6,
+   "fps": 37.3,
+   "llamadas_dibujo": 72,
+   "triangulos": 3928,
+   "sim_ms_prom": 0,
+   "pasos_sim": null,
+   "subidas_textura": 0,
+   "calidad": "low"
+  },
+  "caminando": {
+   "ms_prom": 27.11,
+   "ms_p95": 34.7,
+   "fps": 36.9,
+   "llamadas_dibujo": 74,
+   "triangulos": 3933,
+   "sim_ms_prom": 0,
+   "pasos_sim": null,
+   "subidas_textura": 0,
+   "calidad": "low"
+  },
+  "quieto_tras_caminar": {
+   "ms_prom": 26.64,
+   "ms_p95": 32.3,
+   "fps": 37.5,
+   "llamadas_dibujo": 73,
+   "triangulos": 3935,
+   "sim_ms_prom": 0,
+   "pasos_sim": null,
+   "subidas_textura": 0,
+   "calidad": "low"
+  },
+  "pixeles_que_cambian_en_2s_quieto": 428,
+  "errores": []
+ },
+ "v12_5": {
+  "plantas": {
+   "plantas_zona": 794,
+   "plantas_terreno_marcadas": 1672,
+   "vtf": true
+  },
+  "quieto": {
+   "ms_prom": 30.55,
+   "ms_p95": 42.3,
+   "fps": 32.7,
+   "llamadas_dibujo": 72,
+   "triangulos": 7213,
+   "sim_ms_prom": 0.008,
+   "pasos_sim": 100,
+   "subidas_textura": 111,
+   "calidad": "low"
+  },
+  "caminando": {
+   "ms_prom": 30.89,
+   "ms_p95": 38.7,
+   "fps": 32.4,
+   "llamadas_dibujo": 75,
+   "triangulos": 7219,
+   "sim_ms_prom": 0.011,
+   "pasos_sim": 222,
+   "subidas_textura": 240,
+   "calidad": "low"
+  },
+  "quieto_tras_caminar": {
+   "ms_prom": 29.05,
+   "ms_p95": 34.4,
+   "fps": 34.4,
+   "llamadas_dibujo": 74,
+   "triangulos": 7225,
+   "sim_ms_prom": 0,
+   "pasos_sim": 0,
+   "subidas_textura": 0,
+   "calidad": "low"
+  },
+  "pixeles_que_cambian_en_2s_quieto": 100,
+  "errores": []
+ },
+ "nota": "Chromium con renderizado por SOFTWARE: no representa un celular. Medir en Android con ?veg=1&tel=1 frente a ?tel=1."
+}

@@ -1,0 +1,47 @@
+[
+ [
+  "más pasto y matorrales; rastrojos e íconos en el atlas",
+  true,
+  "{'n': 794, 'c': {'vegMatorral': 16, 'vegCorta': 670, 'vegFlor': 108}, 'regs': [True, True, True, True, True], 'mats': '{\"furioso\":0,\"acorazado\":0,\"veloz\":0,\"vampirico\":0,\"lana\":0,\"fibra\":0,\"semilla\":0,\"cana\":0}'}"
+ ],
+ [
+  "un golpe del arma corta el pasto de enfrente",
+  true,
+  "{'cuts': 6, 'drops': 4, 'chips': 0, 'recortes_creados': 54, 'botin_creado': 12}"
+ ],
+ [
+  "al cortar saltan recortes y cae lo que suelta",
+  true,
+  "{'cuts': 6, 'drops': 4, 'chips': 0, 'recortes_creados': 54, 'botin_creado': 12}"
+ ],
+ [
+  "al pasar se recoge y va a la bolsa",
+  true,
+  "{'fibra': 6, 'semilla': 6, 'cana': 0, 'quedan': 0, 'toast': ['+2 semillas silvestres · +2 fibra de pasto (en tu bolsa)']}"
+ ],
+ [
+  "el matorral alto aguanta varios golpes y luego se corta",
+  true,
+  "[[2, False], [1, False], [0, True]]"
+ ],
+ [
+  "lo recogido sobrevive a guardar y recargar",
+  true,
+  "{'fibra': (6, 6), 'semilla': (6, 6), 'cana': (0, 0)}"
+ ],
+ [
+  "la bolsa muestra «Recolección» con lo recogido",
+  true,
+  "['Recolección◆Fibra de pasto ×6◆Semillas silvestres ×6']"
+ ],
+ [
+  "el pasto cortado vuelve a crecer",
+  true,
+  "False"
+ ],
+ [
+  "sin errores en consola",
+  true,
+  "[]"
+ ]
+]
