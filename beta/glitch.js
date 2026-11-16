@@ -101,6 +101,7 @@
     let vs = m.vertexShader, fs = m.fragmentShader;
     const a1 = 'void main() {', a2 = 'vWp = wp.xyz;', b1 = 'vec4 t = texture2D(map, uv);', b2 = 'gl_FragColor = vec4(c, 1.0);';
     if (vs.indexOf(a1) < 0 || vs.indexOf(a2) < 0 || fs.indexOf(b1) < 0 || fs.indexOf(b2) < 0) return null; // motor distinto: sin glitch del terreno
+    m.__tmOrig = { vs, fs };
     vs = vs.replace(a1, VERT_HEAD + '\n      ' + a1).replace(a2, a2 + VERT_BODY);
     const fi = fs.indexOf('void main()');
     fs = fs.slice(0, fi) + FRAG_HEAD + '\n      ' + fs.slice(fi);
@@ -300,7 +301,10 @@ body.tm-gl-snap canvas { animation: tmGlSnap .28s steps(4) 1; }
     before() {
       const a = this.app, view = a.view, s = a.session;
       if (!view || !s || !s.avatar) return;
-      if (this.view !== view) { this.view = view; this.mat = patchTerrain(view); this.grietaMesh = null; }
+      if (this.view !== view) { this.view = view; this.mat = null; this.grietaMesh = null; }
+      // El terreno solo se modifica cuando el glitch empieza de verdad (no en el juego normal),
+      // solo si la tarjeta gráfica tiene margen, y se deshace solo si no compila.
+      if (!this.mat && this.stage >= 1 && !this.terrainOff && this.gpuOk()) { this.watchShaders(); this.mat = patchTerrain(view); this.patchedAt = now(); }
       const st = this.stage, k = i => API.ramp(this.idle, i) * (reduced() ? 0.5 : 1), av = s.avatar, t = now() / 1000;
       const U = this.mat && this.mat.uniforms;
       if (U && U.uGlA) {
@@ -339,6 +343,31 @@ body.tm-gl-snap canvas { animation: tmGlSnap .28s steps(4) 1; }
         });
         this.erase.style.opacity = String(st >= 6 ? Math.min(0.85, 0.25 + (this.idle - STAGES[6].at) / 40) : 0);
       }
+    }
+    gpuOk() {
+      try {
+        const r = this.app.pr && (this.app.pr.renderer || this.app.pr.r), gl = r && r.getContext && r.getContext();
+        if (!gl) return true;
+        return gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS) >= 200 && gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS) >= 64;
+      } catch (_) { return true; }
+    }
+    /** Si el shader modificado no compila en este celular, vuelve al terreno original y no lo intenta más. */
+    watchShaders() {
+      if (this._watching) return; this._watching = true;
+      const self = this, err = console.error;
+      console.error = function () {
+        try {
+          const msg = String(arguments[0] || '');
+          if (msg.indexOf('THREE.WebGLProgram') >= 0 && self.mat && self.mat.__tmOrig) self.revertTerrain();
+        } catch (_) { /* nunca romper la consola */ }
+        return err.apply(console, arguments);
+      };
+    }
+    revertTerrain() {
+      const m = this.mat; if (!m || !m.__tmOrig) return;
+      m.vertexShader = m.__tmOrig.vs; m.fragmentShader = m.__tmOrig.fs; m.needsUpdate = true;
+      delete m.__tmOrig; delete m.__tmGlitch;
+      this.mat = null; this.terrainOff = true;
     }
     after() {
       for (const r of this.saved) {

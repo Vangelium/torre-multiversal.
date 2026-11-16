@@ -43,6 +43,12 @@ Recompensa y peligro solo en partida individual; en cooperativo, solo lo visual.
 - Pruebas: `node --test tests/glitch/*.cjs` (5) y recorrido en navegador de
   las seis etapas, la vuelta a la normalidad y la apertura de la Grieta.
 
+## Seguridad gráfica (v2, 15-11-2026)
+- El shader del terreno **solo se modifica cuando el glitch empieza** (20 s quieto), nunca en el juego normal.
+- Solo si la tarjeta gráfica tiene margen (≥ 200 vectores de uniforms en vértices y ≥ 64 en fragmentos).
+- Si el shader modificado no compila en ese celular, vuelve solo al terreno original y no lo intenta más
+  (los demás efectos del glitch siguen funcionando).
+
 ## Pendiente / propuesto
 - Qué desbloquean los Fragmentos de Realidad (por ejemplo, pistas de la Charca del Primer Reflejo, fase E).
 - Ajustar tiempos y daño tras probar en el celular.
