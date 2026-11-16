@@ -1,0 +1,131 @@
+{
+ "medidas_px_css_412x860": {
+  "antes": {
+   "elementos": [
+    [
+     "vida",
+     60,
+     96
+    ],
+    [
+     "meta",
+     104,
+     159
+    ],
+    [
+     "expedicion",
+     163,
+     199
+    ],
+    [
+     "eco",
+     203,
+     239
+    ],
+    [
+     "objetivo",
+     60,
+     104
+    ],
+    [
+     "avisos",
+     214,
+     271
+    ],
+    [
+     "telemetria",
+     267,
+     294
+    ]
+   ],
+   "borde_inferior_paneles": 239
+  },
+  "despues": {
+   "elementos": [
+    [
+     "vida",
+     48,
+     82
+    ],
+    [
+     "meta",
+     96,
+     124
+    ],
+    [
+     "expedicion",
+     96,
+     124
+    ],
+    [
+     "eco",
+     96,
+     124
+    ],
+    [
+     "objetivo",
+     48,
+     92
+    ],
+    [
+     "avisos",
+     130,
+     183
+    ],
+    [
+     "telemetria",
+     829,
+     856
+    ]
+   ],
+   "borde_inferior_paneles": 124
+  }
+ },
+ "comprobaciones": [
+  [
+   "modo compacto activo",
+   true,
+   ""
+  ],
+  [
+   "tocar la meta abre el panel de metas",
+   true,
+   "{'goals': True, 'abiertos': ['window goals-window', 'window pause-panel', 'window creator-panel', 'window gear-panel', 'window', 'window', 'window dex-window', 'window']}"
+  ],
+  [
+   "tocar la expedición muestra su progreso",
+   true,
+   "['Vence rivales 0/7 · Varía tus encuentros 0/2 · Explora la Torre 0/1']"
+  ],
+  [
+   "el chip de eco es visible y se puede tocar",
+   true,
+   "{'x': 305.71875, 'y': 96, 'width': 96.28125, 'height': 28}"
+  ],
+  [
+   "botones superiores con tamaño tocable (≥ 26 px)",
+   true,
+   "[['btn-dex', 60, 34], ['btn-map', 42, 34], ['btn-gear', 54, 34], ['btn-pause', 38, 38], ['vt-lv', 26, 26], ['clock-chip', 35, 34]]"
+  ],
+  [
+   "los paneles no se superponen entre sí",
+   true,
+   "0"
+  ],
+  [
+   "sin errores en consola",
+   true,
+   "[]"
+  ],
+  [
+   "en pantallas anchas (escritorio) el HUD queda igual",
+   true,
+   "{'?rey=1': [['vital', 10, 10, 232, 38], ['btn-goals', 10, 60, 236, 78], ['target-frame', 572, 64, 168, 47], ['toasts', 430, 64, 420, 108]], '?rey=1&hud=1': [['vital', 10, 10, 232, 38], ['btn-goals', 1"
+  ],
+  [
+   "sin ?hud=1 no cambia nada",
+   true,
+   ""
+  ]
+ ]
+}
