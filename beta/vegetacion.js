@@ -1,4 +1,4 @@
-/* Torre Multiversal · Vangelium Dynamic Vegetation v1.0 (beta) · 15-11-2026
+/* Torre Multiversal · Vangelium Dynamic Vegetation v2.0 «Flora» (beta) · 16-11-2026
  *
  * Vegetación pixel art que se mueve y reacciona sin un sensor por planta:
  *  - Simulación por CELDAS (rejilla 48×48 de 0,5 u que sigue al jugador). Solo
@@ -6,16 +6,18 @@
  *    vecinas con pérdida de energía y retraso (resorte + amortiguación +
  *    acoplamiento). Cuando la energía cae bajo un umbral, la simulación duerme.
  *  - El resultado se sube como una textura pequeña y el SHADER DEL TERRENO
- *    inclina solo la parte alta de cada planta (la raíz queda fija). No se
- *    cambia el renderizador: es el mismo material del mapa.
- *  - Tipos: pasto corto (matas del mapa), pasto alto y helechos (nuevos,
- *    pintados en una zona libre del atlas, en una zona controlada del valle),
- *    flores (del mapa) y arbustos (del mapa, oscilación pesada).
- *  - Reacciona a: jugador (posición, velocidad y dirección), criaturas y
- *    jefes al moverse (las grandes empujan más), ataques cercanos, ondas
- *    expansivas (las del Rey Slime) y viento ambiental con ráfagas.
- *  - Niveles de detalle por distancia: cercano reactivo, intermedio solo
- *    viento suave, lejano quieto.
+ *    inclina solo la parte alta de cada planta (la raíz queda fija).
+ *
+ * v2.0 «Flora» (pedido del director, 16-11-2026):
+ *  - La vegetación cubre TODO el mundo (Valle del Alba y cada piso de la
+ *    Torre), por trozos de 16 × 16 que se crean y se quitan alrededor del
+ *    jugador. El reparto es determinista: cada planta está siempre en el mismo
+ *    sitio, aunque te vayas y vuelvas.
+ *  - Cada bioma tiene sus propias plantas (6 biomas, 30 especies). Cada flor
+ *    de otro color es otra especie, con nombre propio y su propia semilla,
+ *    pensada para plantarla en la granja más adelante.
+ *  - Las flores y matas fijas del mapa se reemplazan por estas plantas vivas:
+ *    todo lo que parece planta se puede cortar.
  * Activación: /beta/?veg=1. Configuración: window.__TM_VEG_CONFIG__.
  */
 (function (root) {
@@ -25,9 +27,12 @@
     spring: 22, damping: 3.6, couple: 400, maxDisp: 1, sleep: 2e-5,
     player: { radius: 1.3, force: 20 }, creature: { force: 16 }, attack: { radius: 1.8, force: 30 },
     wind: { strength: 0.1, gust: 1 }, lod: { near: 8, far: 15 },
-    zone: { radius: 26, max: 1000, spacing: 0.42, thickets: 16, thicketGap: 3.4, thicketMin: 0.6 },
+    // Reparto por el mundo: trozos de 16 u, rejilla de 0,42 u para matas y flores,
+    // rejilla de 3 u para los matorrales; radio de trozos vivos alrededor del jugador.
+    world: { chunk: 16, spacing: 0.42, thicketCell: 3, thicketGap: 3.2, radius: 24, keep: 40, budgetMs: 5, density: 1 },
     near: { player: 0.7, creature: 0.55, squash: 0.55 },
-    regrow: { grass: 150, thicket: 300 }, pickup: 1.3
+    regrow: { grass: 150, thicket: 300 }, pickup: 1.3,
+    replaceMapPlants: true
   });
 
   // ════════════════════════════════════════════════════════════════════
@@ -108,45 +113,372 @@
     at(x, y) { const c = this.cfg.cell, i = Math.floor((x - this.x0) / c), j = Math.floor((y - this.y0) / c); if (i < 0 || j < 0 || i >= this.N || j >= this.N) return [0, 0]; const k = this.idx(i, j); return [this.dx[k], this.dy[k]]; }
   }
 
-  // Pasto corto flexible; flores algo más rígidas; el matorral alto se mece como una masa.
-  const AMP = { vegCorta: 0.26, vegFlor: 0.2, vegMatorral: 0.3 };
-  // Paleta = la misma de los arbustos y árboles del juego (contorno, sombras, luz).
-  // Nada de verdes nuevos: así las plantas quedan integradas con el terreno.
-  const PAL = { O: '#0c241a', D: '#19472a', d: '#235e31', k: '#337838', m: '#4b9440', l: '#6fb14b', h: '#a3d064', s: '#d2ec8c',
-    w: '#eeeadb', g: '#b9b3a2', y: '#e9c25e', p: '#ea94bc', q: '#b45f8c' };
-  // Pixel art dibujado a mano (una letra = un píxel; '.' = transparente).
-  const ART = {
-    vegCorta0: ['.....h.....', '.....l.....', '...h.m.h...', '...l.m.l...', 'h..m.mlm..h', 'l..mlkmm..l', '.mlkmkdk.m.', '.kmkdddk.k.', '.dDdDdDd.d.', '.DDDDDDD.D.'],
-    vegCorta1: ['...h.....', '...l.....', '...m.h...', 'h..m.l...', 'l..mlm..h', '.mlkmm..l', '.kmkdk.m.', '.dDdDd.k.', '.DDDDD.D.'],
-    vegCorta2: ['.....h......', '.....l.h....', '...h.m.l....', '...l.mlm...h', 'h..m.mmml..l', 'l..mlkdkm.m.', '.m.kmkdkd.k.', '.k.dDdDdD.d.', '.D.DDDDDD.D.'],
-    vegCorta3: ['...h....', '...l....', '...m..h.', 'h..ml.l.', 'l..kmmh.', '.mlkdkl.', '.kddDdk.', '.DDDDDD.'],
-    vegFlor0: ['........w.', '..w....wyg', '.wyg.w.kg.', '..g.wygk..', '..k..g.k..', '..k..k.k..', '..kh.khk..', 'h.kl.klk.h', '.kkk.kkkk.', '.DDD.DDDD.'],
-    vegFlor1: ['......p..', '..p..pyq.', '.pyq..q..', '..q...k..', '..k...k..', '..k.h.k..', 'h.k.l.k.h', '.kk.k.kk.', '.DD.D.DD.'],
-    vegMatorral0: ['..........O...................', '.........OlO.....O............', '.........Om..O.O.lO.O.........', '.........Ok..l.l.m..lO........', '........Olk..m.m.k..mO........', '........Omk..k.k.k..kOO.......', '........OkkO.k.k.k..k.lO......', '.......OOkkl.k.kOk..k.mO......', '......Ol.kkm.kOklk..k.kO......', '......Om.ldk.khkmd..k.kO......', '......Ok.mdkOdldkd.Od.klO.....', '....O.Ok.kdkhdmdkh.ll.kmO.O...', '...Ol..k.kdkldmdkl.mm.hk..lO..', '...Om..l.h.dmdmdkm.kk.lk..mO..', '..ODkOOmOl.dmdmddmOdkOmkOOkO..', '.OldDlhDhmDdmdmddmddhdmdlDDO..', '.OdDDdlDlmDdmdmddmDdldmhDDdO..', '.ODDdDmdmmddmddkdmDdmdmlDddO..', '.ODddDmdmmdDkddkdkddmdkmhDdlO.', 'ODdhDdmdmkdDkDdkdkdDmkdmlddhO.', 'lldlddkdkDkDkDdkdkdDkkdmmdDlO.', 'dDDmddkDkDkDkDdkDkdkdkdkmdDmO.', 'DDdmddkDkDkDkDDkDkDkDkkDkddmDO', 'ddDdkDkDkDkDkDDkDkDkDkkDkDkddl', 'OdhDkDkDkDkDdDDdDdDkDdkDkDkdDD', 'OdlDkDdDdDdDdDDdDdDdDdkDkDkDDd', 'ODkDkDdDdDdDdDDdDdDdDddDdDkDdO', 'ODkDdDdDdDdDdDDdDdDdDddDdDdDDO', 'ODdDdDdDdDdDdDDdDdDdDddDdDdDDO', '.DDDDDDDDDDDDDDDDDDDDDDDDDDDD.'],
-    vegMatorral1: ['.........O...............', '........OlO..............', '........OmOO.O...........', '........Ok.l.lOO.........', '.......OOk.m.m.lO........', '.....OOl.k.k.k.mO........', '....Ol.m.kOkOk.kOO.......', '....Om.k.klklk.k.lO......', '...OOk.l.dhkmk.k.mOO.....', '..Ol.kOm.dldkd.kOk.lO....', '..Om.khk.dmdkd.dlk.mO....', '..OkOllk.dmdkd.dmk.kO....', '..OkhmmkOhmdhdOdkdOkO....', '.ODDldmddlmdldddDdDDO....', 'OlDdmDmdDmkdmdDdhdDhDOO..', 'ODhdmdmddmdkmdDdlhdlldlO.', 'ODldmdkddmdkmdddmlDmdhDO.', 'OdmdkdkddkdkkDdDmmDmDldO.', 'OdmddkkDdkDkkDdDkmdkdmdO.', 'OdkDdkkDDkDkkDdkkDkDdmDDO', 'OdkDDkkDDkDdkDDkkDkDdkdll', 'ODkDDkdDDkDdkDDkkDkDdkDDd', 'ODkDDddDDdDddDDdkDdDDkdhO', 'ODdDDddDDdDddDDddDdDDddlO', 'ODdDDddDDdDddDDddDdDDdkDO', '.DDDDDDDDDDDDDDDDDDDDDDD.'],
+  // ════════════════════════════════════════════════════════════════════
+  // 2. Flora: biomas, plantillas de pixel art y catálogo de especies (puro)
+  // ════════════════════════════════════════════════════════════════════
+  // Paleta del Valle = la misma de los arbustos y árboles del juego.
+  const PAL = { O: '#0c241a', D: '#19472a', d: '#235e31', k: '#337838', m: '#4b9440', l: '#6fb14b', h: '#a3d064', s: '#d2ec8c' };
+  const FOLIAGE = ['O', 'D', 'd', 'k', 'm', 'l', 'h', 's'];   // de oscuro a claro
+  const PETALS = ['a', 'b', 'c', 'y'];                          // pétalo claro, medio, oscuro y centro
+  const ramp8 = arr => Object.fromEntries(FOLIAGE.map((k, i) => [k, arr[i]]));
+  const ramp9 = arr => Object.fromEntries(FOLIAGE.map((k, i) => [k, arr[i === 7 ? 8 : i]]));
+  // Colores tomados de los biomas del motor (pasto = suelo, hoja = árboles y arbustos).
+  const BIOMES = Object.freeze({
+    // En el valle el pasto lleva puntas algo más claras y base más oscura que el suelo: se lee como planta.
+    pradera: { name: 'Pradera del Alba', grass: ramp8(['#0c241a', '#163f25', '#1f5a2e', '#2f7535', '#4b9440', '#7cc052', '#b4dc6e', '#e0f4a0']), leaf: PAL, veg: { flowers: 1, tufts: 1, bushes: 1 } },
+    ambar: { name: 'Bosque de Ámbar',
+      grass: ramp8(['#262410', '#3b3416', '#54451c', '#6f5822', '#8c6c29', '#aa8334', '#c9a14b', '#e3c272']),
+      leaf: ramp9(['#260d0a', '#41140d', '#651e10', '#8a2b13', '#ad4018', '#cb6020', '#e28733', '#f2ae4f', '#fad682']),
+      veg: { flowers: 0.8, tufts: 1, bushes: 1.3 } },
+    tundra: { name: 'Tundra Helada',
+      grass: ramp8(['#3a475b', '#526277', '#6e8096', '#8d9fb5', '#acbdd0', '#c9d7e6', '#e2ecf5', '#f8fbff']),
+      leaf: ramp9(['#13232a', '#1d333d', '#294853', '#385f6b', '#4f7a86', '#6c97a2', '#93b8c1', '#c0d9df', '#e8f5f7']),
+      veg: { flowers: 0.45, tufts: 0.6, bushes: 0.5 } },
+    dunas: { name: 'Dunas de Ceniza',
+      grass: ramp8(['#46311a', '#614423', '#7c582d', '#986e39', '#b38747', '#cba15b', '#e0bd7c', '#f1d9a6']),
+      leaf: ramp9(['#191a0d', '#292a14', '#3c3b1a', '#514f20', '#686529', '#817e34', '#9b9845', '#b7b45f', '#d4d282']),
+      veg: { flowers: 0.3, tufts: 0.5, bushes: 0.7 } },
+    cienaga: { name: 'Ciénaga Sombría',
+      grass: ramp8(['#0e1b13', '#15281a', '#1d3721', '#284727', '#34582e', '#466b36', '#5d8140', '#7a9852']),
+      leaf: ramp9(['#081513', '#0c201c', '#122f26', '#193f30', '#23503a', '#316446', '#437955', '#5b9169', '#7cac84']),
+      veg: { flowers: 0.7, tufts: 1.5, bushes: 1.6 } },
+    cristal: { name: 'Bosque de Cristal',
+      grass: ramp8(['#141533', '#1d2048', '#282d60', '#343d79', '#435193', '#576aaa', '#788cc3', '#a6b6dc']),
+      leaf: ramp9(['#1b0a29', '#2c1041', '#42185c', '#5b2279', '#793096', '#9945b2', '#ba65cb', '#d892df', '#f1c5f1']),
+      veg: { flowers: 1.2, tufts: 0.8, bushes: 0.9 } }
+  });
+
+  // Plantillas (una letra = un píxel; '.' = transparente). Follaje O D d k m l h s,
+  // pétalos a b c y. Cada especie pone sus propios colores.
+  const TPL = {
+    // Pasto corto (cuatro matas distintas).
+    G0: ['.....h.....', '.....l.....', '...h.m.h...', '...l.m.l...', 'h..m.mlm..h', 'l..mlkmm..l', '.mlkmkdk.m.', '.kmkdddk.k.', '.dDdDdDd.d.', '.DDDDDDD.D.'],
+    G1: ['...h.....', '...l.....', '...m.h...', 'h..m.l...', 'l..mlm..h', '.mlkmm..l', '.kmkdk.m.', '.dDdDd.k.', '.DDDDD.D.'],
+    G2: ['.....h......', '.....l.h....', '...h.m.l....', '...l.mlm...h', 'h..m.mmml..l', 'l..mlkdkm.m.', '.m.kmkdkd.k.', '.k.dDdDdD.d.', '.D.DDDDDD.D.'],
+    G3: ['...h....', '...l....', '...m..h.', 'h..ml.l.', 'l..kmmh.', '.mlkdkl.', '.kddDdk.', '.DDDDDD.'],
+    // Hierba alta (hojas largas que se arquean).
+    H0: ['....h....', '....l..h.', '.h..m..l.', '.l..m.lm.', '.m.lk.m..', '..mkk.m..', 'h.mkkmk..', 'l.kmdmk.h', '.lkmdkk.l', '.mkddkkml', '..kdDdkm.', '.kdDdDdk.', '.dDdDdDd.', '..DdDdD..', '.DDDDDDD.'],
+    H1: ['h..........', 'l.....h....', 'm.h...l...h', '.ml...m..l.', '.km..hm..m.', '..k..lk.mk.', '..km.mk.k..', 'h.kkmkdkk..', 'l..kdkdk..h', '.mkddkdkm.l', '.kdDdDdDkm.', '.dDdDdDdDd.', '.DDDDDDDDD.'],
+    // Juncos de la ciénaga (con y sin espiga).
+    R0: ['..a......', '.ab...a..', '.bc..ab..', '.bc..bc..', '..k..bc..', '..k...k..', '.hk...k.h', '.lk..hk.l', 'lmk..lkml', '.mkh.mk.m', '.kkl.kkk.', '.DDDDDDD.'],
+    R1: ['...h...', '...l.h.', '.h.m.l.', '.l.m.m.', '.m.k.m.', 'hm.k.k.', 'lk.k.kh', '.k.kmkl', '.kdkdk.', '.DDDDD.'],
+    // Flores: ramillete, dos cabezas, campanillas, espiga, estrella y copa.
+    F0: ['........a.', '..a....ayb', '.ayb.a.kb.', '..b.aybk..', '..k..b.k..', '..k..k.k..', '..kh.khk..', 'h.kl.klk.h', '.kkk.kkkk.', '.DDD.DDDD.'],
+    F1: ['......a..', '..a..ayb.', '.ayb..b..', '..b...k..', '..k...k..', '..k.h.k..', 'h.k.l.k.h', '.kk.k.kk.', '.DD.D.DD.'],
+    F2: ['....kkk....', '...k.k.k...', '..k..k..k..', '.ab..k..ab.', 'abbc.k.abbc', 'b..c.k.b..c', '....hk.....', 'h...lk...h.', 'l..kmkk..l.', '.kkkkmkkkk.', '.DDDDDDDDD.'],
+    F3: ['...a...', '..aba..', '..bab..', '.abcba.', '..bab..', '.abcba.', '..bcb..', '...k...', 'h..k..h', 'l.kmk.l', '.kmkmk.', '.DDDDD.'],
+    F4: ['....a....', '...aba...', 'aabbybbaa', '.abbyybb.', '..bc.cb..', '.bc...cb.', '....k....', 'h...k..h.', 'l..kmk.l.', '.kkmkmkk.', '.DDDDDDD.'],
+    F5: ['.a.a.a.', '.ababa.', '.babab.', '.bbbbc.', '..bcc..', 'h..k..h', 'l..k.hl', '.l.kml.', '.mlkmk.', '.DDDDD.'],
+    // Matorrales altos (escondite).
+    T0: ['..........O...................', '.........OlO.....O............', '.........Om..O.O.lO.O.........', '.........Ok..l.l.m..lO........', '........Olk..m.m.k..mO........', '........Omk..k.k.k..kOO.......', '........OkkO.k.k.k..k.lO......', '.......OOkkl.k.kOk..k.mO......', '......Ol.kkm.kOklk..k.kO......', '......Om.ldk.khkmd..k.kO......', '......Ok.mdkOdldkd.Od.klO.....', '....O.Ok.kdkhdmdkh.ll.kmO.O...', '...Ol..k.kdkldmdkl.mm.hk..lO..', '...Om..l.h.dmdmdkm.kk.lk..mO..', '..ODkOOmOl.dmdmddmOdkOmkOOkO..', '.OldDlhDhmDdmdmddmddhdmdlDDO..', '.OdDDdlDlmDdmdmddmDdldmhDDdO..', '.ODDdDmdmmddmddkdmDdmdmlDddO..', '.ODddDmdmmdDkddkdkddmdkmhDdlO.', 'ODdhDdmdmkdDkDdkdkdDmkdmlddhO.', 'lldlddkdkDkDkDdkdkdDkkdmmdDlO.', 'dDDmddkDkDkDkDdkDkdkdkdkmdDmO.', 'DDdmddkDkDkDkDDkDkDkDkkDkddmDO', 'ddDdkDkDkDkDkDDkDkDkDkkDkDkddl', 'OdhDkDkDkDkDdDDdDdDkDdkDkDkdDD', 'OdlDkDdDdDdDdDDdDdDdDdkDkDkDDd', 'ODkDkDdDdDdDdDDdDdDdDddDdDkDdO', 'ODkDdDdDdDdDdDDdDdDdDddDdDdDDO', 'ODdDdDdDdDdDdDDdDdDdDddDdDdDDO', '.DDDDDDDDDDDDDDDDDDDDDDDDDDDD.'],
+    T1: ['.........O...............', '........OlO..............', '........OmOO.O...........', '........Ok.l.lOO.........', '.......OOk.m.m.lO........', '.....OOl.k.k.k.mO........', '....Ol.m.kOkOk.kOO.......', '....Om.k.klklk.k.lO......', '...OOk.l.dhkmk.k.mOO.....', '..Ol.kOm.dldkd.kOk.lO....', '..Om.khk.dmdkd.dlk.mO....', '..OkOllk.dmdkd.dmk.kO....', '..OkhmmkOhmdhdOdkdOkO....', '.ODDldmddlmdldddDdDDO....', 'OlDdmDmdDmkdmdDdhdDhDOO..', 'ODhdmdmddmdkmdDdlhdlldlO.', 'ODldmdkddmdkmdddmlDmdhDO.', 'OdmdkdkddkdkkDdDmmDmDldO.', 'OdmddkkDdkDkkDdDkmdkdmdO.', 'OdkDdkkDDkDkkDdkkDkDdmDDO', 'OdkDDkkDDkDdkDDkkDkDdkdll', 'ODkDDkdDDkDdkDDkkDkDdkDDd', 'ODkDDddDDdDddDDdkDdDDkdhO', 'ODdDDddDDdDddDDddDdDDddlO', 'ODdDDddDDdDddDDddDdDDdkDO', '.DDDDDDDDDDDDDDDDDDDDDDD.'],
+    // Cactus de las dunas (con flor arriba).
+    TC: ['......OaO......', '.....OabaO.....', '.....OhlmO.....', '.....OhlmO.....', '.....OhlmO..O..', '..O..OhlmO.OlO.', '.OlO.OhlmO.OlO.', '.OhO.OhlmO.OmO.', '.OhO.OhlmO.OmO.', '.OmO.OhlmO.OkO.', '.OlhhhhlmkkkkO.', '..OOOkhlmkOOO..', '.....OhlmO.....', '.....OhlmO.....', '.....OhlmO.....', '.....OhlmO.....', '....OkhlmkO....', '...DDDdddDDD...']
   };
-  // Lo que se recoge al cortar (va a la bolsa; servirá para craftear).
+  // Plantillas hechas por reglas (deterministas): cañaveral y arbusto de cristal.
+  function rnd(seed) { let s = seed >>> 0; return () => { s = (Math.imul(s ^ (s >>> 15), 2246822519) + 0x9e3779b9) >>> 0; return (s >>> 8) / 16777216; }; }
+  function grid(w, h) { return Array.from({ length: h }, () => Array(w).fill('.')); }
+  function genReeds(w, h, seed) {
+    const g = grid(w, h), r = rnd(seed), set = (x, y, c) => { if (x >= 0 && y >= 0 && x < w && y < h - 1) g[y][x] = c; };
+    const n = Math.round(w / 2.1);
+    for (let s = 0; s < n; s++) {
+      const x0 = Math.round(1 + (s + r() * 0.8) * (w - 2) / n), H = Math.round(h * (0.5 + r() * 0.45)), lean = r() < 0.5 ? -1 : 1, top = h - 1 - H;
+      for (let y = h - 2; y >= top; y--) {
+        const t = (h - 2 - y) / H, x = x0 + (t > 0.7 ? lean : 0);
+        set(x, y, t > 0.85 ? 'h' : t > 0.6 ? 'l' : t > 0.3 ? 'm' : t > 0.12 ? 'k' : 'd');
+        if (t < 0.25 && r() < 0.5) set(x + 1, y, 'D');
+      }
+      if (r() < 0.55) { const x = x0 + lean; for (let k = 0; k < 4; k++) set(x, top + 1 + k, k === 0 ? 'a' : k < 3 ? 'b' : 'c'); set(x + 1, top + 2, 'c'); }
+      if (r() < 0.6) { const dir = r() < 0.5 ? -1 : 1; for (let k = 1; k <= 4; k++) set(x0 + dir * k, h - 3 - k, k > 2 ? 'l' : 'm'); }
+    }
+    g[h - 1] = g[h - 1].map((_, x) => (x > 0 && x < w - 1) ? 'D' : '.');
+    return g.map(row => row.join(''));
+  }
+  function genCrystal(w, h, seed) {
+    const g = grid(w, h), r = rnd(seed), set = (x, y, c) => { if (x >= 0 && y >= 0 && x < w && y < h - 1) g[y][x] = c; };
+    const shards = [];
+    const n = 6;
+    for (let s = 0; s < n; s++) {
+      const mid = Math.abs(s - (n - 1) / 2) < 1;
+      shards.push({ cx: w * (0.14 + s * 0.72 / (n - 1)) + (r() - 0.5) * 1.2, H: Math.round(h * (mid ? 0.8 + r() * 0.18 : 0.32 + r() * 0.36)), W: 2.2 + r() * 1.6, lean: (s - (n - 1) / 2) * 0.09 });
+    }
+    // Los altos al fondo y los bajos delante; cada fragmento termina en punta y se inclina hacia afuera.
+    for (const { cx, H, W, lean } of shards.sort((p, q) => q.H - p.H)) {
+      const top = h - 1 - H;
+      for (let y = top; y < h - 1; y++) {
+        const t = y - top, half = Math.min(W / 2, 0.35 + t * 0.42), c0 = cx + lean * (h - 1 - y) * 0.6;
+        const xa = Math.round(c0 - half), xb = Math.round(c0 + half);
+        for (let x = xa; x <= xb; x++) {
+          const u = xb > xa ? (x - xa) / (xb - xa) : 0.5;
+          set(x, y, x === xb && xb > xa ? 'c' : t < 2 || u < 0.34 ? 'a' : 'b');
+        }
+      }
+    }
+    for (let x = 1; x < w - 1; x++) { if (r() < 0.7) set(x, h - 2, r() < 0.5 ? 'k' : 'm'); if (r() < 0.25) set(x, h - 3, 'l'); }
+    g[h - 1] = g[h - 1].map((_, x) => (x > 0 && x < w - 1) ? 'D' : '.');
+    return g.map(row => row.join(''));
+  }
+  TPL.TR0 = genReeds(20, 24, 7); TPL.TR1 = genReeds(16, 21, 31);
+  TPL.TX0 = genCrystal(19, 21, 11); TPL.TX1 = genCrystal(15, 17, 23);
+  Object.freeze(TPL);
+
+  // Tipo de cada plantilla: flexión (u), golpes que aguanta y filas que quedan al cortar.
+  const SHAPE = { G: { amp: 0.26, hp: 1, keep: 2 }, H: { amp: 0.5, hp: 1, keep: 3 }, R: { amp: 0.32, hp: 1, keep: 3 }, F: { amp: 0.2, hp: 1, keep: 2 },
+    T: { amp: 0.3, hp: 3, keep: 5 }, TC: { amp: 0.06, hp: 4, keep: 4 }, TR: { amp: 0.34, hp: 3, keep: 4 }, TX: { amp: 0.08, hp: 4, keep: 4 } };
+  const shapeOf = t => SHAPE[t.replace(/\d+$/, '')] || SHAPE[t[0]];
+
+  // Catálogo. kind: pasto · flor · matorral. Las semillas usan colores propios.
+  const P = (a, b, c, y) => ({ a, b, c, y: y || '#f2d45e' });
+  const FLORA = Object.freeze([
+    // Pradera del Alba (Valle del Alba y pisos de pradera)
+    { id: 'pasto-alba', name: 'Pasto del alba', biome: 'pradera', kind: 'pasto', art: ['G0', 'G1', 'G2', 'G3'], ramp: 'grass', seed: ['#c9a14b', '#f1dc9a', '#a07a34', '#6b4f22'] },
+    { id: 'hierba-alta', name: 'Hierba alta del valle', biome: 'pradera', kind: 'pasto', art: ['H0', 'H1'], ramp: 'grass', seed: ['#8a7a3a', '#e8dc9a', '#b8a860', '#4a3e18'] },
+    { id: 'margarita-alba', name: 'Margarita del alba', biome: 'pradera', kind: 'flor', art: ['F0'], petals: P('#f4f0e0', '#c9c2ad', '#8e8670', '#e9c25e'), seed: ['#8a6a3a', '#e9d6a0', '#b8925a', '#4e3a1c'] },
+    { id: 'clavelina', name: 'Clavelina rosa', biome: 'pradera', kind: 'flor', art: ['F1'], petals: P('#f5aacb', '#c8628f', '#7c2f58', '#f6dc7a'), seed: ['#7a3a52', '#f0b6cc', '#b06080', '#4a1a30'] },
+    { id: 'boton-oro', name: 'Botón de oro', biome: 'pradera', kind: 'flor', art: ['F4'], petals: P('#ffe27a', '#e8b232', '#9a6a12', '#d9661e'), seed: ['#9a6a12', '#ffe9a0', '#d0a040', '#5a3a0a'] },
+    { id: 'campanilla-azul', name: 'Campanilla azul', biome: 'pradera', kind: 'flor', art: ['F2'], petals: P('#b4d0ff', '#5c86e0', '#2c4a9a'), seed: ['#3a4a7a', '#b8c8f0', '#6a80c0', '#1e2a4a'] },
+    { id: 'zarzal', name: 'Zarzal del valle', biome: 'pradera', kind: 'matorral', art: ['T0', 'T1'], ramp: 'leaf', seed: ['#4a3020', '#c09070', '#7a5038', '#2a1a10'] },
+    // Bosque de Ámbar
+    { id: 'hierba-dorada', name: 'Hierba dorada', biome: 'ambar', kind: 'pasto', art: ['G0', 'G1', 'G2', 'H1', 'H0'], ramp: 'grass', seed: ['#aa8334', '#f2dc90', '#d0a84a', '#5a4010'] },
+    { id: 'farolillo', name: 'Farolillo de ámbar', biome: 'ambar', kind: 'flor', art: ['F2'], petals: P('#ffd27a', '#f0902a', '#a04a12'), seed: ['#a04a12', '#ffd090', '#e07a2a', '#5a2408'] },
+    { id: 'cardo-bermejo', name: 'Cardo bermejo', biome: 'ambar', kind: 'flor', art: ['F3'], petals: P('#f08ab0', '#c0446e', '#6e1a38'), seed: ['#6e1a38', '#f0a0c0', '#b04a70', '#3a0a1c'] },
+    { id: 'estrella-miel', name: 'Estrella de miel', biome: 'ambar', kind: 'flor', art: ['F4'], petals: P('#fff4d6', '#e8cf96', '#a8864a', '#e7942a'), seed: ['#a8864a', '#fff0c8', '#d8b878', '#5a4420'] },
+    { id: 'zarza-ambar', name: 'Zarza de ámbar', biome: 'ambar', kind: 'matorral', art: ['T0', 'T1'], ramp: 'leaf', seed: ['#651e10', '#f2ae4f', '#cb6020', '#2a0a06'] },
+    // Tundra Helada
+    { id: 'pasto-escarcha', name: 'Pasto de escarcha', biome: 'tundra', kind: 'pasto', art: ['G0', 'G1', 'G2', 'G3', 'H1'], ramp: 'leaf', seed: ['#526277', '#e2ecf5', '#8d9fb5', '#2a3444'] },
+    { id: 'campanita-hielo', name: 'Campanita de hielo', biome: 'tundra', kind: 'flor', art: ['F2'], petals: P('#e2f2ff', '#8fbcef', '#4a6ea8'), seed: ['#4a6ea8', '#e2f2ff', '#8fbcef', '#24385a'] },
+    { id: 'estrella-nieve', name: 'Estrella de nieve', biome: 'tundra', kind: 'flor', art: ['F4'], petals: P('#ffffff', '#d6e2f0', '#8a97ad', '#f2d45e'), seed: ['#8a97ad', '#ffffff', '#d6e2f0', '#4a5468'] },
+    { id: 'lirio-escarcha', name: 'Lirio de escarcha', biome: 'tundra', kind: 'flor', art: ['F5'], petals: P('#ece6ff', '#a99ae6', '#5e4ea0'), seed: ['#5e4ea0', '#ece6ff', '#a99ae6', '#2e2458'] },
+    { id: 'enebro-nevado', name: 'Enebro nevado', biome: 'tundra', kind: 'matorral', art: ['T1', 'T0'], ramp: 'leaf', seed: ['#294853', '#c0d9df', '#6c97a2', '#13232a'] },
+    // Dunas de Ceniza
+    { id: 'hierba-ceniza', name: 'Hierba de ceniza', biome: 'dunas', kind: 'pasto', art: ['G1', 'G3', 'H0', 'G2'], ramp: 'leaf', seed: ['#7c582d', '#f1d9a6', '#b38747', '#3a2410'] },
+    { id: 'flor-brasa', name: 'Flor de brasa', biome: 'dunas', kind: 'flor', art: ['F5'], petals: P('#ffb070', '#e05a2a', '#8a2a14'), seed: ['#8a2a14', '#ffc090', '#e05a2a', '#40100a'] },
+    { id: 'cardo-arena', name: 'Cardo de arena', biome: 'dunas', kind: 'flor', art: ['F3'], petals: P('#e6b0f0', '#a46ab8', '#5e3270'), seed: ['#5e3270', '#e6c0f0', '#a46ab8', '#2e1438'] },
+    { id: 'cactus-ceniza', name: 'Cactus de ceniza', biome: 'dunas', kind: 'matorral', art: ['TC'], ramp: 'leaf', petals: P('#ff9ab8', '#e0507a', '#8a2244'), seed: ['#514f20', '#d4d282', '#9b9845', '#292a14'] },
+    // Ciénaga Sombría
+    { id: 'junco-negro', name: 'Junco negro', biome: 'cienaga', kind: 'pasto', art: ['R0', 'R1', 'G2', 'R0'], ramp: 'leaf', petals: P('#b0784a', '#7a4a26', '#4a2a14'), seed: ['#4a2a14', '#c09060', '#7a4a26', '#20100a'] },
+    { id: 'lirio-pantano', name: 'Lirio de pantano', biome: 'cienaga', kind: 'flor', art: ['F5'], petals: P('#e0a8f4', '#9145b0', '#4f2266'), seed: ['#4f2266', '#e0b8f4', '#9145b0', '#26102e'] },
+    { id: 'ojo-sapo', name: 'Ojo de sapo', biome: 'cienaga', kind: 'flor', art: ['F4'], petals: P('#f0f08a', '#b9c23a', '#5f6a1a', '#ff8a2a'), seed: ['#5f6a1a', '#f0f0a0', '#b9c23a', '#2c3008'] },
+    { id: 'flor-fantasma', name: 'Flor fantasma', biome: 'cienaga', kind: 'flor', art: ['F2'], petals: P('#f6f4ff', '#c9c3e6', '#6f6a8a'), seed: ['#6f6a8a', '#f6f4ff', '#c9c3e6', '#34304a'] },
+    { id: 'canaveral', name: 'Cañaveral', biome: 'cienaga', kind: 'matorral', art: ['TR0', 'TR1'], ramp: 'leaf', petals: P('#b0784a', '#7a4a26', '#4a2a14'), seed: ['#4a2a14', '#c09060', '#7a4a26', '#20100a'] },
+    // Bosque de Cristal
+    { id: 'hierba-prisma', name: 'Hierba prisma', biome: 'cristal', kind: 'pasto', art: ['G0', 'G1', 'G2', 'H0', 'H1'], ramp: 'grass', seed: ['#435193', '#c8d8ff', '#788cc3', '#1d2048'] },
+    { id: 'rosa-cuarzo', name: 'Rosa de cuarzo', biome: 'cristal', kind: 'flor', art: ['F5'], petals: P('#ffd0f6', '#e080e8', '#8a3a9a'), seed: ['#8a3a9a', '#ffd0f6', '#e080e8', '#44184c'] },
+    { id: 'campana-celeste', name: 'Campana celeste', biome: 'cristal', kind: 'flor', art: ['F2'], petals: P('#c8f8ff', '#4fd0e6', '#2a7f9a'), seed: ['#2a7f9a', '#c8f8ff', '#4fd0e6', '#123c4a'] },
+    { id: 'lagrima-amatista', name: 'Lágrima de amatista', biome: 'cristal', kind: 'flor', art: ['F3'], petals: P('#ecc8ff', '#a46ae0', '#5a2a9a'), seed: ['#5a2a9a', '#ecc8ff', '#a46ae0', '#2a1050'] },
+    { id: 'arbusto-cristal', name: 'Arbusto de cristal', biome: 'cristal', kind: 'matorral', art: ['TX0', 'TX1'], ramp: 'leaf', petals: P('#d8fbff', '#7fd8f0', '#3a7fb0'), seed: ['#3a7fb0', '#d8fbff', '#7fd8f0', '#1a3a5a'] }
+  ].map(sp => Object.freeze({ ...sp, seedKey: 'sem-' + sp.id, seedName: 'Semillas de ' + sp.name.charAt(0).toLowerCase() + sp.name.slice(1) })));
+  const SPECIES = Object.freeze(Object.fromEntries(FLORA.map(sp => [sp.id, sp])));
+  const BY_BIOME = Object.freeze(Object.fromEntries(Object.keys(BIOMES).map(b => [b, Object.freeze({
+    pasto: FLORA.filter(s => s.biome === b && s.kind === 'pasto'),
+    flor: FLORA.filter(s => s.biome === b && s.kind === 'flor'),
+    matorral: FLORA.filter(s => s.biome === b && s.kind === 'matorral')
+  })])));
+
+  /** Colores de cada letra para una especie (follaje del bioma + pétalos propios). */
+  function colorsOf(sp) {
+    const B = BIOMES[sp.biome], ramp = sp.ramp === 'leaf' ? B.leaf : B.grass;
+    const flowerFoliage = B.leaf;                    // tallos y hojas de las flores: los del bioma
+    const base = sp.kind === 'flor' ? flowerFoliage : ramp;
+    return Object.assign({}, base, sp.petals || {});
+  }
+  const spriteId = (sp, k) => 'fl_' + sp.id + '_' + k;
+  const seedIcon = sp => 'sem_' + sp.id;
+  /** Rastrojo: las filas de abajo de la planta, con el corte más claro arriba. */
+  function stubble(rows, keep) {
+    const out = rows.slice(rows.length - keep);
+    out[0] = [...out[0]].map(c => c === '.' ? '.' : (c === 'O' || c === 'D' ? 'm' : 'l')).join('');
+    return out;
+  }
+  /** Todas las imágenes que hay que pintar: [id, filas, colores]. */
+  function spriteList() {
+    const out = [];
+    for (const sp of FLORA) {
+      const col = colorsOf(sp);
+      sp.art.forEach((t, k) => {
+        if (sp.art.indexOf(t) !== k) return;               // la misma plantilla repetida = más frecuente, no otra imagen
+        const rows = TPL[t], sh = shapeOf(t);
+        out.push([spriteId(sp, k), rows, col], [spriteId(sp, k) + '_c', stubble(rows, sh.keep), col]);
+      });
+      const [y, w, g, q] = sp.seed;
+      out.push([seedIcon(sp), ITEM_ART.itemSemilla, { y, w, g, q }]);
+    }
+    for (const id of ['itemFibra', 'itemCana', 'itemSemilla']) out.push([id, ITEM_ART[id], ITEM_COL]);
+    return out;
+  }
+  // Lo que se recoge (va a la bolsa; servirá para craftear y para la granja).
   const ITEM_ART = {
     itemFibra: ['..l.h..', '.lkmlh.', 'lkmlmkl', '.dkmkd.', 'lkmlmkl', '.lkmlh.', '..d.d..'],
     itemSemilla: ['..yy..', '.ywgy.', 'ygwwgy', 'yggggy', '.ygqy.', '..yy..'],
     itemCana: ['......hl', '.....lmk', '....lmkd', '...lmkd.', '..lmkd..', '.lmkd...', 'lmkd....', 'kdd.....']
   };
-  const DROPS = {
-    vegCorta: [['fibra', 0.55, 1], ['semilla', 0.12, 1]],
-    vegFlor: [['semilla', 0.7, 1], ['fibra', 0.35, 1]],
-    vegMatorral: [['cana', 1, 2], ['fibra', 1, 2], ['semilla', 0.35, 1]]
-  };
+  const ITEM_COL = Object.assign({}, PAL, { y: '#e9c25e', w: '#eeeadb', g: '#b9b3a2', q: '#b45f8c' });
+  const MAT_NAMES = { fibra: 'fibra de pasto', cana: 'caña', semilla: 'semillas silvestres' };
+  for (const sp of FLORA) MAT_NAMES[sp.seedKey] = sp.seedName.toLowerCase();
   const MAT_ICON = { fibra: 'itemFibra', semilla: 'itemSemilla', cana: 'itemCana' };
-  /** Rastrojo: la misma planta cortada a ras (las filas de abajo, con el corte más claro). */
-  function stubble(rows, keep) {
-    const h = rows.length, out = rows.map((r, y) => y < h - keep ? '.'.repeat(r.length) : r);
-    const top = h - keep;
-    out[top] = [...out[top]].map(c => c === '.' ? '.' : (c === 'O' || c === 'D' ? 'm' : 'l')).join('');
-    return out;
+  for (const sp of FLORA) MAT_ICON[sp.seedKey] = seedIcon(sp);
+  /** Lo que suelta cada especie: [material, probabilidad, cantidad]. */
+  function dropsOf(sp, tpl) {
+    const S = sp.seedKey, t = (tpl || sp.art[0]).replace(/\d+$/, '');
+    if (sp.kind === 'flor') return [[S, 0.7, 1], ['fibra', 0.3, 1]];
+    if (sp.kind === 'pasto') return t === 'R' ? [['fibra', 0.6, 1], ['cana', 0.25, 1], [S, 0.15, 1]] : [['fibra', 0.55, 1], [S, 0.15, 1]];
+    if (t === 'TC') return [['fibra', 1, 1], [S, 0.5, 1]];
+    if (t === 'TX') return [['fibra', 0.5, 1], [S, 0.5, 1]];
+    if (t === 'TR') return [['cana', 1, 3], ['fibra', 1, 1], [S, 0.4, 1]];
+    return [['cana', 1, 2], ['fibra', 1, 2], [S, 0.4, 1]];
   }
-  // id, ancho, alto, amplitud de flexión (u), tipo
-  const NEW_SPRITES = Object.keys(ART).map(id => { const k = id.replace(/\d+$/, ''); return [id, ART[id][0].length, ART[id].length, AMP[k], k.slice(3).toLowerCase()]; });
-  /** Campo → textura RGBA8: rg = desplazamiento (−1..1), ba = velocidad (÷ VMAX, −1..1). 128 = reposo. */
+
+  // ════════════════════════════════════════════════════════════════════
+  // 3. Reparto por el mundo (puro y determinista; probado con un mapa falso)
+  // ════════════════════════════════════════════════════════════════════
+  function hashStr(s) { let h = 2166136261 >>> 0; for (const ch of String(s)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; }
+  const overlap = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+  class Field {
+    /**
+     * T: terreno del motor (w, h, kind, level, biome, biomes, dirtAt, obstacleCells, obstacles, inBounds).
+     * exclude: círculos sin plantas (campamento, portales, santuario…).
+     */
+    constructor(T, opt = {}) {
+      const W = Object.assign({}, DEF.world, opt);
+      this.T = T; this.S = W.spacing; this.TS = W.thicketCell; this.gap = W.thicketGap; this.CS = W.chunk; this.dens = W.density;
+      this.k = (hashStr(T.id || 'mundo') % 997) * 0.731 + 0.37;
+      this.exclude = opt.exclude || []; this.c = new Map(); this.tc = new Map(); this.ta = new Map();
+    }
+    h(x, y, k = 0) { const s = Math.sin(x * 127.1 + y * 311.7 + k * 74.7 + this.k * 13.13) * 43758.5453; return s - Math.floor(s); }
+    vn(x, y, sc, k = 0) {
+      const X = x / sc, Y = y / sc, xi = Math.floor(X), yi = Math.floor(Y), fx = X - xi, fy = Y - yi, sm = q => q * q * (3 - 2 * q);
+      const a = this.h(xi, yi, k), b = this.h(xi + 1, yi, k), c = this.h(xi, yi + 1, k), d = this.h(xi + 1, yi + 1, k);
+      const top = a + (b - a) * sm(fx), bot = c + (d - c) * sm(fx);
+      return top + (bot - top) * sm(fy);
+    }
+    colony(x, y) { return this.vn(x, y, 3.2, 1) * 0.65 + this.vn(x + 40, y - 17, 1.4, 2) * 0.35; }
+    biome(x, y) {
+      const T = this.T; if (!T.biomes) return 'pradera';
+      const b = T.biomes[T.biome[Math.floor(y) * T.w + Math.floor(x)]];
+      return BIOMES[b] ? b : 'pradera';
+    }
+    /** Suelo firme y a la misma altura que el centro (sin agua, piedra, escaleras ni bordes de acantilado). */
+    flat(x, y, lv) {
+      const T = this.T, i = Math.floor(x), j = Math.floor(y);
+      if (!T.inBounds(i, j)) return false;
+      const k = j * T.w + i;
+      return T.kind[k] === 0 && (lv === undefined || T.level[k] === lv);
+    }
+    nearDirt(x, y) {
+      const T = this.T; if (!T.dirtAt) return false;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const cx = Math.floor(x + dx * 0.8), cy = Math.floor(y + dy * 0.8); if (T.inBounds(cx, cy) && T.dirtAt(cx, cy)) return true; }
+      return false;
+    }
+    free(x, y, m) {
+      const T = this.T, cells = T.obstacleCells ? T.obstacleCells() : null, obs = T.obstacles || [];
+      const test = o => o && Math.abs(o.x - x) < (o.r || 0.3) + m && Math.abs(o.y - y) < (o.r || 0.3) + m;
+      if (!cells) return !obs.some(test);
+      const i0 = Math.floor(x - m - 1), i1 = Math.floor(x + m + 1), j0 = Math.floor(y - m - 1), j1 = Math.floor(y + m + 1);
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+        if (!T.inBounds(i, j)) continue;
+        const list = cells[j * T.w + i]; if (!list) continue;
+        for (const e of list) if (test(typeof e === 'number' ? obs[e] : e)) return false;
+      }
+      return true;
+    }
+    excluded(x, y, pad) { return this.exclude.some(c => Math.hypot(c.x - x, c.y - y) < c.r + pad); }
+    /** Planta candidata de la celda (i, j) de la rejilla fina, o null. */
+    cand(i, j) {
+      const key = i * 65536 + j; if (this.c.has(key)) return this.c.get(key);
+      const r = this._cand(i, j); this.c.set(key, r); return r;
+    }
+    _cand(i, j) {
+      const S = this.S, x = (i + 0.5 + (this.h(i, j, 3) - 0.5) * 0.8) * S, y = (j + 0.5 + (this.h(j, i, 4) - 0.5) * 0.8) * S;
+      const T = this.T, ci = Math.floor(x), cj = Math.floor(y);
+      if (!T.inBounds(ci, cj) || T.kind[cj * T.w + ci] !== 0) return null;
+      const b = this.biome(x, y), B = BIOMES[b], V = B.veg, L = BY_BIOME[b];
+      const col = this.colony(x, y), region = this.vn(x + 300, y - 120, 15, 5);
+      const dens = (col - 0.26) / 0.24 * (0.65 + 0.8 * region) * V.tufts * this.dens;
+      const patch = this.vn(x + 90, y + 33, 2.6, 6), inPatch = patch > 1 - 0.4 * Math.min(1.6, V.flowers);
+      let kind;
+      if (inPatch && this.h(x * 1.7, y * 2.3, 7) < 0.72) kind = 'flor';
+      else if (this.h(x * 3.7, y * 2.9, 8) < dens) kind = 'pasto';
+      else if (this.h(x * 5.3, y * 1.1, 9) < 0.02 * V.flowers) kind = 'flor';
+      else return null;
+      const list = L[kind]; if (!list.length) return null;
+      // Las flores de una misma especie crecen juntas (manchas), con alguna mezclada.
+      let n = Math.floor(this.vn(x - 55, y + 71, 5.5, 10) * list.length * 1.999) % list.length;
+      if (this.h(x, y, 11) < 0.15) n = Math.floor(this.h(y, x, 12) * list.length) % list.length;
+      if (kind === 'pasto' && list.length > 1) n = col + (this.h(x, y, 15) - 0.5) * 0.12 > 0.62 ? 1 : 0;   // la hierba alta, en el corazón de las colonias
+      const sp = list[n], k = Math.floor(this.h(x * 2.1, y * 0.7, 13) * sp.art.length) % sp.art.length, tpl = sp.art[k];
+      const rows = TPL[tpl], w = rows[0].length, hgt = rows.length, hw = w / 32, M = 0.04;
+      const lv = T.level[cj * T.w + ci];
+      if (!this.flat(x - hw, y, lv) || !this.flat(x + hw, y, lv) || !this.flat(x, y - 0.3, lv) || !this.flat(x, y + 0.3, lv)) return null;
+      if (this.nearDirt(x, y) || !this.free(x, y, 0.6) || this.excluded(x, y, 0.4)) return null;
+      const bw = hw * 0.8, bh = hgt / 32 * 0.7;          // las matas pueden tocarse un poco, como en la naturaleza
+      return { i, j, x, y, sp, k: sp.art.indexOf(tpl), tpl, w, h: hgt, thick: false, prio: this.h(i, j, 14),
+        box: { x0: x - bw - M, x1: x + bw + M, y0: y - bh - M, y1: y + bh + M } };
+    }
+    /** Matorral candidato de la celda (ti, tj) de la rejilla gruesa, o null. */
+    tcand(ti, tj) {
+      const key = ti * 65536 + tj; if (this.tc.has(key)) return this.tc.get(key);
+      const r = this._tcand(ti, tj); this.tc.set(key, r); return r;
+    }
+    _tcand(ti, tj) {
+      const TS = this.TS, x = (ti + 0.5 + (this.h(ti, tj, 20) - 0.5) * 0.7) * TS, y = (tj + 0.5 + (this.h(tj, ti, 21) - 0.5) * 0.7) * TS;
+      const T = this.T, ci = Math.floor(x), cj = Math.floor(y);
+      if (!T.inBounds(ci, cj) || T.kind[cj * T.w + ci] !== 0) return null;
+      const b = this.biome(x, y), V = BIOMES[b].veg, list = BY_BIOME[b].matorral; if (!list.length) return null;
+      const col = this.colony(x, y);
+      if (col < 0.6 - 0.07 * (V.bushes - 1) || this.h(ti, tj, 22) > 0.62 * Math.min(1.5, V.bushes) * this.dens) return null;
+      const sp = list[Math.floor(this.h(x, y, 23) * list.length) % list.length];
+      const k = Math.floor(this.h(y, x, 24) * sp.art.length) % sp.art.length, tpl = sp.art[k], rows = TPL[tpl];
+      const w = rows[0].length, hgt = rows.length, hw = w / 32, lv = T.level[cj * T.w + ci];
+      for (const [dx, dy] of [[-hw, 0], [hw, 0], [0, -0.5], [0, 0.5], [-hw * 0.6, 0.4], [hw * 0.6, 0.4]]) if (!this.flat(x + dx, y + dy, lv)) return null;
+      const half = hw + 0.4;
+      if (!this.free(x, y, 0.6) || !this.free(x - half, y, 0.6) || !this.free(x + half, y, 0.6)) return null;
+      if (this.nearDirt(x, y) || this.nearDirt(x - half, y) || this.nearDirt(x + half, y) || this.excluded(x, y, hw + 0.8)) return null;
+      return { i: ti, j: tj, x, y, sp, k: sp.art.indexOf(tpl), tpl, w, h: hgt, thick: true, prio: this.h(ti, tj, 25),
+        box: { x0: x - hw - 0.1, x1: x + hw + 0.1, y0: y - hgt / 32 - 0.1, y1: y + hgt / 32 + 0.1 } };
+    }
+    /** Un matorral queda si ningún vecino cercano con más prioridad lo pisa (regla local: no depende del orden). */
+    tAccept(ti, tj) {
+      const key = ti * 65536 + tj; if (this.ta.has(key)) return this.ta.get(key);
+      const c = this.tcand(ti, tj); let ok = !!c;
+      if (ok) for (let dj = -1; dj <= 1 && ok; dj++) for (let di = -1; di <= 1; di++) {
+        if (!di && !dj) continue;
+        const n = this.tcand(ti + di, tj + dj);
+        if (n && Math.hypot(n.x - c.x, n.y - c.y) < this.gap && n.prio > c.prio) { ok = false; break; }
+      }
+      this.ta.set(key, ok ? c : null); return ok ? c : null;
+    }
+    accept(i, j) {
+      const c = this.cand(i, j); if (!c) return null;
+      for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) {
+        if (!di && !dj) continue;
+        const n = this.cand(i + di, j + dj);
+        if (n && overlap(c.box, n.box) && (n.prio > c.prio || (n.prio === c.prio && (dj > 0 || (dj === 0 && di > 0))))) return null;
+      }
+      const ti = Math.floor(c.x / this.TS), tj = Math.floor(c.y / this.TS);
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+        const t = this.tAccept(ti + di, tj + dj);
+        if (t && overlap(c.box, t.box)) return null;
+      }
+      return c;
+    }
+    /** Plantas del trozo (cx, cy): cada celda pertenece a un solo trozo, así no hay costuras ni repetidas. */
+    chunk(cx, cy) {
+      const CS = this.CS, S = this.S, TS = this.TS, out = [];
+      const r0 = (a, s) => Math.ceil(a / s - 0.5);
+      for (let tj = r0(cy * CS, TS); tj < r0((cy + 1) * CS, TS); tj++) for (let ti = r0(cx * CS, TS); ti < r0((cx + 1) * CS, TS); ti++) {
+        const t = this.tAccept(ti, tj); if (t) out.push(t);
+      }
+      for (let j = r0(cy * CS, S); j < r0((cy + 1) * CS, S); j++) for (let i = r0(cx * CS, S); i < r0((cx + 1) * CS, S); i++) {
+        const p = this.accept(i, j); if (p) out.push(p);
+      }
+      if (this.c.size > 120000) { this.c.clear(); this.ta.clear(); }
+      if (this.tc.size > 20000) { this.tc.clear(); this.ta.clear(); }
+      return out;
+    }
+  }
+  const keyOf = p => (p.thick ? 't' : '') + p.i + ',' + p.j;
+
+  // Campo → textura RGBA8: rg = desplazamiento (−1..1), ba = velocidad (÷ VMAX, −1..1). 128 = reposo.
   const VMAX = 12;
   function encodeField(S, d) {
     const q = v => Math.max(0, Math.min(255, Math.round((v * 0.5 + 0.5) * 255)));
@@ -156,22 +488,22 @@
     }
     return d;
   }
-  const API = { DEF, VegSim, ART, PAL, NEW_SPRITES, encodeField, VMAX, DROPS, ITEM_ART, stubble };
+  const API = { DEF, VegSim, PAL, BIOMES, TPL, SHAPE, shapeOf, FLORA, SPECIES, BY_BIOME, colorsOf, spriteList, spriteId, seedIcon,
+    stubble, ITEM_ART, MAT_NAMES, MAT_ICON, dropsOf, Field, keyOf, hashStr, encodeField, VMAX, genReeds, genCrystal };
   if (typeof module !== 'undefined' && module.exports) { module.exports = API; return; }
   if (!root.document) return;
 
   // ════════════════════════════════════════════════════════════════════
-  // 2. Arte de las especies nuevas (pintadas en la zona libre del atlas)
+  // 4. Pintar las plantas en la zona libre del atlas
   // ════════════════════════════════════════════════════════════════════
-  function paintSprite(g, x0, y0, id, rowsIn) {
-    const rows = rowsIn || ART[id]; if (!rows) return;
+  function paintSprite(g, x0, y0, rows, col) {
     for (let y = 0; y < rows.length; y++) for (let x = 0; x < rows[y].length; x++) {
-      const c = PAL[rows[y][x]]; if (c) { g.fillStyle = c; g.fillRect(x0 + x, y0 + y, 1, 1); }
+      const c = col[rows[y][x]]; if (c) { g.fillStyle = c; g.fillRect(x0 + x, y0 + y, 1, 1); }
     }
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // 3. Inyección en el shader del terreno (la raíz no se mueve)
+  // 5. Inyección en el shader del terreno (la raíz no se mueve)
   // ════════════════════════════════════════════════════════════════════
   const VS_HEAD = `
       attribute vec4 aVeg;
@@ -233,9 +565,11 @@
   class Veg {
     constructor(app, cfg) {
       this.app = app; this.cfg = cfg; this.sim = new VegSim(cfg);
-      this.acc = 0; this.prev = null; this.ent = new Map(); this.stats = { simMs: 0, uploads: 0, active: 0, plants: 0, frames: 0, steps: 0, src: { jugador: 0, ataque: 0, criaturas: 0, ondas: 0 } };
+      this.acc = 0; this.prev = null; this.ent = new Map(); this.stats = { simMs: 0, uploads: 0, active: 0, plants: 0, frames: 0, steps: 0, src: { jugador: 0, ataque: 0, criaturas: 0, ondas: 0 }, chunks: 0, worldPlants: 0, buildMs: 0, hidden: 0 };
       this.view = null; this.mat = null; this.tex = null; this.data = null; this.on = true; this.lastAtk = undefined;
-      this.plants = []; this.drops = []; this.chips = []; this.gain = {}; this.cuts = 0; this._regT = 0;
+      this.drops = []; this.chips = []; this.gain = {}; this.cuts = 0; this._regT = 0;
+      // Trozos vivos (clave «cx,cy») y plantas por clave; lo cortado se recuerda por mundo.
+      this.chunks = new Map(); this.byKey = new Map(); this.field = null; this.cutState = new Map(); this.thickets = [];
       this.hook();
       root.__TM_VEG__ = this;
     }
@@ -257,6 +591,12 @@
     fail(e) { if (this._f) return; this._f = true; console.error('Vegetación beta:', e); setTimeout(() => { this._f = false; }, 4000); }
     /** Onda expansiva pública (la usan el Rey Slime y otros efectos). */
     blast(x, y, r = 3, force = 9) { if (this.on) { this.sim.impulse(x, y, r, force); this.stats.src.ondas++; } }
+    /** Especie de la planta más cercana (para pistas o un herbario futuro). */
+    plantAt(x, y, r = 1) {
+      let best = null, bd = r;
+      for (const p of this.nearPlants(x, y, r)) { const d = Math.hypot(p.x - x, p.y - y); if (d < bd) { bd = d; best = p; } }
+      return best ? { id: best.sp.id, name: best.sp.name, biome: best.sp.biome, cut: best.cut } : null;
+    }
 
     // ── Simulación (30 Hz fijos) ──
     tick(dt) {
@@ -292,26 +632,35 @@
         if (m > 0.01 && m < 2) { const r = Math.max(0.6, (e.r || 0.4) * 1.3); this.stats.src.criaturas++; this.sim.impulse(e.x, e.y, r, C.creature.force * Math.min(2, m / dt / 3) * (0.6 + r * 0.4) * dt * 30, mx / m, my / m); }
       }
       if (this.ent.size > 400) this.ent.clear();
-      // Rebrote: el pasto cortado vuelve a crecer (comida para los animales, más adelante).
+      // Rebrote: lo cortado vuelve a crecer (comida para los animales, más adelante).
       this._regT += dt;
-      if (this._regT > 1) { this._regT = 0; const now = performance.now() / 1000; for (const p of this.plants) if (p.cut && now >= p.regrowAt) this.setCut(p, false); }
+      if (this._regT > 1) {
+        this._regT = 0; const now = performance.now() / 1000, st = this.cuts0();
+        for (const [k, t] of st) if (now >= t) { st.delete(k); const p = this.byKey.get(k); if (p && p.cut) this.setCut(p, false); }
+      }
       // Paso fijo.
       this.acc += Math.min(dt, 0.1);
       const h = 1 / C.hz, t0 = performance.now();
       while (this.acc >= h) { if (this.sim.awake) { this.sim.step(h); this.stats.steps++; this.dirty = true; } this.acc -= h; }
       this.stats.simMs = this.stats.simMs * 0.9 + (performance.now() - t0) * 0.1;
     }
+    /** Lo cortado en el mundo actual: clave → momento de rebrote. */
+    cuts0() {
+      const id = this.app.terrain ? this.app.terrain.id : '';
+      if (!this.cutState.has(id)) this.cutState.set(id, new Map());
+      return this.cutState.get(id);
+    }
 
-    // ── Antes de dibujar: shader, geometrías, textura y uniformes ──
+    // ── Antes de dibujar: shader, trozos, textura y uniformes ──
     before() {
       const a = this.app, v = a.view, s = a.session, av = s && s.avatar;
       if (!v || !av || !v.terrainMat) return;
       if (this.view !== v) this.setup(v);
       if (!this.mat || !this.mat.uniforms.uVegWin) return;
       this.tagChunks(v);
+      if (this.on) this.stream(av);
       const U = this.mat.uniforms, C = this.cfg, t = performance.now() / 1000;
-      const inValley = a.terrain && a.terrain.id === 'valle-alba';
-      U.uVegWin.value.set(this.sim.x0, this.sim.y0, C.cells * C.cell, this.on && inValley ? 1 : 0);
+      U.uVegWin.value.set(this.sim.x0, this.sim.y0, C.cells * C.cell, this.on ? 1 : 0);
       U.uVegCam.value.set(av.x, av.y, t, 0);
       const g0 = Math.max(0, Math.sin(t * 0.17) * Math.sin(t * 0.071 + 1.3)), gust = Math.pow(g0, 3) * C.wind.gust;   // casi siempre 0
       U.uVegWind.value.set(1, 0, C.wind.strength * gust, 0);
@@ -326,20 +675,129 @@
         for (let i = 0; i < Math.min(4, near.length); i++) { const e = near[i][1]; NR[i + 1].set(e.x, e.y, Math.max(NC.creature, (e.r || 0.4) * 1.4), NC.squash); }
       }
       if (this.tex && (this.dirty || this.sim.awake)) {
-        const N = C.cells, d = this.data, S = this.sim;
-        encodeField(S, d);
+        encodeField(this.sim, this.data);
         this.tex.needsUpdate = true; this.dirty = false; this.stats.uploads++;
       }
       this.stats.active = this.sim.awake ? 1 : 0; this.stats.frames++;
       const now = performance.now() / 1000, fdt = Math.min(0.05, now - (this._lastFx || now)); this._lastFx = now;
       if (this.chips.length || this.drops.length) this.updateFx(fdt, av);
     }
+
+    // ════ Trozos de vegetación alrededor del jugador ════
+    /** Crea los trozos cercanos que faltan (con un tope de tiempo por cuadro) y quita los lejanos. */
+    stream(av) {
+      if (!this.field || !this.atlasReady) return;
+      const W = this.cfg.world, CS = W.chunk, T = this.app.terrain;
+      const pcx = av.x / CS, pcy = av.y / CS, R = W.radius / CS, K = W.keep / CS;
+      const nx = Math.ceil(T.w / CS), ny = Math.ceil(T.h / CS);
+      // Quitar los lejanos.
+      for (const [k, ch] of this.chunks) if (Math.hypot(ch.cx + 0.5 - pcx, ch.cy + 0.5 - pcy) > K) this.dropChunk(k, ch);
+      // Crear los cercanos, del más próximo al más lejano.
+      const want = [];
+      for (let cy = Math.max(0, Math.floor(pcy - R - 1)); cy <= Math.min(ny - 1, Math.floor(pcy + R)); cy++)
+        for (let cx = Math.max(0, Math.floor(pcx - R - 1)); cx <= Math.min(nx - 1, Math.floor(pcx + R)); cx++) {
+          const d = Math.hypot(cx + 0.5 - pcx, cy + 0.5 - pcy);
+          if (d <= R + 0.71 && !this.chunks.has(cx + ',' + cy)) want.push([d, cx, cy]);
+        }
+      if (!want.length) return;
+      want.sort((p, q) => p[0] - q[0]);
+      const t0 = performance.now(), budget = this._warm ? W.budgetMs : 60;   // al llegar al mundo se llena de una vez
+      for (const [, cx, cy] of want) {
+        this.buildChunk(cx, cy);
+        if (performance.now() - t0 > budget) break;
+      }
+      this._warm = true;
+      this.stats.buildMs = +(performance.now() - t0).toFixed(1);
+    }
+    dropChunk(k, ch) {
+      if (ch.mesh) { this.view.scene.remove(ch.mesh); ch.mesh.geometry.dispose(); }
+      for (const p of ch.plants) this.byKey.delete(p.key);
+      this.chunks.delete(k); this.stats.chunks = this.chunks.size; this.stats.worldPlants -= ch.plants.length;
+      this.thickets = this.thickets.filter(t => t.chunk !== ch);
+    }
+    clearChunks() {
+      for (const [k, ch] of this.chunks) this.dropChunk(k, ch);
+      this.chunks.clear(); this.byKey.clear(); this.thickets = []; this.stats.worldPlants = 0;
+    }
+    /** Arma la malla de un trozo: cada planta es un cuadro de pie con 2 (pasto) o 5 (matorral) tramos. */
+    buildChunk(cx, cy) {
+      const v = this.view, T = this.app.terrain, at = v.atlas, W = at.w || 512, H = at.h || 512;
+      const list = this.field.chunk(cx, cy), ch = { cx, cy, plants: [], mesh: null };
+      this.chunks.set(cx + ',' + cy, ch); this.stats.chunks = this.chunks.size;
+      if (!list.length) return ch;
+      const pos = [], uvs = [], cols = [], vegs = [], idx = [], cut = this.cuts0(), now = performance.now() / 1000;
+      for (const c of list) {
+        const id = spriteId(c.sp, c.k), r = at.regions[id], rc = at.regions[id + '_c']; if (!r || !rc) continue;
+        const z = T.surfaceAt(c.x, c.y); if (z !== z) continue;
+        const sh = shapeOf(c.tpl), flip = this.field.h(c.x * 9.1, c.y, 30) < 0.5, amp = sh.amp * (0.85 + this.field.h(c.x, c.y * 3, 31) * 0.3);
+        const l = z + 0.01, xc = Math.round(c.x * 16) / 16, hh = l - Math.round((l - c.y) * 16) / 16, u = r.w / 32, f = r.h / 32;
+        const ph = this.field.h(c.x * 2.3, c.y * 1.9, 32) * 0.999 + 2 + (c.thick ? 4 : 0);   // +2 = de pie, +4 = matorral (el shader los distingue)
+        const SEG = c.thick ? 5 : 2, base = pos.length / 3, key = keyOf(c);
+        for (let row = 0; row <= SEG; row++) {           // de la punta (atrás) a la raíz (adelante)
+          // De pie, mirando a la cámara (inclinada 45°): tapa a quien esté detrás y no a quien esté delante.
+          const tf = row / SEG, wgt = Math.pow(1 - tf, 1.5);
+          pos.push(xc - u, l + (1 - tf) * 2 * f, hh + f, xc + u, l + (1 - tf) * 2 * f, hh + f);
+          uvs.push(0, 0, 0, 0);
+          cols.push(1, 0, 0, 1, 0, 0); vegs.push(wgt, amp, ph, 2 * f, wgt, amp, ph, 2 * f);
+        }
+        for (let row = 0; row < SEG; row++) { const q = base + row * 2; idx.push(q, q + 2, q + 3, q, q + 3, q + 1); }
+        const p = { key, sp: c.sp, tpl: c.tpl, id, x: c.x, y: c.y, base, seg: SEG, flip, thick: c.thick, l, f, amp, hp: sh.hp, keep: sh.keep, rows: c.h, cut: false, chunk: ch };
+        const until = cut.get(key); if (until && now < until) p.cut = true;
+        ch.plants.push(p); this.byKey.set(key, p);
+        if (c.thick) this.thickets.push({ x: c.x, y: c.y, r: r.w / 32, id: c.sp.id, chunk: ch, get cut() { return p.cut; } });
+      }
+      if (!ch.plants.length) return ch;
+      const vc = pos.length / 3, geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+      const nrm = new Float32Array(vc * 3); for (let i = 0; i < vc; i++) nrm[i * 3 + 1] = 1;
+      geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+      geo.setAttribute('aMask', new THREE.BufferAttribute(new Float32Array(vc * 2).fill(-1), 2));
+      geo.setAttribute('aVeg', new THREE.Float32BufferAttribute(vegs, 4));
+      geo.setIndex(idx);
+      ch.geo = geo;
+      for (const p of ch.plants) this.look(p, p.cut, true);
+      const mesh = new THREE.Mesh(geo, v.terrainMat); mesh.frustumCulled = false; mesh.name = 'vegetacion-' + cx + '-' + cy;
+      v.scene.add(mesh); ch.mesh = mesh; this.tagged.add(geo);
+      this.stats.worldPlants += ch.plants.length; this.stats.zonePlants = this.stats.worldPlants;
+      return ch;
+    }
+    /** Imagen y alto de la planta: entera o cortada a ras (rastrojo). */
+    look(p, cut, quiet) {
+      const g = p.chunk.geo, at = this.view.atlas; if (!g || !at) return;
+      const r = at.regions[cut ? p.id + '_c' : p.id]; if (!r) return;
+      const W = at.w || 512, H = at.h || 512, uv = g.attributes.uv, pos = g.attributes.position, vg = g.attributes.aVeg;
+      const p0 = (p.flip ? r.x + r.w : r.x) / W, p1 = (p.flip ? r.x : r.x + r.w) / W, g0 = r.y / H, g1 = (r.y + r.h) / H;
+      const k = cut ? p.keep / p.rows : 1;
+      for (let row = 0; row <= p.seg; row++) {
+        const tf = row / p.seg, vv = g0 + (g1 - g0) * tf, y = p.l + (1 - tf) * 2 * p.f * k, w = cut ? 0 : Math.pow(1 - tf, 1.5);
+        const a = p.base + row * 2;
+        uv.setXY(a, p0, vv); uv.setXY(a + 1, p1, vv);
+        pos.setY(a, y); pos.setY(a + 1, y);
+        vg.setX(a, w); vg.setX(a + 1, w);
+      }
+      uv.needsUpdate = true; pos.needsUpdate = true; vg.needsUpdate = true;
+      p.cut = cut;
+      if (!quiet) this.stats.cuts = this.cuts;
+    }
+    /** Plantas vivas cerca de (x, y). */
+    nearPlants(x, y, r) {
+      const CS = this.cfg.world.chunk, out = [];
+      for (let cy = Math.floor((y - r - 1) / CS); cy <= Math.floor((y + r + 1) / CS); cy++)
+        for (let cx = Math.floor((x - r - 1) / CS); cx <= Math.floor((x + r + 1) / CS); cx++) {
+          const ch = this.chunks.get(cx + ',' + cy); if (!ch) continue;
+          for (const p of ch.plants) if (Math.abs(p.x - x) <= r + 1 && Math.abs(p.y - y) <= r + 1) out.push(p);
+        }
+      return out;
+    }
+
     // ════ Cortar plantas con el arma: rastrojo, recortes que saltan y lo que se recoge ════
-    /** Golpe del arma: corta lo que está en el arco de enfrente (el matorral aguanta 3 golpes). */
+    /** Golpe del arma: corta lo que está en el arco de enfrente (los matorrales aguantan varios golpes). */
     slash(x, y, fx, fy) {
-      if (!this.plants.length || !this.zoneUV) return 0;
+      if (!this.chunks.size) return 0;
       const cx = x + fx * 0.75, cy = y + fy * 0.75; let n = 0;
-      for (const p of this.plants) {
+      for (const p of this.nearPlants(x, y, 2.2)) {
         if (p.cut) continue;
         const r = p.thick ? 1.45 : 1.0;
         const d1 = Math.hypot(p.x - cx, p.y - cy), d0 = Math.hypot(p.x - x, p.y - y);
@@ -351,19 +809,14 @@
       }
       return n;
     }
-    /** Cambia la imagen de la planta a rastrojo (o de vuelta a la planta al rebrotar). */
+    /** Corta (o hace rebrotar) una planta y lo recuerda aunque el trozo se quite y vuelva. */
     setCut(p, cut) {
-      const at = this.view && this.view.atlas; if (!at) return;
-      const r = at.regions[cut ? p.id + '_c' : p.id]; if (!r) return;
-      const W = at.w || 512, H = at.h || 512, uv = this.zoneUV;
-      const p0 = (p.flip ? r.x + r.w : r.x) / W, p1 = (p.flip ? r.x : r.x + r.w) / W, g0 = r.y / H, g1 = (r.y + r.h) / H;
-      const SEG = p.seg || 5;
-      for (let row = 0; row <= SEG; row++) { const v = g0 + (g1 - g0) * row / SEG; uv.setXY(p.base + row * 2, p0, v); uv.setXY(p.base + row * 2 + 1, p1, v); }
-      uv.needsUpdate = true;
-      p.cut = cut;
-      if (cut) { p.regrowAt = performance.now() / 1000 + (p.thick ? this.cfg.regrow.thicket : this.cfg.regrow.grass) * (0.8 + Math.random() * 0.4); this.cuts++; this.stats.cuts = this.cuts; }
-      else p.hp = p.thick ? 3 : 1;
-      if (p.thick) { const t = this.thickets.find(q => q.x === p.x && q.y === p.y); if (t) t.cut = cut; }
+      const st = this.cuts0();
+      if (cut) {
+        st.set(p.key, performance.now() / 1000 + (p.thick ? this.cfg.regrow.thicket : this.cfg.regrow.grass) * (0.8 + Math.random() * 0.4));
+        this.cuts++;
+      } else { st.delete(p.key); p.hp = shapeOf(p.tpl).hp; }
+      this.look(p, cut);
     }
     fxMat(kind) {
       const v = this.view; this._fxm = this._fxm || {};
@@ -372,12 +825,12 @@
         : new THREE.MeshBasicMaterial({ color: new THREE.Color(kind) });
       return this._fxm[kind];
     }
-    /** Recortes de pasto que saltan al cortar. */
+    /** Recortes que saltan al cortar (con los colores de la especie). */
     burst(p, n) {
       const v = this.view, T = this.app.terrain; if (!v || !v.scene || !T) return;
       const z = T.surfaceAt(p.x, p.y); if (z !== z) return;
       this._chipGeo = this._chipGeo || new THREE.PlaneGeometry(2 / 16, 2 / 16);   // trocitos de 2 px
-      const cols = ['#6fb14b', '#a3d064', '#4b9440', '#337838'];
+      const col = colorsOf(p.sp), cols = [col.l, col.h, col.m, col.k].concat(p.sp.petals ? [p.sp.petals.a, p.sp.petals.b] : []);
       for (let i = 0; i < n && this.chips.length < 120; i++) {
         const m = new THREE.Mesh(this._chipGeo, this.fxMat(cols[i % cols.length])); m.renderOrder = 3;
         const a = Math.random() * Math.PI * 2, sp = 0.8 + Math.random() * 1.6;
@@ -388,8 +841,7 @@
     }
     /** Lo que suelta la planta: cae al suelo y se recoge al pasar cerca (va a la bolsa). */
     drop(p) {
-      const kind = p.id.replace(/\d+$/, ''), table = DROPS[kind]; if (!table) return;
-      for (const [mat, chance, count] of table) {
+      for (const [mat, chance, count] of dropsOf(p.sp, p.tpl)) {
         if (Math.random() > chance) continue;
         for (let k = 0; k < count; k++) this.spawnDrop(p.x, p.y, mat);
       }
@@ -425,10 +877,10 @@
         } else if (d.state === 'suelo') {
           d.h = 0.04 + Math.sin(d.t * 4) * 0.03;                       // flota apenas: se nota que se puede recoger
           if (Math.hypot(av.x - d.x, av.y - d.y) < this.cfg.pickup) d.state = 'va';
-          if (d.t > 90) { v.scene.remove(d.m); this.drops.splice(i, 1); continue; }
+          if (d.t > 90) { v.scene.remove(d.m); d.m.geometry.dispose(); this.drops.splice(i, 1); continue; }
         } else {                                                       // vuela hacia el personaje
           const k = Math.min(1, dt * 12); d.x += (av.x - d.x) * k; d.y += (av.y - d.y) * k; d.z += ((av.z || d.z) - d.z) * k; d.h += (0.6 - d.h) * k;
-          if (Math.hypot(av.x - d.x, av.y - d.y) < 0.2) { this.collect(d.mat); v.scene.remove(d.m); this.drops.splice(i, 1); continue; }
+          if (Math.hypot(av.x - d.x, av.y - d.y) < 0.2) { this.collect(d.mat); v.scene.remove(d.m); d.m.geometry.dispose(); this.drops.splice(i, 1); continue; }
         }
         d.m.position.set(d.x, d.z + d.half + d.h, d.y);
       }
@@ -441,27 +893,43 @@
       try { a.saves && a.saves.markDirty && a.saves.markDirty(); } catch (_) { /* nada */ }
       clearTimeout(this._gainT);
       this._gainT = setTimeout(() => {
-        const N = { fibra: 'fibra de pasto', semilla: 'semillas silvestres', cana: 'caña de matorral' };
-        const txt = Object.entries(this.gain).map(([k, n]) => '+' + n + ' ' + (N[k] || k)).join(' · ');
+        const txt = Object.entries(this.gain).map(([k, n]) => '+' + n + ' ' + (MAT_NAMES[k] || k)).join(' · ');
         this.gain = {};
         try { a.ui && a.ui.toast && a.ui.toast(txt + ' (en tu bolsa)', 'gold', 2600); if (a.audio) a.audio.play('click'); } catch (_) { /* nada */ }
         try { if (a.gearScreen && a.gearScreen.refresh) a.gearScreen.refresh(); } catch (_) { /* nada */ }
       }, 700);
     }
+
+    // ════ Preparación por mundo: shader, atlas y reparto ════
     setup(v) {
-      this.view = v; this.tagged = new WeakSet();
+      this.clearChunks();
+      this.view = v; this.tagged = new WeakSet(); this._regs = null; this._warm = false; this.atlasReady = false;
       const gl = this.app.pr && (this.app.pr.renderer || this.app.pr.r) && (this.app.pr.renderer || this.app.pr.r).getContext && (this.app.pr.renderer || this.app.pr.r).getContext();
       let vtf = true; try { vtf = !gl || gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS) > 0; } catch (_) { vtf = true; }
       this.vtf = vtf;
-      this.addSprites(v);
+      this.atlasReady = this.addSprites(v);
       this.mat = this.patch(v.terrainMat, vtf);
-      if (vtf) {
+      if (vtf && this.mat) {
         const N = this.cfg.cells; this.data = new Uint8Array(N * N * 4).fill(128);
         this.tex = new THREE.DataTexture(this.data, N, N, THREE.RGBAFormat);
         this.tex.magFilter = this.tex.minFilter = THREE.LinearFilter; this.tex.needsUpdate = true;
         this.mat.uniforms.uVegTex = { value: this.tex };
       }
-      this.buildZone(v);
+      const T = this.app.terrain;
+      this.field = T ? new Field(T, Object.assign({}, this.cfg.world, { exclude: this.exclusions(T) })) : null;
+      this.stats.biomes = T && T.biomes ? T.biomes.slice() : ['pradera'];
+    }
+    /** Lugares sin plantas: campamento, portales, faroles y el Santuario de la Corona. */
+    exclusions(T) {
+      const out = [];
+      for (const s of T.spawns || []) out.push({ x: s.x, y: s.y, r: 3.2 });
+      for (const p of T.portals || []) out.push({ x: p.x, y: p.y, r: 2.4 });
+      for (const l of T.lamps || []) out.push({ x: l.x, y: l.y, r: 0.9 });
+      try {
+        const k = root.__TM_REY_CONTROLLER__, c = k && k.findCenter && k.findCenter();
+        if (c && c.terrain === T) out.push({ x: c.x, y: c.y, r: 6.4 });
+      } catch (_) { /* sin santuario */ }
+      return out;
     }
     patch(m, vtf) {
       if (m.__tmVeg) return m;
@@ -479,26 +947,30 @@
       };
       return m;
     }
-    /** Regiones de vegetación del atlas → tipo (1 corto, 2 alto, 3 helecho, 4 flor, 5 arbusto). */
+    /** Regiones de plantas fijas del atlas: arbustos (se mecen) y matas/flores (se reemplazan por las vivas). */
     regions(v) {
       if (this._regs) return this._regs;
-      const at = v.atlas, W = at.w || 512, H = at.h || 512, out = [];
+      const at = v.atlas, W = at.w || 512, H = at.h || 512, out = [], hide = this.cfg.replaceMapPlants;
       for (const [k, r] of Object.entries(at.regions)) {
+        const map = /^tuft/.test(k) || /^flowers/.test(k);
         const amp = /^tuft/.test(k) ? 0.18 : /^flowers/.test(k) ? 0.1 : /^bush/.test(k) ? 0.05 : 0;
-        if (amp) out.push({ type: amp, len: r.h / 16, u0: r.x / W, v0: r.y / H, u1: (r.x + r.w) / W, v1: (r.y + r.h) / H });
+        if (amp) out.push({ type: amp, hide: hide && map, len: r.h / 16, u0: r.x / W, v0: r.y / H, u1: (r.x + r.w) / W, v1: (r.y + r.h) / H });
       }
       this._regs = out; return out;
     }
-    /** Marca cada vértice de planta: peso 1 arriba, 0 en la raíz (la raíz nunca se mueve). */
+    /** Marca cada vértice de planta del mapa: peso 1 arriba, 0 en la raíz. Las matas y flores fijas se ocultan. */
     tagGeometry(geo, regs, shift) {
       const uv = geo.attributes.uv, pos = geo.attributes.position; if (!uv || !pos) return 0;
-      const n = uv.count, out = new Float32Array(n * 4); let plants = 0;
+      const n = uv.count, out = new Float32Array(n * 4); let plants = 0, hidden = 0;
+      const at = this.view.atlas, W = at.w || 512, H = at.h || 512, hole = at.regions.tmVegHole;
+      const hu = hole ? (hole.x + hole.w / 2) / W : -1, hv = hole ? (hole.y + hole.h / 2) / H : -1;
       for (let i = 0; i < n; i++) {
-        let u = uv.getX(i), vv = uv.getY(i);
+        const u = uv.getX(i), vv = uv.getY(i);
         for (let pass = 0; pass < 2; pass++) {
           const uu = pass ? u - shift : u; if (pass && !shift) break;
           const r = regs.find(q => uu >= q.u0 - 1e-4 && uu <= q.u1 + 1e-4 && vv >= q.v0 - 1e-4 && vv <= q.v1 + 1e-4);
           if (!r) continue;
+          if (r.hide && hole) { uv.setXY(i, hu, hv); pos.setY(i, -500); hidden++; break; }   // fuera de cámara y transparente: no cuesta nada dibujarla
           const w = 1 - (vv - r.v0) / Math.max(1e-6, r.v1 - r.v0);
           const ph = (Math.sin(pos.getX(i) * 12.9898 + pos.getZ(i) * 78.233) * 43758.5453) % 1;
           out[i * 4] = Math.max(0, Math.min(1, w)); out[i * 4 + 1] = r.type; out[i * 4 + 2] = Math.abs(ph); out[i * 4 + 3] = r.len * Math.cbrt(Math.max(0, Math.min(1, w)));   // en el shader: pow(w, 2/3) · esto = w · largo
@@ -506,11 +978,12 @@
           break;
         }
       }
+      if (hidden) { uv.needsUpdate = true; pos.needsUpdate = true; this.stats.hidden += hidden / 4; }
       geo.setAttribute('aVeg', new THREE.BufferAttribute(out, 4));
       return plants;
     }
     tagChunks(v) {
-      const ch = v.chunks; if (!ch || !ch.live) return;
+      const ch = v.chunks; if (!ch || !ch.live || !this.mat) return;
       const regs = this.regions(v), shift = (this.mat.uniforms.uShiftB && this.mat.uniforms.uShiftB.value) || 0;
       for (const entry of ch.live.values()) for (const g of entry.geos) {
         if (this.tagged.has(g)) continue;
@@ -518,122 +991,31 @@
         this.stats.plants += this.tagGeometry(g, regs, shift);
       }
     }
-    /** Pinta pasto alto y helechos en la franja libre del atlas y los registra como regiones. */
-    addSprites(v) {
-      const at = v.atlas, img = v.atlasTex && v.atlasTex.image; if (!at || !img || !img.getContext) return;
-      let maxY = 0; for (const r of Object.values(at.regions)) maxY = Math.max(maxY, r.y + r.h);
-      let x = 2, y = maxY + 3; const g = img.getContext('2d');
-      for (const [id, w, h] of NEW_SPRITES) {
-        if (at.regions[id]) continue;
-        if (y + h > img.height) return;
-        g.clearRect(x, y, w, h); paintSprite(g, x, y, id);
-        at.regions[id] = { x, y, w, h };
-        x += w + 2;
-      }
-      // Rastrojo de cada planta (mismo tamaño: al cortar solo cambia la imagen) e íconos.
-      const extra = NEW_SPRITES.map(([id]) => [id + '_c', stubble(ART[id], /Matorral/.test(id) ? 5 : 2)])
-        .concat(Object.entries(ITEM_ART));
-      for (const [id, rows] of extra) {
-        if (at.regions[id]) continue;
-        const w = rows[0].length, h = rows.length;
-        if (x + w > img.width) { x = 2; y += 32; }
-        if (y + h > img.height) break;
-        g.clearRect(x, y, w, h); paintSprite(g, x, y, id, rows);
-        at.regions[id] = { x, y, w, h };
-        x += w + 2;
-      }
-      v.atlasTex.needsUpdate = true; this._regs = null;
-    }
     /**
-     * Zona controlada alrededor de la salida del valle: COLONIAS naturales (ruido
-     * determinista) con claros, bordes suaves y mezcla de especies; caminos y
-     * obstáculos despejados. Cada planta es un cuadro de 5 tramos: la flexión
-     * crece hacia la punta (curva), la raíz no se mueve.
+     * Pinta todas las especies, sus rastrojos y las semillas en la franja libre del atlas
+     * (solo la mitad izquierda cuando el piso tiene dos biomas) y deja un hueco transparente.
      */
-    buildZone(v) {
-      const a = this.app, T = a.terrain; if (!T || T.id !== 'valle-alba' || !v.scene) return;
-      const at = v.atlas, W = at.w || 512, H = at.h || 512, sp = (T.spawns && T.spawns[0]) || { x: T.w / 2, y: T.h / 2 };
-      const Z = this.cfg.zone, pts = [], pos = [], uvs = [], cols = [], vegs = [], idx = [];
-      const hash = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
-      // Ruido de valor suave (colonias de varios tamaños).
-      const vn = (x, y, sc) => {
-        const X = x / sc, Y = y / sc, xi = Math.floor(X), yi = Math.floor(Y), fx = X - xi, fy = Y - yi, sm = q => q * q * (3 - 2 * q);
-        const a00 = hash(xi, yi), a10 = hash(xi + 1, yi), a01 = hash(xi, yi + 1), a11 = hash(xi + 1, yi + 1);
-        return (a00 + (a10 - a00) * sm(fx)) + ((a01 + (a11 - a01) * sm(fx)) - (a00 + (a10 - a00) * sm(fx))) * sm(fy);
-      };
-      const nearDirt = (x, y) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const cx = Math.floor(x + dx * 0.8), cy = Math.floor(y + dy * 0.8); if (T.inBounds(cx, cy) && T.dirtAt && T.dirtAt(cx, cy)) return true; } return false; };
-      const free = (x, y) => !(T.obstacles || []).some(o => Math.abs(o.x - x) < (o.r || 0.3) + 0.6 && Math.abs(o.y - y) < (o.r || 0.3) + 0.6);
-      const pick = (list, r) => list[Math.floor(r * list.length) % list.length];
-      // Cada planta ocupa un rectángulo en pantalla; ninguna se dibuja encima de otra
-      // (antes se encimaban y parecían dos plantas pegadas).
-      const placed = [], M = 0.04, plants = [];
-      const box = (x, y, r) => ({ x0: x - r.w / 32 - M, x1: x + r.w / 32 + M, y0: y - r.h / 32 - M, y1: y + r.h / 32 + M });
-      const fits = b => !placed.some(q => b.x0 < q.x1 && q.x0 < b.x1 && b.y0 < q.y1 && q.y0 < b.y1);
-      let n = 0;
-      const emit = (x, y, id, thick) => {
-        const spr = NEW_SPRITES.find(q => q[0] === id), r = at.regions[id]; if (!spr || !r) return false;
-        const z = T.surfaceAt(x, y); if (z !== z) return false;
-        const bb = box(x, y, r); if (!fits(bb)) return false;
-        const flip = hash(x * 9.1, y) < 0.5, amp = spr[3] * (0.85 + hash(x, y * 3) * 0.3);
-        const l = z + 0.01, c = Math.round(x * 16) / 16, hh = l - Math.round((l - y) * 16) / 16, u = r.w / 32, f = r.h / 32;
-        const p0 = (flip ? r.x + r.w : r.x) / W, p1 = (flip ? r.x : r.x + r.w) / W, g0 = r.y / H, g1 = (r.y + r.h) / H;
-        const ph = hash(x * 2.3, y * 1.9) * 0.999 + 2 + (thick ? 4 : 0);  // +2 = de pie, +4 = matorral (el shader los distingue)
-        const base = pos.length / 3; pts.push({ x, y, id }); placed.push(bb);
-        plants.push({ id, x, y, base, flip, thick, seg: thick ? 5 : 2, hp: thick ? 3 : 1, cut: false, regrowAt: 0 });
-        const SEG = thick ? 5 : 2;                       // matorral: 5 tramos (doblez curvo); pasto corto: 2 bastan
-        for (let row = 0; row <= SEG; row++) {           // de la punta (atrás) a la raíz (adelante)
-          // De pie, mirando a la cámara (inclinada 45°): mismo tamaño en pantalla que una mata plana,
-          // pero con profundidad real: tapa a quien esté detrás y no a quien esté delante.
-          const tf = row / SEG, yy = l + (1 - tf) * 2 * f, zr = hh + f, vv = g0 + (g1 - g0) * tf, wgt = Math.pow(1 - tf, 1.5);
-          pos.push(c - u, yy, zr, c + u, yy, zr); uvs.push(p0, vv, p1, vv);
-          cols.push(1, 0, 0, 1, 0, 0); vegs.push(wgt, amp, ph, 2 * f, wgt, amp, ph, 2 * f);
-        }
-        for (let row = 0; row < SEG; row++) { const q = base + row * 2; idx.push(q, q + 2, q + 3, q, q + 3, q + 1); }
-        n++; return true;
-      };
-      const colony = (x, y) => vn(x, y, 3.2) * 0.65 + vn(x + 40, y - 17, 1.4) * 0.35;
-      // 1) Matorrales altos: pocos, en el corazón de las colonias y separados entre sí.
-      //    Son el escondite (refugio de animales y, más adelante, de acechadores).
-      const cand = [];
-      for (let j = -Z.radius; j <= Z.radius; j += 1.1) for (let i = -Z.radius; i <= Z.radius; i += 1.1) {
-        const d = Math.hypot(i, j); if (d < 6 || d > Z.radius - 2) continue;
-        const x = sp.x + i + (hash(i, j * 1.3) - 0.5) * 0.6, y = sp.y + j + (hash(j * 1.1, i) - 0.5) * 0.6, col = colony(x, y);
-        if (col >= Z.thicketMin) cand.push({ x, y, col });
+    addSprites(v) {
+      const at = v.atlas, img = v.atlasTex && v.atlasTex.image; if (!at || !img || !img.getContext) return false;
+      if (at.__tmFlora) return true;
+      const shift = (v.terrainMat && v.terrainMat.uniforms && v.terrainMat.uniforms.uShiftB && v.terrainMat.uniforms.uShiftB.value) || 0;
+      const limW = shift > 0 ? Math.floor(img.width * shift) : img.width;
+      let maxY = 0; for (const [k, r] of Object.entries(at.regions)) if (!/^(fl_|sem_|item|veg|tmVeg)/.test(k)) maxY = Math.max(maxY, r.y + r.h);
+      const g = img.getContext('2d'), list = spriteList().concat([['tmVegHole', ['....', '....', '....', '....'], {}]]);
+      // Estantes: los más altos primero, para aprovechar la franja.
+      list.sort((p, q) => q[1].length - p[1].length);
+      let x = 2, y = maxY + 3, shelf = 0, n = 0;
+      for (const [id, rows, col] of list) {
+        const w = rows[0].length, h = rows.length;
+        if (x + w > limW - 2) { x = 2; y += shelf + 2; shelf = 0; }
+        if (y + h > img.height - 1) { console.warn('Vegetación beta: el atlas no tiene sitio para', id); break; }
+        g.clearRect(x, y, w, h); paintSprite(g, x, y, rows, col);
+        at.regions[id] = { x, y, w, h };
+        x += w + 2; shelf = Math.max(shelf, h); n++;
       }
-      cand.sort((p, q) => q.col - p.col);
-      const thickets = [];
-      for (const t of cand) {
-        if (thickets.length >= Z.thickets) break;
-        if (thickets.some(o => Math.hypot(o.x - t.x, o.y - t.y) < Z.thicketGap)) continue;
-        const id = pick(['vegMatorral0', 'vegMatorral1'], hash(t.x, t.y)), r = at.regions[id]; if (!r) continue;
-        const half = r.w / 32 + 0.4;
-        if (!free(t.x, t.y) || !free(t.x - half, t.y) || !free(t.x + half, t.y) || nearDirt(t.x - half, t.y) || nearDirt(t.x + half, t.y) || nearDirt(t.x, t.y)) continue;
-        if (emit(t.x, t.y, id, true)) thickets.push({ x: t.x, y: t.y, r: r.w / 32, id });
-      }
-      // 2) Pasto corto (hojas hacia arriba) y algunas flores en colonias con claros.
-      for (let j = -Z.radius; j <= Z.radius && n < Z.max; j += Z.spacing) for (let i = -Z.radius; i <= Z.radius && n < Z.max; i += Z.spacing) {
-        const x = sp.x + i + (hash(i * 1.3, j) - 0.5) * Z.spacing * 0.9, y = sp.y + j + (hash(j, i * 1.7) - 0.5) * Z.spacing * 0.9;
-        const d = Math.hypot(i, j); if (d < 4 || d > Z.radius) continue;
-        const edge = 1 - Math.max(0, (d - Z.radius * 0.75) / (Z.radius * 0.25));      // se desvanece hacia afuera
-        const dens = (colony(x, y) - 0.4) / 0.3 * edge;
-        if (dens <= 0 || hash(x * 3.7, y * 2.9) > dens) continue;                     // claros y bordes suaves
-        if (!free(x, y) || nearDirt(x, y)) continue;
-        const r2 = hash(y * 5.1, x * 4.3);
-        const id = r2 < 0.86 ? pick(['vegCorta0', 'vegCorta1', 'vegCorta2', 'vegCorta3'], hash(x, y)) : pick(['vegFlor0', 'vegFlor1'], hash(x, x));
-        emit(x, y, id, false);
-      }
-      this.thickets = thickets; this.stats.thickets = thickets.length; this.plants = plants;
-      if (!n) return;
-      const vc = pos.length / 3, geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-      geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
-      geo.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(vc).fill(0).flatMap(() => [0, 1, 0]), 3));
-      geo.setAttribute('aMask', new THREE.Float32BufferAttribute(new Array(vc * 2).fill(-1), 2));
-      geo.setAttribute('aVeg', new THREE.Float32BufferAttribute(vegs, 4));
-      geo.setIndex(idx);
-      const mesh = new THREE.Mesh(geo, v.terrainMat); mesh.frustumCulled = false; mesh.name = 'vegetacion-zona';
-      v.scene.add(mesh); this.zone = mesh; this.zonePts = pts; this.tagged.add(geo); this.stats.zonePlants = n; this.zoneUV = geo.attributes.uv;
+      v.atlasTex.needsUpdate = true; this._regs = null; at.__tmFlora = true;
+      this.stats.sprites = n; this.stats.atlasUsedTo = y + shelf;
+      return n === list.length;
     }
   }
 
@@ -668,13 +1050,14 @@
         sim: v ? (v.sim.awake ? 'activa' : 'dormida') : '—',
         pasos_s: v && pv ? Math.round((cur.steps - pv.steps) / dt) : 0,
         subidas_s: v && pv ? Math.round((cur.up - pv.up) / dt) : 0,
-        plantas: v ? (st.zonePlants || 0) + ' + ' + st.plants : 0,
+        plantas: v ? (st.worldPlants || 0) + ' vivas en ' + (st.chunks || 0) + ' trozos · ' + st.hidden + ' fijas ocultas' : 0,
+        biomas: v && st.biomes ? st.biomes.join(' + ') : '—',
         texturas_en_vertices: v ? (v.vtf ? 'sí' : 'no') : '—',
         calidad: a.tier || '—'
       };
       // Compacta (2 líneas) para no tapar el juego; los datos completos quedan en window.__TM_VEG_TEL__.data.
       this.el.textContent = data.fps + ' FPS · ' + data.ms + ' ms (p95 ' + data.ms_p95 + ') · ' + data.calidad +
-        '\n' + (v ? 'hierba ' + data.sim + ' · ' + data.pasos_s + ' pasos/s · ' + data.subidas_s + ' subidas/s' : 'sin vegetación');
+        '\n' + (v ? 'hierba ' + data.sim + ' · ' + (st.worldPlants || 0) + ' plantas · ' + data.pasos_s + ' pasos/s' : 'sin vegetación');
     }
   }
 
