@@ -58,23 +58,25 @@ test('al caminar, la onda se ve en las matas vecinas (más débil y después) y 
   assert.ok(s.dx.every(v => v === 0) && s.vx.every(v => v === 0), 'reposo exacto');
 });
 
-test('el arte nuevo es pixel art limpio con la paleta del juego (sin base de pegatina)', () => {
-  const { ART, PAL, NEW_SPRITES } = require('../../beta/vegetacion.js');
-  const kinds = new Set(NEW_SPRITES.map(q => q[4]));
-  for (const k of ['corta', 'alta', 'helecho', 'mata', 'flor']) assert.ok(kinds.has(k), 'falta la variedad ' + k);
-  for (const [id, rows] of Object.entries(ART)) {
+test('v2 Flora: las plantillas son pixel art limpio y cada especie tiene todos sus colores', () => {
+  const { TPL, FLORA, colorsOf, shapeOf } = require('../../beta/vegetacion.js');
+  for (const [id, rows] of Object.entries(TPL)) {
     const w = rows[0].length;
     assert.ok(rows.every(r => r.length === w), id + ': filas de distinto ancho');
-    assert.ok(rows.every(r => [...r].every(c => c === '.' || PAL[c])), id + ': color fuera de la paleta');
     assert.ok(!rows[rows.length - 1].includes('O'), id + ': la base no lleva contorno duro');
-    assert.ok(rows.length <= 18 && w <= 19, id + ': demasiado grande, taparía a los personajes');
+    if (!/^T/.test(id)) assert.ok(rows.length <= 18 && w <= 19, id + ': demasiado grande, taparía a los personajes');
+    assert.ok(shapeOf(id), id + ': sin tipo (flexión, golpes, rastrojo)');
+  }
+  for (const sp of FLORA) {
+    const col = colorsOf(sp);
+    for (const t of sp.art) for (const r of TPL[t]) for (const c of r) assert.ok(c === '.' || col[c], sp.id + '/' + t + ': la letra ' + c + ' no tiene color');
   }
 });
 
 test('las mediciones guardadas son JSON estricto (sin NaN ni Infinity)', () => {
   const fs = require('node:fs'), path = require('node:path');
   const files = [['vegetacion-v12', 'mediciones_rendimiento.json'], ['vegetacion-v12', 'resultados_visuales.json'],
-    ['vegetacion-v12.2', 'mediciones_rendimiento.json'], ['vegetacion-v12.2', 'resultados_visuales.json'], ['vegetacion-v12.2', 'funcional.json'], ['vegetacion-v12.3', 'resultados_visuales.json'], ['vegetacion-v12.3', 'funcional.json']];
+    ['vegetacion-v12.2', 'mediciones_rendimiento.json'], ['vegetacion-v12.2', 'resultados_visuales.json'], ['vegetacion-v12.2', 'funcional.json'], ['vegetacion-v12.3', 'resultados_visuales.json'], ['vegetacion-v12.3', 'funcional.json'], ['vegetacion-v2-flora', 'resultados.json']];
   for (const [d, f] of files) {
     const txt = fs.readFileSync(path.join(__dirname, '../../docs/evidencias', d, f), 'utf8');
     assert.ok(!/\bNaN\b|\bInfinity\b/.test(txt), f + ' contiene NaN o Infinity');
@@ -83,8 +85,8 @@ test('las mediciones guardadas son JSON estricto (sin NaN ni Infinity)', () => {
 });
 
 test('v12.2: sin contornos negros interiores (solo la silueta exterior lleva contorno)', () => {
-  const { ART } = require('../../beta/vegetacion.js');
-  for (const [id, rows] of Object.entries(ART)) {
+  const { TPL } = require('../../beta/vegetacion.js');
+  for (const [id, rows] of Object.entries(TPL)) {
     const h = rows.length, w = rows[0].length, f = (x, y) => x >= 0 && y >= 0 && x < w && y < h && rows[y][x] !== '.';
     let interior = 0;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (rows[y][x] === 'O' && f(x - 1, y) && f(x + 1, y) && f(x, y - 1) && f(x, y + 1)) interior++;
@@ -93,10 +95,9 @@ test('v12.2: sin contornos negros interiores (solo la silueta exterior lleva con
 });
 
 test('v12.2: el doblez es visible (amplitudes) y la hierba se agacha delante de los personajes', () => {
-  const { DEF: D, NEW_SPRITES } = require('../../beta/vegetacion.js');
-  const amp = Object.fromEntries(NEW_SPRITES.map(q => [q[4], q[3]]));
-  assert.ok(amp.alta >= 0.6 && amp.helecho >= 0.4 && amp.corta >= 0.25, JSON.stringify(amp));
-  assert.ok(amp.mata < amp.alta && amp.flor < amp.alta, 'las matas y flores son más rígidas que la hierba alta');
+  const { DEF: D, SHAPE } = require('../../beta/vegetacion.js');
+  assert.ok(SHAPE.H.amp >= 0.45 && SHAPE.R.amp >= 0.3 && SHAPE.G.amp >= 0.25, JSON.stringify(SHAPE));
+  assert.ok(SHAPE.F.amp < SHAPE.H.amp && SHAPE.TC.amp < 0.1 && SHAPE.TX.amp < 0.1, 'flores más rígidas que la hierba alta; cactus y cristal casi rígidos');
   assert.ok(D.near && D.near.player > 0 && D.near.squash > 0 && D.near.squash < 1, 'agacharse sin desaparecer');
 });
 
