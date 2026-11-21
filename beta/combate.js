@@ -99,10 +99,108 @@
     { id: 'ceniza-ardiente', species: 'salamandra', name: 'Ceniza ardiente', glyph: '✺', kind: 'proyectil', col: C.fuego, dmg: 20, cd: 9, range: 7, speed: 11, r: 1.2, zone: 3, zdps: 6, art: 'fire', element: 'fuego',
       desc: 'Escupes una bola de ceniza que estalla y deja el suelo ardiendo un rato.' },
     { id: 'carronero', species: 'buitre', name: 'Carroñero', glyph: '♆', kind: 'aura', col: C.buitre, dmg: 0, cd: 20, dur: 10, leech: 0.2,
-      desc: 'Durante 10 s te curas con el 20 % del daño que haces.' }
+      desc: 'Durante 10 s te curas con el 20 % del daño que haces.' },
+    // ── Técnicas exclusivas de cada rol (se aprenden en el árbol, no con esencias) ──
+    { id: 'tormenta-acero', role: 'espadachin', name: 'Tormenta de acero', glyph: '✣', kind: 'tormenta', col: ['#5a4a2a', '#efbd69', '#fff2c8'], dmg: 14, cd: 9, r: 1.9, n: 3,
+      desc: 'Giras con la espada tres veces y golpeas a todos los que te rodean.' },
+    { id: 'lluvia-flechas', role: 'tirador', name: 'Lluvia de flechas', glyph: '⇊', kind: 'lluvia', col: ['#2a4a1a', '#9cd58f', '#e8ffd8'], dmg: 10, cd: 10, r: 1.9, range: 8, n: 8, art: 'arrow',
+      desc: 'Disparas al cielo y una lluvia de flechas cae alrededor de tu objetivo.' },
+    { id: 'meteoro', role: 'mago', name: 'Meteoro', glyph: '☄', kind: 'meteoro', col: C.fuego, dmg: 46, cd: 14, r: 1.9, range: 8, delay: 0.8, zone: 3, zdps: 7, element: 'fuego',
+      desc: 'Invocas un meteoro: cae sobre tu objetivo, golpea a todos alrededor y deja el suelo ardiendo.' },
+    { id: 'aura-sanadora', role: 'curandero', name: 'Aura sanadora', glyph: '✚', kind: 'santuario', col: ['#1f5a4a', '#8ce1ca', '#e8fff8'], dmg: 0, cd: 16, heal: 0.3, dur: 4, r: 4,
+      desc: 'Curas un 30 % de vida en 4 s a ti y, si eres quien hospeda la partida, a tus aliados cercanos.' },
+    { id: 'bastion', role: 'defensor', name: 'Bastión', glyph: '⛨', kind: 'bastion', col: ['#2a3a5a', '#9fc4e4', '#eef6ff'], dmg: 8, cd: 15, r: 5, dur: 5, armor: 0.4,
+      desc: 'Provocas a los enemigos cercanos para que te ataquen a ti y recibes un 40 % menos de daño durante 5 s.' },
+    { id: 'danza-cuchillas', role: 'asesino', name: 'Danza de cuchillas', glyph: '✧', kind: 'danza', col: ['#5a1a3a', '#f1a1bc', '#ffe0ec'], dmg: 18, cd: 11, range: 5, n: 4,
+      desc: 'Saltas de enemigo en enemigo hasta cuatro veces; cada tajo es un golpe crítico.' },
+    { id: 'manada-espectral', role: 'vinculador', name: 'Manada espectral', glyph: '❖', kind: 'manada', col: ['#4a3a1a', '#e1ce8c', '#fff6d0'], dmg: 8, cd: 16, r: 4.5, dur: 6, n: 12,
+      desc: 'Invocas lobos de luz que muerden a los enemigos cercanos durante 6 s.' }
   ].map(Object.freeze));
   const BY_ID = Object.freeze(Object.fromEntries(SKILLS.map(s => [s.id, s])));
-  const BY_SPECIES = Object.freeze(Object.fromEntries(SKILLS.map(s => [s.species, s])));
+  const BY_SPECIES = Object.freeze(Object.fromEntries(SKILLS.filter(s => s.species).map(s => [s.species, s])));
+  const TECH_OF = Object.freeze(Object.fromEntries(SKILLS.filter(s => s.role).map(s => [s.role, s])));
+
+  // ════ Árbol de habilidades por rol ════
+  function pc(v) { return (Math.round(v * 1000) / 10).toString().replace('.', ',') + ' %'; }
+  function fx1(v) { return (Math.round(v * 10) / 10).toString().replace('.', ','); }
+  /** Efectos (por rango): ícono y texto. */
+  const EFFECTS = Object.freeze({
+    dmg: ['⚔', v => `+${pc(v)} de daño`], melee: ['✕', v => `+${pc(v)} de daño cuerpo a cuerpo`], ranged: ['➶', v => `+${pc(v)} de daño a distancia`],
+    skillDmg: ['✦', v => `+${pc(v)} de daño de habilidades`], critC: ['◎', v => `+${pc(v)} de probabilidad de crítico`], critD: ['✸', v => `+${pc(v)} de daño crítico`],
+    cdr: ['⟳', v => `−${pc(v)} de recarga de habilidades`], leech: ['♥', v => `te curas el ${pc(v)} del daño que haces`], regen: ['✚', v => `recuperas ${fx1(v)} de vida por segundo`],
+    armor: ['⬡', v => `−${pc(v)} de daño recibido`], thorns: ['✷', v => `devuelves el ${pc(v)} del daño que recibes`], execute: ['☠', v => `+${pc(v)} de daño a enemigos con menos del 30 % de vida`],
+    firstHit: ['➹', v => `+${pc(v)} de daño al primer golpe a un enemigo sano`], counter: ['↺', v => `tras esquivar, tu siguiente golpe hace +${pc(v)}`],
+    comboKeep: ['⧗', v => `el combo aguanta ${fx1(v)} s más sin golpear`], killHeal: ['❤', v => `al vencer recuperas el ${pc(v)} de tu vida`],
+    killCdr: ['⏱', v => `al vencer, tus habilidades se recargan ${fx1(v)} s`], essence: ['◈', v => `+${pc(v)} de probabilidad de esencia`],
+    stunFinisher: ['✪', v => `tus remates aturden ${fx1(v)} s`], tech: ['★', () => 'aprendes la técnica exclusiva del rol']
+  });
+  const CAP = Object.freeze({ armor: 0.6, cdr: 0.45, critC: 0.5, leech: 0.25 });
+  const N = (id, name, eff, v, max) => Object.freeze({ id, name, eff, v, max });
+  const B = (id, name, nodes) => Object.freeze({ id, name, nodes: Object.freeze(nodes) });
+  /** Tres ramas por rol, cinco nodos por rama. La tercera empieza con la técnica exclusiva. */
+  const ROLES = Object.freeze({
+    espadachin: { name: 'Espadachín', branches: [
+      B('filo', 'Filo', [N('esp-a1', 'Filo templado', 'melee', 0.04, 3), N('esp-a2', 'Ojo del duelista', 'critC', 0.03, 3), N('esp-a3', 'Remate firme', 'stunFinisher', 0.6, 1), N('esp-a4', 'Corte profundo', 'critD', 0.12, 3), N('esp-a5', 'Juicio final', 'execute', 0.25, 1)]),
+      B('guardia', 'Guardia', [N('esp-b1', 'Postura', 'armor', 0.04, 3), N('esp-b2', 'Aliento', 'regen', 0.4, 3), N('esp-b3', 'Contragolpe', 'counter', 0.5, 1), N('esp-b4', 'Coraza viva', 'armor', 0.04, 3), N('esp-b5', 'Espinas de acero', 'thorns', 0.2, 1)]),
+      B('maestria', 'Maestría', [N('esp-c1', 'Tormenta de acero', 'tech', 1, 1), N('esp-c2', 'Ritmo', 'comboKeep', 0.5, 3), N('esp-c3', 'Sed de batalla', 'killCdr', 1, 1), N('esp-c4', 'Técnica pulida', 'skillDmg', 0.06, 3), N('esp-c5', 'Maestro de armas', 'dmg', 0.1, 1)])] },
+    tirador: { name: 'Arquero / pistolero', branches: [
+      B('punteria', 'Puntería', [N('tir-a1', 'Pulso firme', 'ranged', 0.04, 3), N('tir-a2', 'Ojo de halcón', 'critC', 0.03, 3), N('tir-a3', 'Primer disparo', 'firstHit', 0.35, 1), N('tir-a4', 'Punta afilada', 'critD', 0.12, 3), N('tir-a5', 'Tiro de gracia', 'execute', 0.3, 1)]),
+      B('movilidad', 'Movilidad', [N('tir-b1', 'Respiro', 'regen', 0.35, 3), N('tir-b2', 'Cuero curtido', 'armor', 0.03, 3), N('tir-b3', 'Disparo en retirada', 'counter', 0.45, 1), N('tir-b4', 'Sin pausa', 'comboKeep', 0.5, 3), N('tir-b5', 'Cazador nato', 'killCdr', 1.5, 1)]),
+      B('cazador', 'Cazador', [N('tir-c1', 'Lluvia de flechas', 'tech', 1, 1), N('tir-c2', 'Rastreador', 'essence', 0.08, 3), N('tir-c3', 'Botín', 'killHeal', 0.04, 1), N('tir-c4', 'Trampero', 'skillDmg', 0.06, 3), N('tir-c5', 'Leyenda del arco', 'ranged', 0.1, 1)])] },
+    mago: { name: 'Mago', branches: [
+      B('elementos', 'Elementos', [N('mag-a1', 'Chispa', 'skillDmg', 0.05, 3), N('mag-a2', 'Foco', 'critD', 0.12, 3), N('mag-a3', 'Combustión', 'execute', 0.25, 1), N('mag-a4', 'Canalizar', 'cdr', 0.05, 3), N('mag-a5', 'Archimago', 'dmg', 0.12, 1)]),
+      B('barrera', 'Barrera', [N('mag-b1', 'Escudo arcano', 'armor', 0.04, 3), N('mag-b2', 'Maná vital', 'regen', 0.4, 3), N('mag-b3', 'Reflejo', 'thorns', 0.15, 1), N('mag-b4', 'Sifón', 'leech', 0.02, 3), N('mag-b5', 'Égida', 'armor', 0.06, 1)]),
+      B('arcano', 'Arcano', [N('mag-c1', 'Meteoro', 'tech', 1, 1), N('mag-c2', 'Runas', 'cdr', 0.04, 3), N('mag-c3', 'Eco arcano', 'killCdr', 1.5, 1), N('mag-c4', 'Poder crudo', 'critC', 0.03, 3), N('mag-c5', 'Tormenta arcana', 'skillDmg', 0.12, 1)])] },
+    curandero: { name: 'Curandero', branches: [
+      B('luz', 'Luz', [N('cur-a1', 'Luz cálida', 'regen', 0.5, 3), N('cur-a2', 'Gracia', 'leech', 0.02, 3), N('cur-a3', 'Renacer', 'killHeal', 0.05, 1), N('cur-a4', 'Vigor', 'regen', 0.5, 3), N('cur-a5', 'Milagro', 'leech', 0.06, 1)]),
+      B('proteccion', 'Protección', [N('cur-b1', 'Velo', 'armor', 0.04, 3), N('cur-b2', 'Templanza', 'comboKeep', 0.5, 3), N('cur-b3', 'Castigo', 'thorns', 0.2, 1), N('cur-b4', 'Fe', 'armor', 0.04, 3), N('cur-b5', 'Paciencia', 'counter', 0.5, 1)]),
+      B('santuario', 'Santuario', [N('cur-c1', 'Aura sanadora', 'tech', 1, 1), N('cur-c2', 'Plegaria', 'cdr', 0.05, 3), N('cur-c3', 'Bendición', 'skillDmg', 0.1, 1), N('cur-c4', 'Devoción', 'critC', 0.02, 3), N('cur-c5', 'Santo', 'cdr', 0.1, 1)])] },
+    defensor: { name: 'Defensor / tanque', branches: [
+      B('muralla', 'Muralla', [N('def-a1', 'Placas', 'armor', 0.05, 3), N('def-a2', 'Tenacidad', 'regen', 0.5, 3), N('def-a3', 'Espinas', 'thorns', 0.15, 1), N('def-a4', 'Roca', 'armor', 0.04, 3), N('def-a5', 'Inquebrantable', 'thorns', 0.2, 1)]),
+      B('martillo', 'Martillo', [N('def-b1', 'Peso', 'melee', 0.05, 3), N('def-b2', 'Golpe sordo', 'critD', 0.1, 3), N('def-b3', 'Aplastar', 'stunFinisher', 0.8, 1), N('def-b4', 'Impacto', 'melee', 0.04, 3), N('def-b5', 'Derribar', 'execute', 0.2, 1)]),
+      B('bastion', 'Bastión', [N('def-c1', 'Bastión', 'tech', 1, 1), N('def-c2', 'Aguante', 'comboKeep', 0.5, 3), N('def-c3', 'Victoria', 'killHeal', 0.04, 1), N('def-c4', 'Disciplina', 'cdr', 0.05, 3), N('def-c5', 'Fortaleza', 'armor', 0.08, 1)])] },
+    asesino: { name: 'Asesino', branches: [
+      B('letalidad', 'Letalidad', [N('ase-a1', 'Punta envenenada', 'critC', 0.04, 3), N('ase-a2', 'Filo cruel', 'critD', 0.15, 3), N('ase-a3', 'Emboscada', 'firstHit', 0.5, 1), N('ase-a4', 'Precisión', 'critC', 0.03, 3), N('ase-a5', 'Ejecutor', 'execute', 0.35, 1)]),
+      B('sombras', 'Sombras', [N('ase-b1', 'Paso ligero', 'comboKeep', 0.6, 3), N('ase-b2', 'Sangría', 'leech', 0.02, 3), N('ase-b3', 'Desaparecer', 'counter', 0.6, 1), N('ase-b4', 'Cazador nocturno', 'killCdr', 0.7, 3), N('ase-b5', 'Frenesí', 'dmg', 0.1, 1)]),
+      B('danza', 'Danza', [N('ase-c1', 'Danza de cuchillas', 'tech', 1, 1), N('ase-c2', 'Gemelas', 'melee', 0.05, 3), N('ase-c3', 'Tajo vital', 'killHeal', 0.03, 1), N('ase-c4', 'Velocidad', 'cdr', 0.05, 3), N('ase-c5', 'Muerte silenciosa', 'critD', 0.3, 1)])] },
+    vinculador: { name: 'Invocador / domador', branches: [
+      B('vinculo', 'Vínculo', [N('vin-a1', 'Afinidad', 'skillDmg', 0.05, 3), N('vin-a2', 'Instinto', 'essence', 0.1, 3), N('vin-a3', 'Dominio', 'cdr', 0.1, 1), N('vin-a4', 'Comunión', 'skillDmg', 0.05, 3), N('vin-a5', 'Señor de bestias', 'essence', 0.25, 1)]),
+      B('espiritu', 'Espíritu', [N('vin-b1', 'Pelaje', 'armor', 0.04, 3), N('vin-b2', 'Savia', 'regen', 0.4, 3), N('vin-b3', 'Hambre', 'leech', 0.04, 1), N('vin-b4', 'Camada', 'killHeal', 0.02, 3), N('vin-b5', 'Tótem', 'armor', 0.06, 1)]),
+      B('manada', 'Manada', [N('vin-c1', 'Manada espectral', 'tech', 1, 1), N('vin-c2', 'Aullido interior', 'cdr', 0.04, 3), N('vin-c3', 'Presa', 'killCdr', 1, 1), N('vin-c4', 'Colmillos', 'critC', 0.03, 3), N('vin-c5', 'Alfa', 'skillDmg', 0.12, 1)])] }
+  });
+  const NODE = Object.freeze(Object.fromEntries(Object.entries(ROLES).flatMap(([r, R]) => R.branches.flatMap((b, bi) => b.nodes.map((n, ni) => [n.id, Object.freeze({ ...n, role: r, branch: bi, idx: ni })])))));
+  /** Ascensión: misma curva de experiencia que el motor (niveles 1 a 50). */
+  const xpFor = lv => { const e = Math.max(1, Math.min(50, Math.floor(lv))); return e <= 1 ? 0 : Math.round(34 * Math.pow(e - 1, 2.2) / 10) * 10; };
+  function levelFromXp(xp) { let t = 1; while (t < 50 && xp >= xpFor(t + 1)) t++; return t; }
+  /** Un punto por cada nivel después del primero. */
+  const pointsFor = lv => Math.max(0, Math.min(49, (lv | 0) - 1));
+  const spentOf = alloc => Object.values(alloc || {}).reduce((a, b) => a + (b | 0), 0);
+  const branchSpent = (role, alloc, bi) => ROLES[role].branches[bi].nodes.reduce((a, n) => a + ((alloc || {})[n.id] | 0), 0);
+  /** ¿Se puede subir este nodo? Pide un rango en el anterior de su rama, y 6 puntos en la rama para el último. */
+  function canRaise(role, alloc, id, level) {
+    const n = NODE[id]; if (!n || n.role !== role) return { ok: false, why: 'Ese nodo es de otro rol' };
+    const a = alloc || {}, cur = a[id] | 0;
+    if (cur >= n.max) return { ok: false, why: 'Ya está al máximo' };
+    if (spentOf(a) >= pointsFor(level)) return { ok: false, why: 'No te quedan puntos: sube de nivel' };
+    const br = ROLES[role].branches[n.branch].nodes;
+    if (n.idx > 0 && !(a[br[n.idx - 1].id] | 0)) return { ok: false, why: 'Primero aprende «' + br[n.idx - 1].name + '»' };
+    if (n.idx === 4 && branchSpent(role, a, n.branch) < 6) return { ok: false, why: 'Necesitas 6 puntos en esta rama' };
+    return { ok: true };
+  }
+  /** Efectos sumados del rol (con topes). */
+  function modsOf(role, alloc) {
+    const m = {}; for (const k of Object.keys(EFFECTS)) m[k] = 0;
+    for (const [id, r] of Object.entries(alloc || {})) { const n = NODE[id]; if (n && n.role === role) m[n.eff] += n.v * Math.min(n.max, r | 0); }
+    for (const [k, c] of Object.entries(CAP)) m[k] = Math.min(c, m[k]);
+    return m;
+  }
+  /** Nivel de la técnica: 1 + uno cada 2 puntos en el resto de su rama (máximo V). */
+  function techLevel(role, alloc) {
+    const R = ROLES[role]; if (!R) return 0;
+    const a = alloc || {};
+    if (!(a[R.branches[2].nodes[0].id] | 0)) return 0;
+    return Math.min(MAX_LV, 1 + Math.floor((branchSpent(role, a, 2) - 1) / 2));
+  }
 
   /** Golpe de impacto: tramos del contador de combo (golpes seguidos sin recibir daño). */
   const COMBO = Object.freeze({ window: 3, tiers: Object.freeze([[10, 0.05, '¡Buen ritmo!'], [25, 0.1, '¡Imparable!'], [50, 0.15, '¡Furia!'], [100, 0.25, '¡Leyenda!']]) });
@@ -120,7 +218,30 @@
     const slots = (Array.isArray(o.slots) ? o.slots : []).slice(0, SLOTS).map(k => okKey(k) && lv[k] ? k : null);
     while (slots.length < SLOTS) slots.push(null);
     if (slots[0] && slots[0] === slots[1]) slots[1] = null;
-    return { v: 1, ess, lv, slots };
+    const tal = {};
+    for (const [r, al] of Object.entries(o.tal && typeof o.tal === 'object' && !Array.isArray(o.tal) ? o.tal : {}).slice(0, 8)) {
+      if (!okKey(r) || !al || typeof al !== 'object' || Array.isArray(al)) continue;
+      const q = {}; for (const [k, v] of Object.entries(al).slice(0, 24)) if (okKey(k) && num(v, 0, 3) > 0) q[k] = num(v, 1, 3);
+      if (Object.keys(q).length) tal[r] = q;
+    }
+    return { v: 1, ess, lv, slots, tal };
+  }
+  /** Sube un nodo (si se puede) y mantiene al día la técnica del rol. */
+  function raise(save, role, id, level) {
+    const s = normalize(save), al = s.tal[role] || {}, c = canRaise(role, al, id, level);
+    if (!c.ok) return { save: s, ok: false, why: c.why };
+    al[id] = (al[id] | 0) + 1; s.tal[role] = al;
+    syncTech(s, role);
+    return { save: s, ok: true, node: NODE[id], rank: al[id] };
+  }
+  /** Devuelve los puntos del rol (sin costo) y quita su técnica de las ranuras. */
+  function resetRole(save, role) { const s = normalize(save); delete s.tal[role]; return syncTech(s, role); }
+  function syncTech(s, role) {
+    const t = TECH_OF[role]; if (!t) return s;
+    const lv = techLevel(role, s.tal[role]);
+    if (lv) { const had = !!s.lv[t.id]; s.lv[t.id] = lv; if (!had && !s.slots.includes(t.id)) { const i = s.slots.indexOf(null); if (i >= 0) s.slots[i] = t.id; } }
+    else { delete s.lv[t.id]; s.slots = s.slots.map(k => (k === t.id ? null : k)); }
+    return s;
   }
   /** Suma esencias de una especie. Devuelve qué cambió (aprendida, nivel nuevo, ranura). */
   function addEssence(save, species, n = 1) {
@@ -147,9 +268,36 @@
   /** Daño de una habilidad a nivel `lv` con el multiplicador de poder del personaje. */
   function skillDamage(sk, lv, power = 1) { return Math.max(1, Math.round(scale(sk, lv).dmg * power)); }
 
-  const API = { NEED, MAX_LV, SLOTS, ROMAN, DROP, SKILLS, BY_ID, BY_SPECIES, COMBO, CRIT, levelOf, scale, comboTier, critChance, normalize, addEssence, equip, skillDamage };
+  const API = { NEED, MAX_LV, SLOTS, ROMAN, DROP, SKILLS, BY_ID, BY_SPECIES, TECH_OF, COMBO, CRIT, levelOf, scale, comboTier, critChance, normalize, addEssence, equip, skillDamage,
+    ROLES, NODE, EFFECTS, CAP, xpFor, levelFromXp, pointsFor, spentOf, canRaise, modsOf, techLevel, raise, resetRole, syncTech };
   if (typeof module !== 'undefined' && module.exports) { module.exports = API; return; }
   if (!root.document) return;
+
+  /**
+   * Red compartida por los módulos beta (vegetación y combate): eventos propios («x…»)
+   * por la misma cola de eventos fiable que usa el motor (se reenvían hasta que llegan).
+   * Un solo envoltorio por sesión aunque ambos módulos estén activos.
+   */
+  function tmNet() {
+    if (root.__TM_NET__) return root.__TM_NET__;
+    const H = new Map();
+    root.__TM_NET__ = {
+      on(type, fn) { H.set(type, fn); },
+      attach(s) {
+        if (!s || s.__tmNet || typeof s._onEvent !== 'function') return;
+        s.__tmNet = true;
+        const orig = s._onEvent;
+        s._onEvent = function (e, t) {
+          const fn = Array.isArray(t) && typeof t[0] === 'string' && t[0][0] === 'x' ? H.get(t[0]) : null;
+          if (fn) { try { fn(e, t, s); } catch (er) { console.error('Red beta:', er); } return undefined; }
+          return orig.apply(this, arguments);
+        };
+      },
+      send(s, arr) { if (!s || !s.channel || !s.outbox || typeof s.outbox.push !== 'function') return false; s.outbox.push(arr); return true; },
+      online(s) { return !!(s && s.channel); }
+    };
+    return root.__TM_NET__;
+  }
 
   // ════════════════════════════════════════════════════════════════════
   // 2. Pixel art de los efectos (dibujado por código, en caché)
@@ -185,6 +333,9 @@
     mound(col) { return tex('mound' + col, 12, 5, g => { const R = ['....ll......', '..llmml.l...', '.lmmmmmmml..', 'lmmdmmdmmml.', 'dddddddddddd']; R.forEach((r, y) => [...r].forEach((c, x) => { if (c !== '.') px(g, x, y, c === 'd' ? col[0] : c === 'm' ? col[1] : col[2]); })); }); },
     note(col) { return tex('note' + col, 6, 8, g => { const R = ['...ll.', '...lml', '...l.m', '...l..', '...l..', '.mml..', 'mllm..', '.mm...']; R.forEach((r, y) => [...r].forEach((c, x) => { if (c !== '.') px(g, x, y, c === 'm' ? col[1] : col[2]); })); }); },
     star(col) { return tex('star' + col, 7, 7, g => { const R = ['...l...', '...l...', '..lml..', 'llmwmll', '..lml..', '...l...', '...l...']; R.forEach((r, y) => [...r].forEach((c, x) => { if (c !== '.') px(g, x, y, c === 'w' ? '#fff' : c === 'm' ? col[2] : col[1]); })); }); },
+    arrow(col) { return tex('arrow' + col, 3, 11, g => { for (let y = 0; y < 9; y++) px(g, 1, y, col[1]); px(g, 0, 0, col[2]); px(g, 2, 0, col[2]); px(g, 0, 1, col[2]); px(g, 2, 1, col[2]); px(g, 1, 9, '#e8e8e8'); px(g, 0, 8, '#c8c8c8'); px(g, 2, 8, '#c8c8c8'); px(g, 1, 10, '#ffffff'); }); },
+    wolf(col) { return tex('wolf' + col, 14, 9, g => { const R = ['.l.l..........', '.lml..........', 'lmwmlllll.....', 'mmmmmmmmmll...', '.mmdmmmmmmmml.', '..mmmmmmmmm.ll', '..m.m...m.m...', '..m.m...m.m...', '.dd.dd.dd.dd..']; R.forEach((r, y) => [...r].forEach((c, x) => { if (c !== '.') px(g, x, y, c === 'd' ? col[0] : c === 'm' ? col[1] : c === 'w' ? '#ffffff' : col[2]); })); }); },
+    meteor(col) { return tex('meteor' + col, 15, 15, g => { for (let y = 0; y < 15; y++) for (let x = 0; x < 15; x++) { const d = Math.hypot(x - 9, y - 9); if (d <= 5.2) px(g, x, y, d < 2 ? col[2] : d < 3.6 ? col[1] : col[0]); else if (x + y < 13 && Math.abs(x - y) < 3 && (x + y) % 2 === 0) px(g, x, y, col[1]); } }); },
     bird(col) { return tex('bird' + col, 13, 9, g => { const R = ['l...........l', 'ml.........lm', '.mll.....llm.', '..mmll.llmm..', '...dmmmmmd...', '....dmwmd....', '.....dmd.....', '......d......', '.............']; R.forEach((r, y) => [...r].forEach((c, x) => { if (c !== '.') px(g, x, y, c === 'd' ? col[0] : c === 'm' ? col[1] : c === 'w' ? '#fff' : col[2]); })); }); }
   };
 
@@ -204,7 +355,7 @@
   #tm-skills .tm-sk.is-empty .glyph{color:var(--dim)}
   #tm-skills .tm-sk.is-ready{box-shadow:inset 0 0 0 2px var(--gold),0 0 10px rgba(242,212,94,.45),0 3px 0 rgba(0,0,0,.5)}
   #tm-skills .tm-sk.is-cast{transform:scale(.92)}
-  #tm-skills .tm-sk-more{pointer-events:auto;justify-self:center;width:30px;height:30px;border-radius:50%;border:2px solid var(--edge);background:rgba(14,17,24,.86);color:var(--gold);font:14px/1 var(--font-label);display:grid;place-items:center;cursor:pointer;padding:0;touch-action:manipulation}
+  #tm-skills .tm-sk-more{position:relative;pointer-events:auto;justify-self:center;width:30px;height:30px;border-radius:50%;border:2px solid var(--edge);background:rgba(14,17,24,.86);color:var(--gold);font:14px/1 var(--font-label);display:grid;place-items:center;cursor:pointer;padding:0;touch-action:manipulation}
   #tm-combo{position:fixed;right:calc(env(safe-area-inset-right,0px) + 14px);top:30%;z-index:29;text-align:right;pointer-events:none;font-family:var(--font-label);color:var(--gold);text-shadow:0 2px 0 #000,0 0 6px rgba(0,0,0,.8);transition:opacity .25s}
   #tm-combo[hidden]{display:none}
   #tm-combo b{display:block;font-size:26px;line-height:1;letter-spacing:.04em}
@@ -238,8 +389,34 @@
   #tm-skill-panel .tsk-row .tx i b{display:block;height:100%;background:var(--gold)}
   #tm-skill-panel .tsk-row .btn{min-height:36px;padding:4px 10px;font-size:12px}
   #tm-skill-panel .tsk-tabs{display:flex;gap:6px}
+  #tm-skills .tm-sk-more b{position:absolute;top:-7px;right:-9px;min-width:15px;height:15px;border-radius:8px;background:#e05a2a;color:#fff;font:9px/15px var(--font-label);padding:0 3px}
+  #tm-skills .tm-sk-more b:empty{display:none}
+  #tm-skills .tm-sk-more.has-pts{border-color:var(--gold);box-shadow:0 0 8px rgba(242,212,94,.6)}
+  #tm-skill-panel .tsk-tree{display:flex;flex-direction:column;gap:8px;overflow:auto;min-height:0}
+  #tm-skill-panel .tsk-info{display:flex;align-items:center;gap:8px;font-size:12px}
+  #tm-skill-panel .tsk-info b{flex:1;font-family:var(--font-label);color:var(--parchment);letter-spacing:.06em}
+  #tm-skill-panel .tsk-info .pts{color:var(--gold)}
+  #tm-skill-panel .tsk-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  #tm-skill-panel .tsk-col{display:flex;flex-direction:column;align-items:center;gap:0;padding:4px 2px 6px;border:2px solid var(--edge);background:rgba(14,17,24,.7)}
+  #tm-skill-panel .tsk-col h4{margin:2px 0 6px;font:10px/1.2 var(--font-label);letter-spacing:.12em;color:var(--gold)}
+  #tm-skill-panel .tsk-col small{font-size:9px;color:var(--dim);margin-bottom:4px}
+  #tm-skill-panel .tsk-node{position:relative;width:46px;height:46px;border:2px solid var(--edge);background:var(--night);color:var(--dim);display:grid;place-items:center;font-size:18px;cursor:pointer;padding:0;touch-action:manipulation}
+  #tm-skill-panel .tsk-node+.tsk-link{width:2px;height:10px;background:var(--edge)}
+  #tm-skill-panel .tsk-node.can{border-color:var(--gold);color:var(--parchment);box-shadow:0 0 6px rgba(242,212,94,.45)}
+  #tm-skill-panel .tsk-node.has{color:var(--gold);background:var(--slate-3)}
+  #tm-skill-panel .tsk-node.max{background:var(--gold-deep);color:#fff8d0;border-color:var(--gold)}
+  #tm-skill-panel .tsk-node.sel{outline:2px solid var(--crystal);outline-offset:2px}
+  #tm-skill-panel .tsk-node.tech{border-radius:50%}
+  #tm-skill-panel .tsk-node i{position:absolute;right:-2px;bottom:-2px;font:8px/11px var(--font-label);font-style:normal;background:#0e1118;color:var(--parchment);padding:0 2px}
+  #tm-skill-panel .tsk-detail{border:2px solid var(--edge);background:var(--night);padding:8px;display:grid;gap:6px;font-size:12px;line-height:1.35}
+  #tm-skill-panel .tsk-detail b{font-family:var(--font-label);color:var(--gold)}
+  #tm-skill-panel .tsk-detail .why{color:#ff9f9f}
+  #tm-skill-panel .tsk-detail .row{display:flex;gap:6px}
+  #tm-skill-panel .tsk-detail .row .btn{flex:1;min-height:38px;font-size:12px}
   #tm-skill-panel .tsk-tabs .btn{flex:1;min-height:36px;font-size:12px}
   `;
+
+  const branchSpentUi = (role, al, bi) => ROLES[role].branches[bi].nodes.reduce((a, n) => a + ((al || {})[n.id] | 0), 0);
 
   class Combat {
     constructor(app) {
@@ -249,6 +426,17 @@
       this.combo = 0; this.comboT = 0; this.bestCombo = 0; this.stopT = 0; this.shakeT = 0; this.shakeAmp = 0; this.lastHp = null;
       this.rng = Math.random; this.stats = { casts: 0, hits: 0, crits: 0, essences: 0, learned: 0, rejected: 0, maxCombo: 0 };
       this.panelSlot = 0; this.panelTab = 'mias';
+      // Cooperativo: versión de cada jugador, datos defensivos de los invitados (los usa el anfitrión) y curación pendiente.
+      this.net = tmNet(); this.peerV = new Map(); this.remote = new Map(); this.healOut = 0; this._healT = 0; this._xmT = 0; this._xmSig = '';
+      const N = this.net;
+      N.on('xv', (e, t) => { if (e && e.pid) { this.peerV.set(e.pid, t[1] | 0); if (!t[2]) this.hello(true); } });
+      N.on('xs', (e, t, s) => this.onRemoteCast(e, t, s));
+      N.on('xk', (e, t, s) => this.onRemoteHit(e, t, s));
+      N.on('xm', (e, t, s) => this.onRemoteMods(e, t, s));
+      N.on('xh', (e, t, s) => this.onRemoteHeal(e, t, s));
+      N.on('xa', (e, t, s) => this.onRemoteAura(e, t, s));
+      N.on('xt', (e, t, s) => this.onRemoteTaunt(e, t, s));
+      N.on('xd', (e, t) => { if (e && e.pid) { const r = this.rec(e.pid); r.moveUntil = this.clock() + 1.6; r.moveMax = Math.max(0, Math.min(8, (+t[1] || 0) / 10)); } });
       this.ui(); this.hook();
       root.__TM_COMBAT__ = this;
     }
@@ -299,6 +487,9 @@
       if (a.bus && a.bus.on) {
         a.bus.on('combat:kill', e => { try { self.onKill(e); } catch (er) { self.fail(er); } });
         a.bus.on('elite:down', e => { try { if (e && e.self) self.essence(e.species, DROP.elite, null); } catch (er) { self.fail(er); } });
+        a.bus.on('combat:dodge', e => { if (e && e.self && self.mods().counter) self.counterUntil = self.clock() + 2.5; });
+        a.bus.on('asc:levelup', e => { try { if (e && e.self) self.onLevel(e.lv); } catch (er) { self.fail(er); } });
+        a.bus.on('net:player-seen', () => { try { self.hello(false); self._xmT = 0; } catch (er) { self.fail(er); } });
       }
       root.addEventListener('keydown', e => {
         if (e.repeat || this.app.mode !== 'game') return;
@@ -318,6 +509,23 @@
     attach(s) {
       this.session = s; this.queue.length = 0; this.later.length = 0; this.dots.length = 0; this.zones.length = 0;
       this.slows.clear(); this.roots.clear(); this.pos.clear(); this.combo = 0; this.lastHp = null; this.buff = null;
+      this.peerV.clear(); this.remote.clear(); this.healOut = 0; this._xmSig = '';
+      if (s) { this.net.attach(s); this.hello(false); }
+      if (s && s.channel && typeof s._validateRemote === 'function' && !s.__tmMove) {
+        // Cargas, saltos e ilusiones de otro jugador: el motor los vería como «movimiento imposible».
+        // Si el jugador los anunció (evento «xd»), se aceptan dentro de su alcance y sobre suelo válido.
+        s.__tmMove = true;
+        const self = this, orig = s._validateRemote;
+        s._validateRemote = function (e, t) {
+          if (orig.apply(this, arguments)) return true;
+          try {
+            const r = e && self.remote.get(e.pid), lv = e && e.lastValid;
+            if (!r || !lv || !(r.moveUntil > self.clock())) return false;
+            const z = this.terrain.surfaceAt(t.x, t.y);
+            return z === z && Math.abs(z - t.z) <= 0.12 && Math.hypot(t.x - lv.x, t.y - lv.y) <= r.moveMax + 0.35;
+          } catch (_) { return false; }
+        };
+      }
       if (!s || !s.combat) return;
       const self = this, cb = s.combat;
       if (!cb.__tmCombat) {
@@ -334,10 +542,154 @@
           const before = self.slows.size || self.roots.size ? self.snapshot(w) : null;
           const r = ws.apply(w, arguments);
           try { if (before) self.applySlow(w, before); } catch (e) { self.fail(e); }
+          try { if (Array.isArray(r) && r.length) self.onHurt(r); } catch (e) { self.fail(e); }
           return r;
         };
         w.__tmCombat = true;
       }
+    }
+    /** Golpes que recibe tu personaje: armadura del árbol, Bastión y espinas. */
+    onHurt(list) {
+      const s = this.session, pid = s && s.self && s.self.pid; if (!pid) return;
+      const M = this.mods(), t = this.clock();
+      const armor = Math.min(0.75, M.armor + (this.guard && this.guard.until > t ? this.guard.armor : 0));
+      for (const h of list) {
+        if (h.pid !== pid && h.dmg > 0 && typeof h.pid === 'string') {   // invitados: armadura, Bastión y espinas que nos informaron
+          const r = this.remote.get(h.pid); if (!r) continue;
+          const ar = Math.min(0.75, r.armor + (r.guardUntil > t ? r.guard : 0)), raw = h.dmg;
+          if (ar > 0) h.dmg = Math.max(1, Math.round(raw * (1 - ar)));
+          if (r.thorns && h.id && s.world) { const w = s.world.entities.find(q => q.id === h.id && !q.dead); const pl = s.players && s.players.get(h.pid); if (w && pl && pl.lastValid) s.world.applyHit(w.id, w.gen, Math.max(1, Math.round(raw * r.thorns)), h.pid, pl.lastValid.x, pl.lastValid.y, { ranged: true }); }
+          continue;
+        }
+        if (h.pid !== pid || !(h.dmg > 0)) continue;
+        const raw = h.dmg;
+        if (armor > 0) h.dmg = Math.max(1, Math.round(raw * (1 - armor)));
+        if (M.thorns && h.id) { const e = this.enemy(h.id); if (e) { this.hit(e, Math.max(1, raw * M.thorns), { noCrit: true, dot: true, reflect: true }); this.spark(e.x, e.y, e.z, ['#3a2a10', '#e0b050', '#fff0c0'], 4); } }
+      }
+    }
+    // ════ Cooperativo ════
+    /** ¿El anfitrión de esta sala tiene el combate nuevo? (si no, se usa el camino viejo con tope). */
+    hostOk() { const s = this.session; return !!(s && (s.isHost || (this.peerV.get(s.hostPid) | 0) >= 2)); }
+    hello(reply) { const s = this.session; if (this.net.online(s)) this.net.send(s, ['xv', 2, reply ? 1 : 0]); }
+    /** Golpe del invitado: lo valida y lo aplica el anfitrión; aquí se ve al instante. */
+    sendHit(q, dmg, ctl, feedback) {
+      const s = this.session;
+      this.net.send(s, ['xk', q.id, (q.gen | 0) & 255, Math.min(9999, dmg | 0), ctl ? Math.round((ctl.stun || 0) * 10) : 0, ctl ? Math.round((ctl.root || 0) * 10) : 0, ctl ? Math.round((ctl.slowT || 0) * 10) : 0]);
+      const b = s._seenFoes && s._seenFoes.get(q.id); if (b) { b.mineAt = s.now(); b.flash = s.now() + 110; }
+      if (s._pendingDmg) s._pendingDmg.set(q.id, (s._pendingDmg.get(q.id) || 0) + dmg);
+      const av = s.avatar;
+      // El daño extra de un golpe del arma no muestra un número aparte (el motor ya muestra el golpe).
+      if (feedback) try { s._fx({ k: 'num', x: q.x, y: q.y, z: q.z || 0, v: dmg, own: true, side: av && q.x >= av.x ? 1 : -1, id: q.id }); s._fx({ k: 'spark', element: null, x: q.x, y: q.y, z: q.z || 0, small: !!q.splash, id: q.id }); } catch (_) { /* nada */ }
+      this.stats.sentHits = (this.stats.sentHits || 0) + 1;
+    }
+    rec(pid) { let r = this.remote.get(pid); if (!r) { r = { armor: 0, thorns: 0, guard: 0, guardUntil: 0, tok: 24, tokAt: this.clock(), heal: 0, healAt: this.clock(), auraAt: 0, tauntAt: 0 }; this.remote.set(pid, r); } return r; }
+    validSender(e, s) { return !!(s && s.isHost && s.world && e && e.pid && s.roster.some(r => r.pid === e.pid) && e.lastValid && !(s.isDown && s.isDown(e.pid)) && (!s._sameMap || s._sameMap(e))); }
+    /** Anfitrión: golpe de habilidad (o daño extra del árbol) de un invitado. */
+    onRemoteHit(e, t, s) {
+      if (!this.validSender(e, s)) return;
+      const [, id, gen, dmg, stun, root, slow] = t;
+      if (![id, gen, dmg].every(Number.isInteger) || dmg < 1) return;
+      const lvl = s.levelOf ? s.levelOf(e.pid) : 1, cap = Math.ceil(260 * (1 + 0.02 * (Math.max(1, lvl) - 1)));
+      if (dmg > cap) { this.stats.remoteRejected = (this.stats.remoteRejected || 0) + 1; return; }
+      const w = s.world.entities.find(q => q.id === id); if (!w || w.dead || w.ally || w.hidden || w.high || (w.gen & 255) !== (gen & 255)) return;
+      const lv = e.lastValid; if (Math.hypot(w.x - lv.x, w.y - lv.y) > 12) { this.stats.remoteRejected = (this.stats.remoteRejected || 0) + 1; return; }
+      const r = this.rec(e.pid), now = this.clock(); r.tok = Math.min(24, r.tok + (now - r.tokAt) * 24); r.tokAt = now;
+      if (r.tok < 1) return; r.tok -= 1;
+      const res = s.world.applyHit(id, gen, dmg, e.pid, lv.x, lv.y, { ranged: true });
+      if (!res || !res.ok || res.killed) return;
+      const k = (v, max) => Math.max(0, Math.min(max, (v | 0) / 10));
+      const st = k(stun, 1.5), ro = k(root, 3), sl = k(slow, 4);
+      if (st) { w.atk = 0; w.atkT = 0; w.moving = false; w.vx = w.vy = 0; w.stagger = Math.max(w.stagger || 0, st); }
+      if (ro) this.roots.set(w.id, Math.max(this.roots.get(w.id) || 0, now + ro));
+      if (sl) this.slow(w, 0.45, sl);
+      this.stats.remoteHits = (this.stats.remoteHits || 0) + 1;
+    }
+    onRemoteMods(e, t, s) {
+      if (!s || !s.isHost || !e || !e.pid) return;
+      const r = this.rec(e.pid), c = (v, max) => Math.max(0, Math.min(max, (+v || 0) / 100));
+      r.armor = c(t[1], CAP.armor); r.thorns = c(t[2], 0.4); r.guard = c(t[3], 0.6);
+      r.guardUntil = r.guard ? this.clock() + Math.max(0, Math.min(8, (+t[4] || 0) / 10)) : 0;
+    }
+    /** Anfitrión: curación de un invitado (robo de vida, canto, regeneración…), con tope por segundo. */
+    onRemoteHeal(e, t, s) {
+      if (!this.validSender(e, s)) return;
+      const v = s.vitals && s.vitals.get(e.pid); if (!v || !(v.hp > 0) || !v.maxHp) return;
+      const r = this.rec(e.pid), now = this.clock();
+      r.heal = Math.min(v.maxHp * 0.25, r.heal + (now - r.healAt) * v.maxHp * 0.25); r.healAt = now;
+      const n = Math.min(r.heal, Math.max(0, (+t[1] || 0) / 10)); if (!(n > 0)) return;
+      r.heal -= n; v.hp = Math.min(v.maxHp, v.hp + n);
+      this.stats.remoteHeals = (this.stats.remoteHeals || 0) + 1;
+    }
+    /** Anfitrión: Aura sanadora de un invitado (cura a los aliados que tiene cerca). */
+    onRemoteAura(e, t, s) {
+      if (!this.validSender(e, s)) return;
+      const r = this.rec(e.pid), now = this.clock(); if (now - r.auraAt < 6) return; r.auraAt = now;
+      const frac = Math.max(0, Math.min(0.5, (+t[1] || 0) / 100)), rad = Math.max(0, Math.min(6, (+t[2] || 0) / 10)), o = e.lastValid;
+      for (const [pid, v] of s.vitals || []) {
+        if (pid === e.pid || !v || !(v.hp > 0)) continue;
+        const pos = pid === s.self.pid ? s.avatar : s.players.get(pid) && s.players.get(pid).lastValid;
+        if (pos && Math.hypot(pos.x - o.x, pos.y - o.y) <= rad) { v.hp = Math.min(v.maxHp, v.hp + v.maxHp * frac); if (pid === s.self.pid) this.float(pos.x, pos.y, pos.z, '+' + Math.round(v.maxHp * frac), '#8ce1ca', 12, 0.9, 1.1); }
+      }
+    }
+    /** Anfitrión: Bastión de un invitado (los enemigos cercanos van por él). */
+    onRemoteTaunt(e, t, s) {
+      if (!this.validSender(e, s)) return;
+      const r = this.rec(e.pid), now = this.clock(); if (now - r.tauntAt < 6) return; r.tauntAt = now;
+      const rad = Math.max(0, Math.min(6, (+t[1] || 0) / 10)), o = e.lastValid;
+      for (const w of s.world.entities) {
+        if (w.dead || w.ally || Math.hypot(w.x - o.x, w.y - o.y) > rad) continue;
+        w.ag = e.pid; w.agT = 0; if (w.threat && w.threat.set) w.threat.set(e.pid, (w.threat.get(e.pid) || 0) + 999);
+      }
+    }
+    /** Habilidad lanzada por otro jugador: solo los efectos visuales (el daño ya lo resuelve el anfitrión). */
+    onRemoteCast(e, t, s) {
+      if (!e || !s || (s._sameMap && !s._sameMap(e))) return;
+      const sk = SKILLS[t[1] | 0]; if (!sk) return;
+      const n = v => (Number.isFinite(+v) ? +v / 10 : NaN), fx0 = n(t[3]), fy0 = n(t[4]), tx = n(t[5]), ty = n(t[6]);
+      if (![fx0, fy0, tx, ty].every(Number.isFinite)) return;
+      this.ghostCast(sk, fx0, fy0, tx, ty, t[7] | 0);
+      this.stats.remoteCasts = (this.stats.remoteCasts || 0) + 1;
+    }
+    ghostCast(sk, fx0, fy0, tx, ty, tid) {
+      const T = this.app.terrain; if (!T || !this.scene()) return;
+      const z0 = T.surfaceAt(fx0, fy0), zt = T.surfaceAt(tx, ty); if (z0 !== z0) return;
+      const Z = zt === zt ? zt : z0, tgt = (tid && this.enemy(tid)) || { id: -1, x: tx, y: ty, z: Z }, col = sk.col;
+      switch (sk.kind) {
+        case 'golpe': this.spark(tx, ty, Z, col, 10); this.ring(tx, ty, Z, 0.9, col, 0.25); break;
+        case 'proyectil': this.projectile(fx0, fy0, z0 + 0.7, tgt, sk.speed, sk.art === 'fire' ? ART.fire(col) : ART.sting(col), col, () => {
+          const e = this.enemy(tgt.id) || tgt; this.spark(e.x, e.y, e.z, col, 8);
+          if (sk.r) this.ring(e.x, e.y, e.z, sk.r, col, 0.35);
+          if (sk.zone) this.zoneAt(e.x, e.y, e.z || 0, sk.r, sk.zone, 0, 0, sk, 'fire', false, true);
+        }); break;
+        case 'carga': for (let i = 0; i < 8; i++) this.at(i * 0.05, () => { const k = i / 7; this.ghost(fx0 + (tx - fx0) * k, fy0 + (ty - fy0) * k, z0, col, 0.25); }); break;
+        case 'salto': this.markAt(tx, ty, Z, sk.r, col, 0.37); this.at(0.32, () => { this.ring(tx, ty, Z, sk.r, col, 0.35); this.spark(tx, ty, Z, col, 12); this.puffs(tx, ty, Z, col, 5, sk.r * 0.7, 0.6); }); break;
+        case 'enjambre': for (let i = 0; i < 6; i++) this.at(i * 0.12, () => { const e = this.enemy(tgt.id) || tgt; this.projectile(fx0, fy0, z0 + 0.6, e, 14, ART.drop(col), col, () => this.spark(e.x, e.y, e.z, col, 3), 0.6); }); break;
+        case 'picado': this.markAt(tx, ty, Z, sk.r, col, sk.delay + 0.1, tid || null); this.dive(tgt, col, sk.delay); this.at(sk.delay, () => { const e = this.enemy(tgt.id) || tgt; this.ring(e.x, e.y, e.z, sk.r, col, 0.3); this.feathers(e.x, e.y, e.z, col, 8); }); break;
+        case 'erupcion': {
+          const d = Math.hypot(tx - fx0, ty - fy0), n = Math.max(3, Math.round(d / 0.7)), time = Math.max(0.25, d / sk.speed);
+          for (let i = 1; i <= n; i++) this.at(time * i / n, () => this.mound(fx0 + (tx - fx0) * i / n, fy0 + (ty - fy0) * i / n, col));
+          this.at(time + 0.05, () => { this.spikesAt(tx, ty, Z, col, 6, sk.r * 0.8); this.ring(tx, ty, Z, sk.r, col, 0.3); }); break;
+        }
+        case 'raices': this.ring(fx0, fy0, z0, sk.r, col, 0.45); for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, r = sk.r * (0.45 + this.rng() * 0.5); this.rootAt(fx0 + Math.cos(a) * r, fy0 + Math.sin(a) * r, z0, col, 0.9); } break;
+        case 'ilusion': this.ghost(fx0, fy0, z0, col, 0.6); this.spark(tx, ty, Z, col, 8); break;
+        case 'zona': { const me = sk.at === 'self'; this.zoneAt(me ? fx0 : tx, me ? fy0 : ty, me ? z0 : Z, sk.r, sk.dur || 4, 0, 0, sk, '', false, true); break; }
+        case 'lluvia': for (let i = 0; i < (sk.n || 5); i++) this.at(i * 0.18, () => {
+          const a = this.rng() * TAU, r = i ? this.rng() * sk.r : 0, x = tx + Math.cos(a) * r, y = ty + Math.sin(a) * r, z = T.surfaceAt(x, y); if (z !== z) return;
+          this.markAt(x, y, z, 0.55, col, 0.45); this.fall(x, y, z, sk.art === 'arrow' ? ART.arrow(col) : ART.acorn(col), 0.42, () => { this.spark(x, y, z, col, 5); this.ring(x, y, z, 0.6, col, 0.2); });
+        }); break;
+        case 'aura': case 'bastion': this.ring(fx0, fy0, z0, sk.kind === 'bastion' ? sk.r : 2.2, col, 0.5); this.ring(fx0, fy0, z0, 1.2, col, 0.35); break;
+        case 'cura': case 'santuario': this.ring(fx0, fy0, z0, sk.kind === 'santuario' ? sk.r : 1.4, col, 0.5); for (let i = 0; i < 4; i++) this.at(i * 0.45, () => this.notes(fx0, fy0, z0, col)); break;
+        case 'linea': {
+          const d = Math.hypot(tx - fx0, ty - fy0) || 1, ux = (tx - fx0) / d, uy = (ty - fy0) / d, n = sk.n || 7, st = (sk.range || 6) / n;
+          for (let i = 1; i <= n; i++) this.at(i * 0.07, () => { const x = fx0 + ux * st * i, y = fy0 + uy * st * i, z = T.surfaceAt(x, y); if (z === z) this.spikesAt(x, y, z, col, 2, 0.25); }); break;
+        }
+        case 'tormenta': for (let i = 0; i < 3; i++) this.at(i * 0.22, () => this.ring(fx0, fy0, z0, sk.r, col, 0.22)); break;
+        case 'meteoro': this.markAt(tx, ty, Z, sk.r, col, sk.delay + 0.1); this.fall(tx, ty, Z, ART.meteor(col), sk.delay, () => { this.ring(tx, ty, Z, sk.r * 1.2, col, 0.4); this.spark(tx, ty, Z, col, 18); this.zoneAt(tx, ty, Z, sk.r, sk.zone || 3, 0, 0, sk, 'fire', false, true); }); break;
+        case 'danza': for (let i = 0; i < 4; i++) this.at(i * 0.2, () => this.spark(tx + (this.rng() - 0.5), ty + (this.rng() - 0.5) * 0.6, Z, col, 6)); break;
+        case 'manada': for (let i = 0; i < 6; i++) this.at(0.3 + i * 0.8, () => { const list = this.inRange(fx0, fy0, sk.r); const e = list.length ? list[Math.floor(this.rng() * list.length)] : null; if (e) this.leap({ x: fx0, y: fy0, z: z0 }, e, ART.wolf(col), 0.28, () => this.spark(e.x, e.y, e.z, col, 4)); }); break;
+        default: this.ring(fx0, fy0, z0, 1.2, col, 0.4);
+      }
+      this.float(fx0, fy0, z0, sk.name, col[2], 10, 0.9, 1.6);
     }
     snapshot(w) { const m = new Map(); for (const e of w.entities) if (this.slows.has(e.id) || this.roots.has(e.id)) m.set(e.id, [e.x, e.y]); return m; }
     applySlow(w, before) {
@@ -358,44 +710,78 @@
     // ── Golpes del arma y de las habilidades: críticos, combo y daño extra ──
     onHits(hits) {
       const s = this.session; if (!s) return hits;
-      const host = s.isHost, lvl = s.selfProgress ? s.selfProgress().lv : 1, cap = host ? Infinity : Math.floor(40 * (1 + 0.02 * (Math.max(1, lvl) - 1)));
-      let dmgMul = 1 + (comboTier(this.combo) ? comboTier(this.combo)[1] : 0);
-      if (this.buff && this.buff.until > this.clock() && this.buff.power) dmgMul += this.buff.power;
-      const forced = this.crits > 0 && this.critsUntil > this.clock();
+      const host = s.isHost, lvl = this.level(), cap = host ? Infinity : Math.floor(40 * (1 + 0.02 * (Math.max(1, lvl) - 1)));
+      const M = this.mods(), t = this.clock();
+      let base = 1 + (comboTier(this.combo) ? comboTier(this.combo)[1] : 0) + M.dmg;
+      if (this.buff && this.buff.until > t && this.buff.power) base += this.buff.power;
+      const ranged = !!(s.combat.weapon && s.combat.weapon.ranged);
+      const forced = this.crits > 0 && this.critsUntil > t;
+      const counter = M.counter > 0 && this.counterUntil > t;
+      const foes = new Map(); for (const e of s._enemies()) foes.set(e.id, e);
+      const extra = (id, dmg) => {     // ejecutar y primer golpe según la vida del objetivo
+        const e = foes.get(id); if (!e || !(e.maxHp > 0)) return 0;
+        let k = 0; if (M.execute && e.hp - dmg <= e.maxHp * 0.3) k += M.execute; if (M.firstHit && e.hp >= e.maxHp) k += M.firstHit; return k;
+      };
+      const roll = () => forced || this.rng() < critChance(this.combo) + M.critC;
+      const critMul = CRIT.mul + M.critD;
+      let used = false, dealt = 0;
+      // Invitado con anfitrión que tiene el combate nuevo: lo que pase del tope del motor viaja aparte y lo valida el anfitrión.
+      const viaHost = !host && this.hostOk();
       for (const h of hits) {
         if (h.__tm) continue;
         h.__tm = true;
-        let crit = forced || this.rng() < critChance(this.combo);
-        if (forced && this.crits > 0) this.crits--;
-        let d = h.dmg * dmgMul * (crit ? CRIT.mul : 1);
-        h.dmg = Math.max(1, Math.min(cap, Math.round(d)));
+        const crit = roll(); if (forced && this.crits > 0) this.crits--;
+        let mul = base + (ranged ? M.ranged : M.melee) + extra(h.id, h.dmg) + (counter && !used ? M.counter : 0);
+        if (counter && !used) { used = true; this.float(h.x, h.y, h.z, '¡Contragolpe!', '#9fc4e4', 12, 0.8, 1.2); }
+        const full = Math.max(1, Math.round(h.dmg * mul * (crit ? critMul : 1)));
+        h.dmg = Math.min(cap, full);
+        if (viaHost && full > cap) this.sendHit(h, full - cap, null, false);
+        dealt += full;
+        if (h.finisher && M.stunFinisher) { const w = this.world(h); if (w) { w.atk = 0; w.atkT = 0; w.moving = false; w.stagger = Math.max(w.stagger || 0, M.stunFinisher); } }
         this.onOwnHit(h, crit, false);
       }
       // Golpes de las habilidades (en cola desde el último paso).
       if (this.queue.length) {
-        const range = host ? Infinity : this.clientRange();
-        const av = s.avatar;
+        const range = host ? Infinity : this.clientRange(), av = s.avatar;
         for (const q of this.queue.splice(0)) {
-          if (!host && av && Math.hypot(q.x - av.x, q.y - av.y) > range) { this.stats.rejected++; continue; }
-          let crit = q.noCrit || q.dot ? false : (forced || this.rng() < critChance(this.combo));
+          if (!host && !viaHost && av && Math.hypot(q.x - av.x, q.y - av.y) > range) { this.stats.rejected++; continue; }
+          const crit = q.dot ? false : q.crit || (!q.noCrit && roll());
           if (crit && forced && this.crits > 0) this.crits--;
-          const h = { id: q.id, gen: q.gen, dmg: Math.max(1, Math.min(cap, Math.round(q.dmg * dmgMul * (crit ? CRIT.mul : 1)))), x: q.x, y: q.y, z: q.z || 0,
+          const mul = q.dot ? 1 + M.skillDmg : base + M.skillDmg + extra(q.id, q.dmg);
+          if (viaHost) {
+            const dmg = Math.max(1, Math.round(q.dmg * mul * (crit ? critMul : 1)));
+            this.sendHit(q, dmg, q, true); dealt += q.reflect ? 0 : dmg;
+            if (!q.dot) this.onOwnHit({ id: q.id, x: q.x, y: q.y, z: q.z, heavy: !!q.heavy, finisher: !!q.heavy }, crit, true);
+            continue;
+          }
+          const h = { id: q.id, gen: q.gen, dmg: Math.max(1, Math.min(cap, Math.round(q.dmg * mul * (crit ? critMul : 1)))), x: q.x, y: q.y, z: q.z || 0,
             splash: !!q.splash, ranged: true, hand: 'main', family: s.combat.weaponId, heavy: !!q.heavy, dir: q.dir, element: host ? (q.element || null) : null,
             finisher: !!q.heavy, __tm: true };
-          hits.push(h); if (q.dot) h.__skill = true; else this.onOwnHit(h, crit, true);
-          if (q.leech !== false && this.buff && this.buff.leech && this.buff.until > this.clock()) this.heal(h.dmg * this.buff.leech, true);
+          hits.push(h); dealt += q.reflect ? 0 : h.dmg;
+          if (q.dot) h.__skill = true; else this.onOwnHit(h, crit, true);
         }
       }
-      if (this.buff && this.buff.leech && this.buff.until > this.clock()) {
-        let sum = 0; for (const h of hits) if (!h.__skill) sum += h.dmg;
-        if (sum) this.heal(sum * this.buff.leech, true);
-      }
+      if (used) this.counterUntil = 0;
+      const leech = M.leech + (this.buff && this.buff.leech && this.buff.until > t ? this.buff.leech : 0);
+      if (leech && dealt) this.heal(dealt * leech, true);
       return hits;
+    }
+    /** Rol actual, nivel de Ascensión y efectos del árbol. */
+    role() { const d = this.data(); const r = d && d.profile && d.profile.specialization; return ROLES[r] ? r : 'espadachin'; }
+    level() {
+      const s = this.app.session;
+      try { if (s && s.selfProgress) return s.selfProgress().lv; } catch (_) { /* nada */ }
+      const d = this.data(); return levelFromXp(d && d.profile ? d.profile.xp || 0 : 0);
+    }
+    mods() {
+      const sv = this.save(), r = this.role(), al = sv.tal[r] || {}, key = r + JSON.stringify(al);
+      if (key !== this._mk) { this._mk = key; this._m = modsOf(r, al); }
+      return this._m;
     }
     clientRange() { const c = this.session.combat, w = c && c.weapon; return Math.max(1.2, (w ? w.reach + (w.splash || 0) + (w.pierce || 0) : 1.5) + 2.6); }
     onOwnHit(h, crit, skill) {
       h.__skill = skill;
-      this.combo++; this.comboT = COMBO.window; this.bestCombo = Math.max(this.bestCombo, this.combo); this.stats.maxCombo = this.bestCombo; this.stats.hits++;
+      this.combo++; this.comboT = COMBO.window + this.mods().comboKeep; this.bestCombo = Math.max(this.bestCombo, this.combo); this.stats.maxCombo = this.bestCombo; this.stats.hits++;
       const tier = comboTier(this.combo), prev = comboTier(this.combo - 1);
       if (tier && tier !== prev) this.comboMilestone(tier);
       this.comboUi(true);
@@ -460,8 +846,30 @@
         }
         if (z.left <= 0) this.zones.splice(i, 1);
       }
-      // Curación progresiva.
+      // Cooperativo: curación pendiente hacia el anfitrión y datos defensivos para que el anfitrión los aplique.
+      if (!this.authority() && this.net.online(s)) {
+        this._healT -= realDt;
+        if (this.healOut >= 1 && this._healT <= 0) { this._healT = 0.3; this.net.send(s, ['xh', Math.min(9999, Math.round(this.healOut * 10))]); this.healOut = 0; }
+        this._xmT -= realDt;
+        const Md = this.mods(), g = this.guard && this.guard.until > this.clock() ? this.guard : null;
+        const sig = [Math.round(Md.armor * 100), Math.round(Md.thorns * 100), g ? Math.round(g.armor * 100) : 0].join(',');
+        if (sig !== this._xmSig || this._xmT <= 0) { this._xmSig = sig; this._xmT = 6; this.net.send(s, ['xm', Math.round(Md.armor * 100), Math.round(Md.thorns * 100), g ? Math.round(g.armor * 100) : 0, g ? Math.round((g.until - this.clock()) * 10) : 0]); }
+      }
+      // Curación progresiva (técnica o habilidad) y regeneración del árbol.
       if (this.regen && this.regen.left > 0) { const k = Math.min(dt, this.regen.left); this.regen.left -= k; this.heal(this.regen.perSec * k, false); }
+      const M = this.mods();
+      if (M.regen && v && v.hp > 0 && v.hp < v.maxHp) this.heal(M.regen * dt, true);
+      // Si cambiaste de rol, las técnicas de otros roles salen de las ranuras.
+      const role = this.role();
+      if (role !== this._role) {
+        const sv = this.save(), before = JSON.stringify(sv);
+        sv.slots = sv.slots.map(k => { const q = k && BY_ID[k]; return q && q.role && q.role !== role ? null : k; });
+        syncTech(sv, role);
+        const tech = TECH_OF[role];   // al volver a un rol, su técnica vuelve a una ranura libre
+        if (tech && sv.lv[tech.id] && !sv.slots.includes(tech.id) && sv.slots.includes(null)) sv.slots[sv.slots.indexOf(null)] = tech.id;
+        if (JSON.stringify(sv) !== before) this.store(sv);
+        this._role = role;
+      }
     }
 
     // ── Enemigos ──
@@ -484,7 +892,7 @@
     /** Encola un golpe de habilidad (entra con los del arma en el próximo paso). */
     hit(e, dmg, o = {}) {
       if (!e) return;
-      this.queue.push({ id: e.id, gen: e.gen | 0, dmg: Math.max(1, dmg), x: e.x, y: e.y, z: e.z || 0, heavy: !!o.heavy, element: o.element || null, noCrit: !!o.noCrit, splash: !!o.splash, dir: o.dir, dot: !!o.dot, leech: o.dot ? false : undefined });
+      this.queue.push({ id: e.id, gen: e.gen | 0, dmg: Math.max(1, dmg), x: e.x, y: e.y, z: e.z || 0, heavy: !!o.heavy, element: o.element || null, noCrit: !!o.noCrit, splash: !!o.splash, dir: o.dir, dot: !!o.dot, crit: !!o.crit, reflect: !!o.reflect, stun: o.stun || 0, root: o.root || 0, slowT: o.slowT || 0 });
       const w = this.world(e); if (!w) return;
       if (o.stun) { w.atk = 0; w.atkT = 0; w.moving = false; w.vx = w.vy = 0; w.stagger = Math.max(w.stagger || 0, o.stun); }
       if (o.root) this.roots.set(e.id, Math.max(this.roots.get(e.id) || 0, this.clock() + o.root));
@@ -493,7 +901,8 @@
     slow(e, k, t) { if (!this.authority()) return; const cur = this.slows.get(e.id); this.slows.set(e.id, { k: Math.min(k, cur && cur.until > this.clock() ? cur.k : 1), until: Math.max(this.clock() + t, cur ? cur.until : 0) }); }
     dot(e, dps, dur, col) { if (!e || !(dps > 0)) return; const d = this.dots.find(q => q.id === e.id && q.col === col); if (d) { d.left = Math.max(d.left, dur); d.dps = Math.max(d.dps, dps); return; } this.dots.push({ id: e.id, gen: e.gen | 0, dps, left: dur, tick: 1, col }); }
     heal(n, quiet) {
-      if (!this.authority() || !(n > 0)) return;
+      if (!(n > 0)) return;
+      if (!this.authority()) { if (this.hostOk()) { this.healOut += n; if (!quiet && n >= 1) { const av = this.session.avatar; this.float(av.x, av.y, av.z, '+' + Math.round(n), '#8ce1ca', 12, 0.8, 1.1); } } return; }
       const v = this.session.selfVital && this.session.selfVital(); if (!v || !v.maxHp || v.hp <= 0) return;
       const before = v.hp; v.hp = Math.min(v.maxHp, v.hp + n); this.lastHp = v.hp;
       const got = v.hp - before; this._healAcc = (this._healAcc || 0) + got;
@@ -509,9 +918,23 @@
       if (s.isDown && s.isDown(s.self.pid)) return false;
       if (s.statusOf && (s.statusOf(s.self.pid) & 3)) { this.toast('No puedes usar habilidades mientras estás enredado o derribado'); return false; }
       const sk = BY_ID[id], lv = this.save().lv[id] || 1, S = scale(sk, lv), P = this.power();
-      const ok = this[sk.kind] ? this[sk.kind](sk, S, Math.max(1, Math.round(S.dmg * P)), lv) : false;
+      if (sk.role && sk.role !== this.role()) { this.toast(sk.name + ' es la técnica de ' + ROLES[sk.role].name + '. Cámbiala en Habilidades (H).'); return false; }
+      const av = s.avatar, aimE = this.target(sk.range || 6), [ffx, ffy] = this.facing(), x0 = av.x, y0 = av.y;
+      const aim = aimE ? { x: aimE.x, y: aimE.y, id: aimE.id } : { x: av.x + ffx * Math.min(4, sk.range || 2.5), y: av.y + ffy * Math.min(4, sk.range || 2.5), id: 0 };
+      const moves = { carga: (sk.range || 4) + 1, salto: (sk.range || 3.6) + 1, ilusion: (sk.range || 5) + 1.5, danza: (sk.range || 5) + 1.5 }[sk.kind];
+      const run = () => this[sk.kind] ? this[sk.kind](sk, S, Math.max(1, Math.round(S.dmg * P)), lv) : false;
+      let ok;
+      if (moves && this.net.online(s)) {
+        // Se anuncia el desplazamiento a los demás para que no lo tomen por un «movimiento imposible».
+        // El invitado además lo empieza 0,15 s después, para que el aviso llegue antes que el movimiento.
+        if ((sk.kind === 'ilusion' || sk.kind === 'danza') && !aimE) { this.toast('Necesitas un objetivo cerca para ' + sk.name); return false; }
+        this.net.send(s, ['xd', Math.round(moves * 10)]);
+        if (s.isHost) ok = run();
+        else { this.at(0.15, () => { try { run(); } catch (e) { this.fail(e); } }); ok = true; }
+      } else ok = run();
       if (ok === false) return false;
-      this.cd[slot] = this.cdMax[slot] = S.cd; this.stats.casts++;
+      this.net.send(s, ['xs', SKILLS.indexOf(sk), lv, Math.round(x0 * 10), Math.round(y0 * 10), Math.round(aim.x * 10), Math.round(aim.y * 10), aim.id | 0]);
+      this.cd[slot] = this.cdMax[slot] = S.cd * (1 - this.mods().cdr); this.stats.casts++;
       this.castFx(sk, slot);
       return true;
     }
@@ -633,7 +1056,7 @@
       const s = this.session, av = s.avatar, t = this.target(sk.range);
       if (!t) { this.toast('Necesitas un objetivo cerca para ' + sk.name); return false; }
       const T = this.app.terrain, dx = t.x - av.x, dy = t.y - av.y, n = Math.hypot(dx, dy) || 1, ux = dx / n, uy = dy / n;
-      const far = s.channel && !s.isHost ? 2.4 : 99;
+      const far = 99;   // en cooperativo el salto se anuncia antes (evento «xd»)
       let placed = false;
       for (const back of [1.1, 0.8, 0.5]) {
         const x = t.x + ux * back, y = t.y + uy * back, z = T.surfaceAt(x, y);
@@ -663,7 +1086,7 @@
           const e = this.enemy(t.id) || t, a = this.rng() * TAU, r = i === 0 ? 0 : this.rng() * sk.r, x = e.x + Math.cos(a) * r, y = e.y + Math.sin(a) * r;
           const z = this.app.terrain.surfaceAt(x, y); if (z !== z) return;
           this.markAt(x, y, z, 0.55, sk.col, 0.45);
-          this.fall(x, y, z, ART.acorn(sk.col), 0.42, () => {
+          this.fall(x, y, z, sk.art === 'arrow' ? ART.arrow(sk.col) : ART.acorn(sk.col), 0.42, () => {
             for (const q of this.inRange(x, y, 0.7)) this.hit(q, dmg, { splash: true });
             this.spark(x, y, z, sk.col, 6); this.ring(x, y, z, 0.6, sk.col, 0.2); this.shake(0.06, 0.08);
           });
@@ -679,7 +1102,7 @@
       return true;
     }
     cura(sk, S) {
-      if (!this.authority()) { this.toast('En una sala ajena la curación la decide el anfitrión: aquí no surte efecto'); return false; }
+      if (!this.authority() && !this.hostOk()) { this.toast('El anfitrión de esta sala no tiene el combate nuevo: la curación no surte efecto'); return false; }
       const v = this.session.selfVital && this.session.selfVital(); if (!v) return false;
       const dur = S.dur || sk.dur, total = v.maxHp * (sk.heal + 0.04 * (S.lv - 1));
       this.regen = { left: dur, perSec: total / dur };
@@ -700,6 +1123,108 @@
         if (i === n) this.shake(0.08, 0.12);
       });
       return true;
+    }
+
+    // ── Técnicas exclusivas de cada rol ──
+    tormenta(sk, S, dmg) {
+      const s = this.session;
+      for (let i = 0; i < sk.n; i++) this.at(i * 0.22, () => {
+        const p = s.avatar; if (!p) return;
+        for (let d = 0; d < 4; d++) s._fx({ k: 'swing', key: s.combat.weaponId, combo: 3, style: 'slash', heavy: true, x: p.x, y: p.y, z: p.z, dir: (d * 2 + i) % 8 });
+        for (const e of this.inRange(p.x, p.y, sk.r)) { this.hit(e, dmg, { heavy: i === sk.n - 1, stun: i === sk.n - 1 ? 0.5 : 0, splash: true }); this.spark(e.x, e.y, e.z, sk.col, 5); }
+        this.ring(p.x, p.y, p.z, sk.r, sk.col, 0.22); this.shake(0.08 + i * 0.04, 0.12);
+      });
+      return true;
+    }
+    meteoro(sk, S, dmg) {
+      const t = this.target(sk.range); if (!t) { this.toast('Elige un objetivo para el ' + sk.name); return false; }
+      const x = t.x, y = t.y, z = t.z || 0;
+      this.markAt(x, y, z, sk.r, sk.col, sk.delay + 0.1);
+      this.fall(x, y, z, ART.meteor(sk.col), sk.delay, () => {
+        for (const q of this.inRange(x, y, sk.r)) this.hit(q, dmg, { heavy: true, stun: 0.6, element: sk.element, splash: q.id !== t.id });
+        this.ring(x, y, z, sk.r * 1.2, sk.col, 0.4); this.ring(x, y, z, sk.r * 0.6, sk.col, 0.3); this.spark(x, y, z, sk.col, 22); this.puffs(x, y, z, ['#2a2018', '#5a4a3a', '#8a7a6a'], 8, sk.r, 0.9);
+        this.zoneAt(x, y, z, sk.r, sk.zone * (1 + 0.1 * (S.lv - 1)), Math.round(sk.zdps * (1 + 0.25 * (S.lv - 1))), 0, sk, 'fire');
+        this.shake(0.24, 0.3);
+      });
+      return true;
+    }
+    santuario(sk, S) {
+      if (!this.authority() && !this.hostOk()) { this.toast('El anfitrión de esta sala no tiene el combate nuevo: la curación no surte efecto'); return false; }
+      if (!this.authority()) this.net.send(this.session, ['xa', Math.round((sk.heal + 0.04 * (S.lv - 1)) * 100), Math.round(sk.r * 10)]);
+      const s = this.session, v = s.selfVital && s.selfVital(); if (!v) return false;
+      const dur = S.dur || sk.dur, frac = sk.heal + 0.04 * (S.lv - 1), av = s.avatar;
+      this.regen = { left: dur, perSec: v.maxHp * frac / dur };
+      // Aliados cercanos (solo quien hospeda puede curarlos de verdad).
+      let n = 0;
+      if (s.vitals && s.players) for (const [pid, pv] of s.vitals) {
+        if (pid === s.self.pid || !pv || !(pv.hp > 0)) continue;
+        const pl = s.players.get(pid), pos = pl && pl.lastValid; if (!pos || Math.hypot(pos.x - av.x, pos.y - av.y) > sk.r) continue;
+        pv.hp = Math.min(pv.maxHp, pv.hp + pv.maxHp * frac); n++;
+      }
+      this.ring(av.x, av.y, av.z, sk.r * 0.6, sk.col, 0.6); this.ring(av.x, av.y, av.z, sk.r, sk.col, 0.8);
+      for (let i = 0; i < 8; i++) this.at(i * 0.45, () => { const p = s.avatar; this.notes(p.x + (this.rng() - 0.5), p.y, p.z, sk.col); });
+      if (n) this.toast('Curaste a ' + n + (n === 1 ? ' aliado' : ' aliados'), 'good');
+      return true;
+    }
+    bastion(sk, S, dmg) {
+      const s = this.session, av = s.avatar, pid = s.self.pid, list = this.inRange(av.x, av.y, sk.r);
+      this.guard = { until: this.clock() + (S.dur || sk.dur), armor: sk.armor + 0.03 * (S.lv - 1) };
+      if (!this.authority()) { this.net.send(s, ['xt', Math.round(sk.r * 10)]); this._xmT = 0; }
+      for (const e of list) {
+        this.hit(e, dmg, { noCrit: true });
+        const w = this.world(e); if (w) { w.ag = pid; w.agT = 0; if (w.threat && w.threat.set) w.threat.set(pid, (w.threat.get(pid) || 0) + 999); }
+        this.float(e.x, e.y, e.z, '!', '#ff8a6a', 14, 0.7, 1);
+      }
+      this.ring(av.x, av.y, av.z, sk.r, sk.col, 0.5); this.ring(av.x, av.y, av.z, 1, sk.col, 0.4);
+      const until = this.guard.until;
+      const m = this.mesh(ART.ring(sk.col), true);
+      this.addFx({ m, t0: this.clock(), dur: until - this.clock(), upd: (o, k) => { const p = this.session && this.session.avatar; if (!p) return; placeFlat(o.m, p.x, p.z || 0, p.y, 0.05); const sc = 0.8 + 0.06 * Math.sin(k * 40); o.m.scale.set(sc, 1, sc); } });
+      this.shake(0.1, 0.15);
+      return true;
+    }
+    danza(sk, S, dmg) {
+      const s = this.session, av = s.avatar, T = this.app.terrain, far = 99;
+      const first = this.target(sk.range); if (!first) { this.toast('Necesitas enemigos cerca para la ' + sk.name); return false; }
+      const done = new Set(); let cur = first;
+      const jumps = sk.n + (S.lv >= 4 ? 1 : 0);
+      for (let i = 0; i < jumps; i++) this.at(i * 0.2, () => {
+        const p = s.avatar; if (!p) return;
+        let e = i === 0 ? this.enemy(first.id) : null;
+        if (!e) { let bd = sk.range; for (const q of this.enemies()) { if (done.has(q.id)) continue; const d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; e = q; } } }
+        if (!e) return;
+        done.add(e.id); cur = e;
+        const dx = e.x - p.x, dy = e.y - p.y, n = Math.hypot(dx, dy) || 1, x = e.x + dx / n * 0.7, y = e.y + dy / n * 0.7, z = T.surfaceAt(x, y);
+        this.ghost(p.x, p.y, p.z, sk.col, 0.4);
+        if (z === z && Math.abs(z - (p.z || 0)) < 0.6 && Math.hypot(x - p.x, y - p.y) <= far && !(T.obstacles || []).some(o => Math.hypot(o.x - x, o.y - y) < (o.r || 0.3) + 0.35)) { p.x = x; p.y = y; p.z = z; }
+        s._fx({ k: 'swing', key: s.combat.weaponId, combo: 2, style: 'twin', heavy: false, x: p.x, y: p.y, z: p.z, dir: Math.round(((Math.atan2(-dx, -dy) / (Math.PI / 4)) % 8 + 8)) % 8 });
+        this.hit(e, dmg, { crit: true, heavy: true }); this.spark(e.x, e.y, e.z, sk.col, 8); this.shake(0.08, 0.1);
+      });
+      void cur;
+      return true;
+    }
+    manada(sk, S, dmg) {
+      const s = this.session, dur = S.dur || sk.dur, bites = Math.round(sk.n * (1 + 0.1 * (S.lv - 1)));
+      if (!this.inRange(s.avatar.x, s.avatar.y, sk.r).length) this.toast('Los lobos esperan a tu lado: acércate a un enemigo');
+      for (let i = 0; i < bites; i++) this.at(0.3 + i * (dur / bites), () => {
+        const p = s.avatar; if (!p) return;
+        const list = this.inRange(p.x, p.y, sk.r); if (!list.length) { this.ghost(p.x + (this.rng() - 0.5) * 2, p.y + (this.rng() - 0.5), p.z, sk.col, 0.4); return; }
+        const e = list[Math.floor(this.rng() * list.length)];
+        this.leap(p, e, ART.wolf(sk.col), 0.28, () => { this.hit(e, dmg, {}); this.spark(e.x, e.y, e.z, sk.col, 4); });
+      });
+      const av = s.avatar; this.ring(av.x, av.y, av.z, 1.6, sk.col, 0.5);
+      try { s._fx({ k: 'howl', x: av.x, y: av.y, z: av.z }); } catch (_) { /* nada */ }
+      return true;
+    }
+    /** Un lobo de luz salta de tu lado al enemigo. */
+    leap(from, e, art, dur, onHit) {
+      const m = this.mesh(art, false), x0 = from.x + (this.rng() - 0.5) * 1.4, y0 = from.y + (this.rng() - 0.5) * 0.8, z0 = from.z || 0;
+      m.scale.x = e.x < x0 ? -1 : 1;
+      this.addFx({ m, t0: this.clock(), dur, done: onHit, upd: (o, k) => { const q = this.enemy(e.id) || e; placeUp(o.m, x0 + (q.x - x0) * k, z0 + ((q.z || 0) - z0) * k + Math.sin(k * Math.PI) * 0.6, y0 + (q.y - y0) * k, 0.5); } });
+    }
+    onLevel(lv) {
+      const pts = pointsFor(lv) - spentOf(this.save().tal[this.role()] || {});
+      this.banner('▲', '¡Nivel ' + lv + '!', pts > 0 ? 'Tienes ' + pts + (pts === 1 ? ' punto' : ' puntos') + ' de habilidad. ' + (this.app.isTouch ? 'Toca ✦ → Árbol.' : 'Abre el árbol con H.') : 'Tu árbol de habilidades está al día.', ['#7a5a1a', '#f2d45e', '#fff8d0']);
+      this.render(true);
     }
 
     // ── Programar y dibujar ──
@@ -812,9 +1337,9 @@
       const m = this.mesh(ART.note(col), false), dx = (this.rng() - 0.5) * 0.8;
       this.addFx({ m, t0: this.clock(), dur: 1.1, upd: (o, k) => { placeUp(o.m, x + dx + Math.sin(k * 8) * 0.15, (z || 0) + 0.9 + k * 0.9, y, 0.6); o.m.material.alphaTest = 0.3 + 0.6 * k; } });
     }
-    zoneAt(x, y, z, r, dur, dps, slow, sk, style, follow) {
-      this.zones.push({ x, y, r, left: dur, tick: 0.2, dps, slow, element: sk.element || null });
-      const zone = this.zones[this.zones.length - 1];
+    zoneAt(x, y, z, r, dur, dps, slow, sk, style, follow, visual) {
+      const zone = { x, y, r, left: dur, tick: 0.2, dps, slow, element: sk.element || null };
+      if (!visual) this.zones.push(zone);
       const m = this.mesh(ART.disc(sk.col), true); placeFlat(m, x, z, y, 0.03); m.scale.set(r, 1, r);
       this.addFx({ m, t0: this.clock(), dur, upd: (o, k) => {
         if (follow) { const p = this.session.avatar; zone.x = p.x; zone.y = p.y; placeFlat(o.m, p.x, p.z || 0, p.y, 0.03); }
@@ -826,8 +1351,11 @@
     // ── Esencias ──
     onKill(e) {
       if (!e || !e.mine || e.clone || this.app.trial) return;
+      const M = this.mods();
+      if (M.killHeal) { const v = this.session && this.session.selfVital && this.session.selfVital(); if (v && v.maxHp) this.heal(v.maxHp * M.killHeal, false); }
+      if (M.killCdr) for (let i = 0; i < SLOTS; i++) this.cd[i] = Math.max(0, this.cd[i] - M.killCdr);
       const sk = BY_SPECIES[e.species]; if (!sk) return;
-      if (this.rng() > DROP.chance) return;
+      if (this.rng() > DROP.chance + M.essence) return;
       this.essence(e.species, 1, this.pos.get(e.id));
     }
     /** Suelta la esencia en el suelo; vuela hacia ti y se suma al tocarte. */
@@ -874,7 +1402,7 @@
     ui() {
       const st = document.createElement('style'); st.id = 'tm-combat-style'; st.textContent = STYLE; document.head.appendChild(st);
       const bar = this.bar = document.createElement('div'); bar.id = 'tm-skills'; bar.hidden = true;
-      bar.innerHTML = '<button type="button" class="tm-sk-more" aria-label="Habilidades (H)" title="Habilidades (H)">✦</button>' +
+      bar.innerHTML = '<button type="button" class="tm-sk-more" aria-label="Habilidades y árbol (H)" title="Habilidades y árbol (H)">✦<b></b></button>' +
         [0, 1].map(i => `<button type="button" class="act-btn tm-sk" data-slot="${i}" aria-label="Habilidad ${i + 1}"><span><span class="glyph">+</span><small>VACÍA</small></span><i class="cd"></i><b class="lv"></b><em class="key">${i ? 'G' : 'R'}</em></button>`).join('');
       document.body.appendChild(bar);
       bar.querySelector('.tm-sk-more').addEventListener('click', () => this.togglePanel(true));
@@ -891,8 +1419,8 @@
       document.body.appendChild(ban);
       const p = this.panelEl = document.createElement('div'); p.id = 'tm-skill-panel'; p.hidden = true;
       p.innerHTML = '<div class="window" role="dialog" aria-modal="true" aria-labelledby="tsk-title"><div class="tsk-head"><b id="tsk-title">HABILIDADES</b><button type="button" class="btn tsk-close">Cerrar (H)</button></div>' +
-        '<small class="tsk-help" style="font-size:12px;line-height:1.35;color:var(--dim)">Vence criaturas para juntar su esencia: con 3 aprendes su habilidad y con más la subes de nivel. Elige una ranura y toca «Equipar».</small>' +
-        '<div class="tsk-slots"></div><div class="tsk-tabs"><button type="button" class="btn" data-tab="mias">Aprendidas</button><button type="button" class="btn" data-tab="todas">Por descubrir</button></div><div class="tsk-list"></div></div>';
+        '<small class="tsk-help" style="font-size:12px;line-height:1.35;color:var(--dim)"></small>' +
+        '<div class="tsk-slots"></div><div class="tsk-tabs"><button type="button" class="btn" data-tab="arbol">Árbol</button><button type="button" class="btn" data-tab="mias">Aprendidas</button><button type="button" class="btn" data-tab="todas">Por descubrir</button></div><div class="tsk-list"></div></div>';
       document.body.appendChild(p);
       p.addEventListener('click', e => {
         const t = e.target.closest('button'); if (!t) { if (e.target === p) this.togglePanel(false); return; }
@@ -901,6 +1429,12 @@
         else if (t.dataset.tab) { this.panelTab = t.dataset.tab; this.renderPanel(); }
         else if (t.dataset.equip) { this.store(equip(this.save(), this.panelSlot, t.dataset.equip)); this.panelSlot = (this.panelSlot + 1) % SLOTS; this.renderPanel(); }
         else if (t.dataset.unequip !== undefined) { this.store(equip(this.save(), +t.dataset.unequip, null)); this.renderPanel(); }
+        else if (t.dataset.node) { this.nodeSel = t.dataset.node; this.renderPanel(); }
+        else if (t.dataset.raise) this.raiseNode(t.dataset.raise);
+        else if (t.dataset.reset !== undefined) {
+          if (!t.classList.contains('confirm')) { t.classList.add('confirm'); t.textContent = '¿Seguro? Toca otra vez'; setTimeout(() => { if (t.isConnected) { t.classList.remove('confirm'); t.textContent = 'Reiniciar puntos'; } }, 2500); return; }
+          this.store(resetRole(this.save(), this.role())); this.toast('Puntos devueltos: repártelos como quieras', 'good'); this.renderPanel();
+        }
       });
       this.floatList = [];
       setInterval(() => { try { this.layout(); } catch (e) { this.fail(e); } }, 400);
@@ -917,9 +1451,12 @@
       Object.assign(this.bar.style, { left: Math.max(4, left) + 'px', top: Math.max(60, top) + 'px', gridTemplateRows: '30px 56px 56px', rowGap: (ra && rh ? Math.max(6, ra.top - rh.top - 56) : 10) + 'px' });
       this.render();
     }
+    freePoints() { return Math.max(0, pointsFor(this.level()) - spentOf(this.save().tal[this.role()] || {})); }
     render(force) {
-      const sv = this.save(), key = sv.slots.join('|') + '|' + sv.slots.map(id => id ? sv.lv[id] : 0).join('');
+      const sv = this.save(), free = this.freePoints(), key = sv.slots.join('|') + '|' + sv.slots.map(id => id ? sv.lv[id] : 0).join('') + '|' + free;
       if (!force && key === this._rk) return; this._rk = key;
+      const more = this.bar.querySelector('.tm-sk-more'); more.querySelector('b').textContent = free ? String(free) : ''; more.classList.toggle('has-pts', free > 0);
+      more.setAttribute('aria-label', free ? `Habilidades: tienes ${free} puntos para el árbol` : 'Habilidades y árbol (H)');
       this.bar.querySelectorAll('.tm-sk').forEach((b, i) => {
         const id = sv.slots[i], sk = id && BY_ID[id];
         b.classList.toggle('is-empty', !sk);
@@ -947,7 +1484,12 @@
     togglePanel(open, slot) {
       const want = open === undefined ? this.panelEl.hidden : !!open;
       this.panelEl.hidden = !want;
-      if (want) { if (slot !== undefined) this.panelSlot = slot; this.panelTab = Object.keys(this.save().lv).length ? this.panelTab : 'todas'; this.renderPanel(); }
+      if (want) {
+        if (slot !== undefined) this.panelSlot = slot;
+        if (this.freePoints() > 0 && slot === undefined) this.panelTab = 'arbol';
+        else if (!Object.keys(this.save().lv).length && this.panelTab === 'mias') this.panelTab = 'todas';
+        this.renderPanel();
+      }
     }
     renderPanel() {
       const sv = this.save(), P = this.panelEl;
@@ -955,8 +1497,13 @@
         const id = sv.slots[i], sk = id && BY_ID[id];
         return `<button type="button" class="tsk-slot${i === this.panelSlot ? ' is-sel' : ''}" data-slot-sel="${i}"><em>RANURA ${i + 1} · TECLA ${i ? 'G' : 'R'}</em>${sk ? sk.glyph + ' ' + sk.name + ' ' + ROMAN[sv.lv[id]] : 'Vacía'}</button>`;
       }).join('');
-      P.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('btn-gold', b.dataset.tab === this.panelTab));
-      const learned = SKILLS.filter(s => sv.lv[s.id]), rest = SKILLS.filter(s => !sv.lv[s.id]);
+      P.querySelectorAll('[data-tab]').forEach(b => { b.classList.toggle('btn-gold', b.dataset.tab === this.panelTab); if (b.dataset.tab === 'arbol') b.textContent = this.freePoints() ? 'Árbol (' + this.freePoints() + ')' : 'Árbol'; });
+      const help = P.querySelector('.tsk-help');
+      help.textContent = this.panelTab === 'arbol' ? 'Cada nivel de Ascensión te da un punto. Toca un nodo para ver qué hace y apréndelo. Puedes reiniciar los puntos cuando quieras, sin costo.'
+        : 'Vence criaturas para juntar su esencia: con 3 aprendes su habilidad y con más la subes de nivel. Elige una ranura y toca «Equipar».';
+      if (this.panelTab === 'arbol') { this.renderTree(P.querySelector('.tsk-list')); return; }
+      const role = this.role();
+      const learned = SKILLS.filter(s => sv.lv[s.id] && (!s.role || s.role === role)), rest = SKILLS.filter(s => s.species && !sv.lv[s.id]);
       const list = this.panelTab === 'mias' ? learned : rest.sort((p, q) => (sv.ess[q.species] | 0) - (sv.ess[p.species] | 0));
       const names = this.speciesNames();
       P.querySelector('.tsk-list').innerHTML = list.length ? list.map(sk => {
@@ -965,8 +1512,43 @@
         const dmg = sk.dmg ? ` · daño ${skillDamage(sk, lv || 1, this.power())}` : '';
         const where = sv.slots.indexOf(sk.id);
         const act = lv ? (where >= 0 ? `<button type="button" class="btn" data-unequip="${where}">Quitar</button>` : `<button type="button" class="btn btn-gold" data-equip="${sk.id}">Equipar</button>`) : '';
-        return `<div class="tsk-row${lv ? '' : ' is-locked'}"><span class="gl" style="color:${sk.col[2]}">${sk.glyph}</span><span class="tx"><b>${sk.name}${lv ? ' ' + ROMAN[lv] : ''}</b><small>${lv ? sk.desc : 'De: ' + (names[sk.species] || sk.species) + '. ' + sk.desc}</small><small>Recarga ${S.cd.toFixed(1)} s${dmg} · esencias ${e}${next ? '/' + next : ' (máximo)'}</small><i><b style="width:${Math.round(frac * 100)}%"></b></i></span>${act}</div>`;
+        const prog = sk.role ? `<small>Recarga ${(S.cd * (1 - this.mods().cdr)).toFixed(1)} s${dmg} · técnica de ${ROLES[sk.role].name}: sube con los puntos de su rama</small>`
+          : `<small>Recarga ${(S.cd * (1 - this.mods().cdr)).toFixed(1)} s${dmg} · esencias ${e}${next ? '/' + next : ' (máximo)'}</small><i><b style="width:${Math.round(frac * 100)}%"></b></i>`;
+        return `<div class="tsk-row${lv ? '' : ' is-locked'}"><span class="gl" style="color:${sk.col[2]}">${sk.glyph}</span><span class="tx"><b>${sk.name}${lv ? ' ' + ROMAN[lv] : ''}</b><small>${lv || sk.role ? sk.desc : 'De: ' + (names[sk.species] || sk.species) + '. ' + sk.desc}</small>${prog}</span>${act}</div>`;
       }).join('') : `<small style="color:var(--dim);font-size:12px">${this.panelTab === 'mias' ? 'Todavía no aprendiste ninguna. Vence criaturas: a veces sueltan su esencia (las de élite, siempre).' : '¡Las descubriste todas!'}</small>`;
+    }
+    /** Árbol del rol actual: tres ramas de cinco nodos y el detalle del nodo elegido. */
+    renderTree(el) {
+      const role = this.role(), R = ROLES[role], sv = this.save(), al = sv.tal[role] || {}, lv = this.level(), free = this.freePoints(), M = this.mods();
+      if (!this.nodeSel || !NODE[this.nodeSel] || NODE[this.nodeSel].role !== role) this.nodeSel = R.branches[2].nodes[0].id;
+      const cols = R.branches.map((b, bi) => {
+        const nodes = b.nodes.map((n, ni) => {
+          const r = al[n.id] | 0, can = canRaise(role, al, n.id, lv).ok, tech = n.eff === 'tech';
+          const glyph = tech ? TECH_OF[role].glyph : EFFECTS[n.eff][0];
+          const cls = ['tsk-node', can ? 'can' : '', r ? 'has' : '', r >= n.max ? 'max' : '', this.nodeSel === n.id ? 'sel' : '', tech ? 'tech' : ''].join(' ');
+          return (ni ? '<span class="tsk-link"></span>' : '') + `<button type="button" class="${cls}" data-node="${n.id}" aria-label="${n.name}, ${r} de ${n.max}">${glyph}<i>${r}/${n.max}</i></button>`;
+        }).join('');
+        return `<div class="tsk-col"><h4>${b.name.toUpperCase()}</h4><small>${branchSpentUi(role, al, bi)} puntos</small>${nodes}</div>`;
+      }).join('');
+      const n = NODE[this.nodeSel], r = al[n.id] | 0, c = canRaise(role, al, n.id, lv), tech = n.eff === 'tech';
+      const now = r ? (tech ? 'Técnica aprendida: ' + TECH_OF[role].name + ' ' + ROMAN[techLevel(role, al)] : 'Ahora: ' + EFFECTS[n.eff][1](n.v * r)) : '';
+      const next = r < n.max ? (tech ? TECH_OF[role].desc + ' Sube de nivel con cada 2 puntos más en esta rama.' : (r ? 'Siguiente rango: ' : '') + EFFECTS[n.eff][1](n.v * (r + 1))) : 'Rango máximo.';
+      const total = Object.entries(M).filter(([k, v]) => v && k !== 'tech').map(([k, v]) => EFFECTS[k][1](v)).join(' · ');
+      el.innerHTML = `<div class="tsk-tree"><div class="tsk-info"><b>${R.name.toUpperCase()} · NIVEL ${lv}</b><span class="pts">${free} ${free === 1 ? 'punto libre' : 'puntos libres'}</span><button type="button" class="btn" data-reset>Reiniciar puntos</button></div>
+        <div class="tsk-cols">${cols}</div>
+        <div class="tsk-detail"><b>${tech ? TECH_OF[role].glyph : EFFECTS[n.eff][0]} ${n.name} · ${r}/${n.max}</b><span>${now ? now + '<br>' : ''}${next}</span>
+        ${c.ok ? `<div class="row"><button type="button" class="btn btn-gold" data-raise="${n.id}">Aprender (1 punto)</button></div>` : r < n.max ? `<span class="why">${c.why}</span>` : ''}</div>
+        <small style="font-size:11px;color:var(--dim);line-height:1.35">${total ? 'Tu árbol hoy: ' + total + '.' : 'Todavía no aprendiste nada en este árbol.'} Cambiar de rol (Pausa → Combate) cambia de árbol; cada rol guarda sus puntos.</small></div>`;
+    }
+    raiseNode(id) {
+      const r = raise(this.save(), this.role(), id, this.level());
+      if (!r.ok) { this.toast(r.why, 'bad'); return; }
+      this.store(r.save); this.renderPanel();
+      try { this.app.audio && this.app.audio.play(r.node.eff === 'tech' ? 'discover' : 'click', { pitch: 1.2 }); } catch (_) { /* nada */ }
+      if (r.node.eff === 'tech' && r.rank === 1) {
+        const t = TECH_OF[this.role()], slot = r.save.slots.indexOf(t.id);
+        this.banner(t.glyph, '¡Técnica de rol: ' + t.name + '!', t.desc + (slot >= 0 ? (this.app.isTouch ? ' Ya está en tu ' + (slot ? 'segundo' : 'primer') + ' botón de habilidad.' : ' Ya está en tu botón ' + (slot ? 'G' : 'R') + '.') : ' Equípala en «Aprendidas».'), t.col);
+      }
     }
     speciesNames() { return { limo: 'limos', gotita: 'gotitas', lanudo: 'lanudos', escarabajo: 'escarabajos', avispa: 'avispas', buho: 'búhos', conejo: 'conejos cantores', liebre: 'liebres trueno', tejon: 'tejones', retono: 'retoños', halcon: 'halcones', jabali: 'jabalíes de ámbar', zorro: 'zorros ilusionistas', seta: 'setas', bellotero: 'belloteros', lobo: 'lobos', armino: 'armiños', golem: 'gólems de hielo', espiritu: 'espíritus', escorpion: 'escorpiones', gusano: 'gusanos de arena', salamandra: 'salamandras', buitre: 'buitres' }; }
     comboUi(show) {

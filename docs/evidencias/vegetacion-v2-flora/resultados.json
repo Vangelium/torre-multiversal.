@@ -1,0 +1,27 @@
+{
+  "version": "vegetacion v2.0 Flora (beta v14)",
+  "fecha": "2026-11-16",
+  "navegador": "Chrome sin tarjeta gráfica (SwiftShader), 412x860, calidad baja automática",
+  "rendimiento_ms_por_cuadro": {
+    "valle_sin_vegetacion": 23.6,
+    "valle_con_vegetacion": 27.9,
+    "piso7_sin_vegetacion": 23.1,
+    "piso7_con_vegetacion": 28.4,
+    "nota": "promedio de 8 s; en v12.5 (zona de 26 u) la diferencia era de unos 4 ms"
+  },
+  "plantas_vivas": {
+    "valle": 2615,
+    "piso3_cienaga_pradera": 1629,
+    "piso7_cristal_tundra": 1864,
+    "piso12_dunas_ambar": 2443
+  },
+  "trozos_vivos": 18,
+  "armado_de_un_trozo_ms": 3,
+  "funcional": {
+    "corte_y_semilla": "Margarita del alba cortada: +2 semillas de margarita del alba, +1 fibra",
+    "guardado": "las semillas quedan en tm.beta.v1.tm.save",
+    "mochila": "grupo Semillas",
+    "corte_recordado": "el zarzal cortado sigue cortado al alejarse 85 u y volver"
+  },
+  "pruebas_automaticas": "88 de 88 (vegetación 19, Rey Slime y glitch)"
+}
