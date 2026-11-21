@@ -493,6 +493,32 @@
   if (typeof module !== 'undefined' && module.exports) { module.exports = API; return; }
   if (!root.document) return;
 
+  /**
+   * Red compartida por los módulos beta (vegetación y combate): eventos propios («x…»)
+   * por la misma cola de eventos fiable que usa el motor (se reenvían hasta que llegan).
+   * Un solo envoltorio por sesión aunque ambos módulos estén activos.
+   */
+  function tmNet() {
+    if (root.__TM_NET__) return root.__TM_NET__;
+    const H = new Map();
+    root.__TM_NET__ = {
+      on(type, fn) { H.set(type, fn); },
+      attach(s) {
+        if (!s || s.__tmNet || typeof s._onEvent !== 'function') return;
+        s.__tmNet = true;
+        const orig = s._onEvent;
+        s._onEvent = function (e, t) {
+          const fn = Array.isArray(t) && typeof t[0] === 'string' && t[0][0] === 'x' ? H.get(t[0]) : null;
+          if (fn) { try { fn(e, t, s); } catch (er) { console.error('Red beta:', er); } return undefined; }
+          return orig.apply(this, arguments);
+        };
+      },
+      send(s, arr) { if (!s || !s.channel || !s.outbox || typeof s.outbox.push !== 'function') return false; s.outbox.push(arr); return true; },
+      online(s) { return !!(s && s.channel); }
+    };
+    return root.__TM_NET__;
+  }
+
   // ════════════════════════════════════════════════════════════════════
   // 4. Pintar las plantas en la zona libre del atlas
   // ════════════════════════════════════════════════════════════════════
@@ -570,6 +596,11 @@
       this.drops = []; this.chips = []; this.gain = {}; this.cuts = 0; this._regT = 0;
       // Trozos vivos (clave «cx,cy») y plantas por clave; lo cortado se recuerda por mundo.
       this.chunks = new Map(); this.byKey = new Map(); this.field = null; this.cutState = new Map(); this.thickets = [];
+      // Cooperativo: lo que corta cada jugador se ve cortado en las pantallas de todos.
+      this.net = tmNet(); this.outCuts = []; this._cutT = 0;
+      this.net.on('xc', (e, t) => this.onRemoteCut(t, null));
+      this.net.on('xr', (e, t) => this.onRemoteCut(t, true));
+      if (app.bus && app.bus.on) app.bus.on('net:player-seen', () => { clearTimeout(this._snapT); this._snapT = setTimeout(() => this.sendSnapshot(), 1500); });
       this.hook();
       root.__TM_VEG__ = this;
     }
@@ -601,6 +632,7 @@
     // ── Simulación (30 Hz fijos) ──
     tick(dt) {
       const a = this.app, s = a.session, av = s && s.avatar;
+      if (s) { this.net.attach(s); this.flushCuts(s, dt); }
       if (!this.on || !av || a.mode !== 'game' || !s.world) return;
       this.sim.center(av.x, av.y);
       const C = this.cfg;
@@ -810,13 +842,50 @@
       return n;
     }
     /** Corta (o hace rebrotar) una planta y lo recuerda aunque el trozo se quite y vuelva. */
-    setCut(p, cut) {
+    setCut(p, cut, remote) {
       const st = this.cuts0();
+      if (cut && !remote) this.outCuts.push(p.key);
       if (cut) {
         st.set(p.key, performance.now() / 1000 + (p.thick ? this.cfg.regrow.thicket : this.cfg.regrow.grass) * (0.8 + Math.random() * 0.4));
         this.cuts++;
       } else { st.delete(p.key); p.hp = shapeOf(p.tpl).hp; }
       this.look(p, cut);
+    }
+    // ════ Cooperativo ════
+    /** Envía los cortes propios en tandas (un evento cada 0,25 s como mucho). */
+    flushCuts(s, dt) {
+      this._cutT -= dt;
+      if (!this.outCuts.length || this._cutT > 0) return;
+      this._cutT = 0.25;
+      if (!this.net.online(s) || !this.app.terrain) { this.outCuts.length = 0; return; }
+      const keys = this.outCuts.splice(0, 20);
+      this.net.send(s, ['xc', this.app.terrain.id].concat(keys));
+    }
+    /** Corte de otro jugador (o foto de lo cortado al entrar): sin recoger nada. */
+    onRemoteCut(t, snap) {
+      const tid = t[1]; if (typeof tid !== 'string' || tid.length > 40) return;
+      if (!this.cutState.has(tid)) this.cutState.set(tid, new Map());
+      const st = this.cutState.get(tid), now = performance.now() / 1000, here = this.app.terrain && this.app.terrain.id === tid;
+      const step = snap ? 2 : 1;
+      for (let i = 2; i < t.length && i < 2 + 48; i += step) {
+        const key = t[i]; if (typeof key !== 'string' || !/^t?-?\d{1,5},-?\d{1,5}$/.test(key)) continue;
+        const thick = key[0] === 't', left = snap ? Math.max(1, Math.min(600, +t[i + 1] || 0)) : (thick ? this.cfg.regrow.thicket : this.cfg.regrow.grass);
+        st.set(key, now + left);
+        const p = here && this.byKey.get(key);
+        if (p && !p.cut) { this.look(p, true); this.burst(p, p.thick ? 10 : 4); }
+      }
+      this.stats.remoteCuts = (this.stats.remoteCuts || 0) + 1;
+    }
+    /** A quien entra se le manda lo que sigue cortado aquí (en tandas pequeñas). */
+    sendSnapshot() {
+      const s = this.app.session, T = this.app.terrain; if (!this.net.online(s) || !T) return;
+      const st = this.cutState.get(T.id); if (!st || !st.size) return;
+      const now = performance.now() / 1000, all = [...st].filter(([, t]) => t > now + 2).slice(-60);
+      for (let i = 0; i < all.length; i += 12) {
+        const ev = ['xr', T.id];
+        for (const [k, t] of all.slice(i, i + 12)) ev.push(k, Math.round(t - now));
+        this.net.send(s, ev);
+      }
     }
     fxMat(kind) {
       const v = this.view; this._fxm = this._fxm || {};
